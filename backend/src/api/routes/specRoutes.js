@@ -1,12 +1,13 @@
 /**
- * API Routes for Spec Generation (Testing Version)
+ * API Routes for Spec Generation
  * 
- * This is a simplified version of the routes for testing the frontend
- * without implementing the full functionality.
+ * This file defines the API endpoints for interacting with the
+ * AI Spec Assistant, using Claude with MCP.
  */
 
 const express = require('express');
 const router = express.Router();
+const { sendMessageToClaudeWithMCP } = require('../../mcp/claudeService');
 
 // Simple in-memory storage for conversation history and files
 // In production, use a database
@@ -32,68 +33,44 @@ router.post('/chat', async (req, res) => {
     // Add user message to history
     conversations[conversationId].push({
       role: 'user',
-      content: message,
-      timestamp: new Date().toISOString()
+      content: message
     });
     
-    // Simple mock response based on message content
-    let response;
-    let toolsUsed = [];
+    // Get files for this conversation
+    const conversationFiles = (uploadedFiles[conversationId] || []).filter(file => 
+      files.includes(file.id)
+    );
     
-    // Check for keywords in the message
-    if (message.toLowerCase().includes('pdf')) {
-      response = "Based on your request about PDF export, I'll help create a specification. I'll start by looking for relevant information in your uploaded files.";
-      
-      // Mock tools used
-      toolsUsed = [
-        { 
-          name: 'searchContext', 
-          input: { query: 'PDF export requirements' },
-          result: {
-            results: [
-              {
-                source: "Legacy Spec.docx",
-                content: "The current export functionality is limited to CSV only. PDF export was planned but not implemented."
-              }
-            ]
-          }
-        },
-        { 
-          name: 'generatePRDSection', 
-          input: { sectionType: 'problem_statement', context: 'PDF export feature' },
-          result: {
-            sectionType: "problem_statement",
-            template: {
-              title: "Problem Statement",
-              description: "Clear description of the problem this feature solves"
-            }
-          }
-        }
-      ];
-      
-      // Add follow-up after "tool usage"
-      response += "\n\nAfter analyzing the context, I've created a draft specification for the PDF export feature. The current system only supports CSV exports, but users need PDF for sharing formatted reports with stakeholders. I've organized the specification into standard PRD sections that outline the requirements, user stories, and success metrics.";
-    } else {
-      response = "I'll help you create a product specification for that request. To get started, could you provide more details about what specific feature or functionality you need specified? Also, if you have any existing documentation or requirements, uploading those files would help me create a more accurate specification.";
+    console.log(`Processing message in conversation ${conversationId} with ${conversationFiles.length} files`);
+    
+    // Send to Claude with MCP
+    const claudeResponse = await sendMessageToClaudeWithMCP(
+      conversations[conversationId],
+      conversationFiles
+    );
+    
+    console.log('Received response from Claude');
+    
+    // Extract the response text
+    let responseText = '';
+    if (claudeResponse.content && claudeResponse.content.length > 0) {
+      if (claudeResponse.content[0].type === 'text') {
+        responseText = claudeResponse.content[0].text;
+      }
     }
     
     // Add assistant response to history
     conversations[conversationId].push({
       role: 'assistant',
-      content: response,
-      timestamp: new Date().toISOString()
+      content: responseText
     });
     
-    // Send response with delay to simulate processing time
-    setTimeout(() => {
-      res.json({
-        conversationId,
-        response: response,
-        meta: {
-          toolsUsed
-        }
-      });
-    }, 1500);
+    // Return response to client
+    res.json({
+      conversationId,
+      response: responseText,
+      meta: claudeResponse.meta || {}
+    });
   } catch (error) {
     console.error('Error in chat endpoint:', error);
     res.status(500).json({ error: error.message });
@@ -131,13 +108,10 @@ router.post('/upload', (req, res) => {
       return processedFile;
     });
     
-    // Simulate processing time
-    setTimeout(() => {
-      res.json({
-        message: `${processedFiles.length} files uploaded successfully`,
-        files: processedFiles
-      });
-    }, 800);
+    res.json({
+      message: `${processedFiles.length} files uploaded successfully`,
+      files: processedFiles
+    });
   } catch (error) {
     console.error('Error in upload endpoint:', error);
     res.status(500).json({ error: error.message });
@@ -150,7 +124,6 @@ router.post('/upload', (req, res) => {
 router.get('/conversation/:conversationId', (req, res) => {
   const { conversationId } = req.params;
   
-  // Create mock conversation if it doesn't exist
   if (!conversations[conversationId]) {
     conversations[conversationId] = [];
   }
