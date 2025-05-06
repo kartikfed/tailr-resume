@@ -1,0 +1,28 @@
+{
+  "name": "frontend",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@chakra-ui/react": "^3.17.0",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "axios": "^1.9.0",
+    "framer-motion": "^12.10.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.5.3"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.4.1",
+    "eslint": "^9.26.0",
+    "prettier": "^3.5.3",
+    "vite": "^6.3.5"
+  }
+}
