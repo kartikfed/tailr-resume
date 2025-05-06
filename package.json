@@ -1,0 +1,23 @@
+{
+  "name": "ai-spec-assistant",
+  "version": "0.1.0",
+  "description": "AI-powered tool to convert product requests into structured specs",
+  "main": "index.js",
+  "scripts": {
+    "start:backend": "cd backend && npm start",
+    "start:frontend": "cd frontend && npm run dev",
+    "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install",
+    "dev": "concurrently \"npm run start:backend\" \"npm run start:frontend\""
+  },
+  "keywords": [
+    "ai",
+    "product-specs",
+    "claude",
+    "mcp"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
