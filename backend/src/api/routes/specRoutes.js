@@ -17,9 +17,6 @@ const uploadedFiles = {};
 /**
  * Start or continue a conversation with AI Spec Assistant
  */
-/**
- * Start or continue a conversation with AI Spec Assistant
- */
 router.post('/chat', async (req, res) => {
     try {
       const { conversationId, message, files = [] } = req.body;
@@ -48,45 +45,85 @@ router.post('/chat', async (req, res) => {
         }))
       );
       
-      // Check if the message is asking about file content and force a search
-      const fileContentKeywords = ['secret', 'code', 'file', 'uploaded', 'document', 'content'];
-      const isAskingAboutFileContent = fileContentKeywords.some(keyword => 
-        message.toLowerCase().includes(keyword)
-      );
-      
       let finalMessage = message;
       let contextAdded = false;
       
-      if (isAskingAboutFileContent && conversationFiles.length > 0) {
-        console.log('Backend Chat: Message appears to be about file content, forcing search');
+      // If we have files, always include their content as context
+      if (conversationFiles.length > 0) {
+        console.log('Backend Chat: Files available, adding full content as context');
         
-        // Pre-search the files for relevant content
-        const searchQuery = message.toLowerCase().includes('secret') ? 'secret code' : 
-                           message.toLowerCase().includes('requirement') ? 'requirement' :
-                           'content';
+        // Extract keywords from the user's message for better searching
+        const messageWords = message.toLowerCase().split(/\s+/);
+        const searchQueries = [];
         
-        // Manually call the search tool first
+        // Add specific search terms based on message content
+        if (messageWords.some(word => ['pdf', 'export', 'button'].includes(word))) {
+          searchQueries.push('pdf export');
+          searchQueries.push('pdf');
+          searchQueries.push('export');
+          searchQueries.push('button');
+        }
+        if (messageWords.some(word => ['spec', 'specification', 'requirement', 'feature'].includes(word))) {
+          searchQueries.push('requirement');
+          searchQueries.push('feature');
+          searchQueries.push('spec');
+        }
+        if (messageWords.some(word => ['secret', 'code', 'label'].includes(word))) {
+          searchQueries.push('secret code');
+          searchQueries.push('code');
+          searchQueries.push('label');
+        }
+        
+        // If no specific queries, use the whole message or fallback terms
+        if (searchQueries.length === 0) {
+          searchQueries.push(message);
+          searchQueries.push('content');
+        }
+        
+        // Try multiple search queries until we find results
         const { searchContext } = require('../../tools/toolHandlers');
-        const searchResult = await searchContext({ query: searchQuery }, { files: conversationFiles });
+        let allResults = [];
         
-        console.log('Backend Chat: Search result:', searchResult);
-        
-        // If we found relevant content, add it to the message context
-        if (searchResult.results && searchResult.results.length > 0) {
-          const contextInfo = searchResult.results.map(r => 
-            `From file "${r.source}": ${r.content}`
-          ).join('\n\n');
+        for (const query of searchQueries) {
+          console.log(`Backend Chat: Searching with query: "${query}"`);
+          const searchResult = await searchContext({ query, maxResults: 2 }, { files: conversationFiles });
           
-          // Modify the user's message to include the found context
+          if (searchResult.results && searchResult.results.length > 0) {
+            allResults = [...allResults, ...searchResult.results];
+            console.log(`Backend Chat: Found ${searchResult.results.length} results for "${query}"`);
+          }
+        }
+        
+        // If we still have no results, include the full file content
+        if (allResults.length === 0) {
+          console.log('Backend Chat: No search results found, including full file content');
+          allResults = conversationFiles.map(file => ({
+            source: file.name,
+            content: file.content,
+            fileId: file.id
+          }));
+        }
+        
+        // Remove duplicates and format context
+        const uniqueResults = allResults.filter((result, index, self) =>
+          index === self.findIndex(r => r.source === result.source && r.content === result.content)
+        );
+        
+        if (uniqueResults.length > 0) {
+          const contextInfo = uniqueResults.map(r => 
+            `From file "${r.source}":\n${r.content}`
+          ).join('\n\n---\n\n');
+          
           finalMessage = `${message}
   
   CONTEXT FROM UPLOADED FILES:
   ${contextInfo}
   
-  Please provide an answer based on this context.`;
+  Please use this context to provide a comprehensive and accurate response.`;
           
           contextAdded = true;
           console.log('Backend Chat: Enhanced message with context created');
+          console.log(`Backend Chat: Added context from ${uniqueResults.length} source(s)`);
         }
       }
       
@@ -96,10 +133,9 @@ router.post('/chat', async (req, res) => {
         content: finalMessage
       });
       
-      // Since we've already searched and added context, don't pass files to Claude
       console.log(`Backend Chat: Sending enhanced message to Claude${contextAdded ? ' (with context)' : ''}`);
       
-      // Send to Claude with MCP - pass empty files array since we've already searched
+      // Send to Claude with MCP - pass empty files array since we've included context in message
       const claudeResponse = await sendMessageToClaudeWithMCP(
         conversations[conversationId],
         []  // No files needed - context is in the message
@@ -131,8 +167,9 @@ router.post('/chat', async (req, res) => {
         response: responseText,
         meta: { 
           ...(claudeResponse.meta || {}),
-          preSearched: contextAdded,
-          searchUsed: contextAdded
+          contextAdded,
+          filesUsed: conversationFiles.length,
+          searchQueriesUsed: contextAdded
         }
       });
     } catch (error) {

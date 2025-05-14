@@ -28,19 +28,18 @@ async function searchContext(input, context) {
       };
     }
     
-    // Search through file content
+    // Search through file content with multiple strategies
     const results = [];
     
     for (const file of files) {
       console.log(`Examining file: ${file.name}, has content: ${Boolean(file.content)}`);
       
       if (file.content) {
-        // Simple keyword search in content
         const lowerContent = file.content.toLowerCase();
         const lowerQuery = query.toLowerCase();
         
+        // Strategy 1: Exact phrase match
         if (lowerContent.includes(lowerQuery)) {
-          // Extract relevant snippet around the match
           const matchIndex = lowerContent.indexOf(lowerQuery);
           const start = Math.max(0, matchIndex - 100);
           const end = Math.min(file.content.length, matchIndex + query.length + 100);
@@ -49,17 +48,58 @@ async function searchContext(input, context) {
           results.push({
             source: file.name,
             content: snippet,
-            fileId: file.id
+            fileId: file.id,
+            matchType: 'exact'
           });
           
-          console.log(`Found match in file: ${file.name}`);
-        } else {
-          console.log(`No match found in file: ${file.name}`);
+          console.log(`Found exact match in file: ${file.name}`);
+          continue;
+        }
+        
+        // Strategy 2: Individual word matches
+        const queryWords = lowerQuery.split(/\s+/).filter(word => word.length > 2);
+        const matchedWords = queryWords.filter(word => lowerContent.includes(word));
+        
+        if (matchedWords.length > 0) {
+          // Find the best section that contains the most matched words
+          const sentences = file.content.split(/[.!?]+/);
+          let bestSentence = '';
+          let maxMatches = 0;
+          
+          for (const sentence of sentences) {
+            const sentenceLower = sentence.toLowerCase();
+            const matches = matchedWords.filter(word => sentenceLower.includes(word)).length;
+            if (matches > maxMatches) {
+              maxMatches = matches;
+              bestSentence = sentence.trim();
+            }
+          }
+          
+          if (bestSentence) {
+            results.push({
+              source: file.name,
+              content: bestSentence,
+              fileId: file.id,
+              matchType: 'partial',
+              wordsMatched: matchedWords.length,
+              totalWords: queryWords.length
+            });
+            
+            console.log(`Found partial match in file: ${file.name} (${matchedWords.length}/${queryWords.length} words)`);
+          }
         }
       } else {
         console.log(`File ${file.name} has no content to search`);
       }
     }
+    
+    // Sort results by relevance (exact matches first, then by number of word matches)
+    results.sort((a, b) => {
+      if (a.matchType === 'exact' && b.matchType !== 'exact') return -1;
+      if (a.matchType !== 'exact' && b.matchType === 'exact') return 1;
+      if (a.wordsMatched && b.wordsMatched) return b.wordsMatched - a.wordsMatched;
+      return 0;
+    });
     
     console.log(`Search results: ${results.length} matches found`);
     
