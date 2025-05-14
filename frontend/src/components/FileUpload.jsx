@@ -35,24 +35,31 @@ const FileUpload = ({ onFilesUploaded, isLoading, conversationId }) => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       
-      reader.onload = function(event) {
-        const content = event.target.result;
-        console.log(`Frontend: Successfully read file ${file.name}:`, {
-          type: file.type,
-          size: file.size,
-          contentLength: content.length,
-          contentPreview: content.substring(0, 100) + '...'
-        });
-        resolve(content);
-      };
-      
       reader.onerror = function(error) {
         console.error(`Frontend: Error reading file ${file.name}:`, error);
         reject(error);
       };
-      
-      // Read the file as text
-      reader.readAsText(file);
+
+      if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+        // Read PDF as ArrayBuffer and encode as base64
+        reader.onload = function(event) {
+          const arrayBuffer = event.target.result;
+          // Convert ArrayBuffer to base64
+          const base64String = btoa(
+            new Uint8Array(arrayBuffer)
+              .reduce((data, byte) => data + String.fromCharCode(byte), '')
+          );
+          resolve(base64String);
+        };
+        reader.readAsArrayBuffer(file);
+      } else {
+        // Read as text for other file types
+        reader.onload = function(event) {
+          const content = event.target.result;
+          resolve(content);
+        };
+        reader.readAsText(file);
+      }
     });
   };
 
@@ -72,7 +79,8 @@ const FileUpload = ({ onFilesUploaded, isLoading, conversationId }) => {
             name: file.name,
             type: file.type,
             size: file.size,
-            content: content
+            content: content,
+            isPdf: file.type === 'application/pdf' || file.name.endsWith('.pdf')
           };
         } catch (error) {
           console.error(`Frontend: Failed to read file ${file.name}:`, error);
@@ -128,7 +136,7 @@ const FileUpload = ({ onFilesUploaded, isLoading, conversationId }) => {
         display="none"
         id="file-upload"
         isDisabled={isLoading || isUploading}
-        accept=".txt,.md,.doc,.docx,text/*"
+        accept=".txt,.md,.doc,.docx,.pdf,application/pdf,text/*"
       />
       <Flex direction="column" gap={3}>
         <label htmlFor="file-upload">

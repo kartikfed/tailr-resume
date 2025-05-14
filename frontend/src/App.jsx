@@ -330,99 +330,117 @@ Please use this job description to tailor the resume content accordingly, ensuri
           </Container>
         </Box>
 
-        {/* Job Description Input Section */}
-        <Box bg={bgColor} borderBottom="1px solid" borderColor={borderColor} p={4}>
-          <Container maxW="container.xl">
-            <VStack spacing={3} align="stretch">
-              <Flex align="center" justify="space-between">
-                <Heading size="sm">Job Description</Heading>
-                {jobDescriptionSaved && (
-                  <Badge colorScheme="green" px={2} py={1}>
-                    ✓ Saved as Context
-                  </Badge>
-                )}
-              </Flex>
-              <Textarea
-                placeholder="Paste the job description here to tailor your resume to this specific role..."
-                value={jobDescription}
-                onChange={(e) => setJobDescription(e.target.value)}
-                rows={4}
-                bg="white"
-                resize="vertical"
-                _focus={{ borderColor: "blue.400", boxShadow: "0 0 0 1px #3182ce" }}
-              />
-              <Flex gap={2}>
+        {/* Job Description Input Section (now compact) */}
+        <Box bg={bgColor} borderBottom="1px solid" borderColor={borderColor} p={2}>
+          <Container maxW="container.xl" py={1} px={0}>
+            <Flex align="center" justify="space-between">
+              <Heading size="xs" minW="120px">Job Description</Heading>
+              {jobDescriptionSaved && (
+                <Badge colorScheme="green" px={2} py={0.5} fontSize="xs">
+                  ✓ Saved as Context
+                </Badge>
+              )}
+            </Flex>
+            <Textarea
+              placeholder="Paste job description..."
+              value={jobDescription}
+              onChange={(e) => setJobDescription(e.target.value)}
+              rows={2}
+              fontSize="sm"
+              bg="white"
+              resize="vertical"
+              mt={1}
+              mb={1}
+              p={2}
+              _focus={{ borderColor: "blue.400", boxShadow: "0 0 0 1px #3182ce" }}
+            />
+            <Flex gap={2} mb={1}>
+              <Button
+                colorScheme="blue"
+                size="xs"
+                onClick={handleSaveJobDescription}
+                isDisabled={!jobDescription.trim() || jobDescriptionSaved}
+              >
+                {jobDescriptionSaved ? 'Saved' : 'Save'}
+              </Button>
+              {jobDescription.trim() && (
                 <Button
-                  colorScheme="blue"
-                  size="sm"
-                  onClick={handleSaveJobDescription}
-                  isDisabled={!jobDescription.trim() || jobDescriptionSaved}
+                  variant="outline"
+                  size="xs"
+                  onClick={handleClearJobDescription}
                 >
-                  {jobDescriptionSaved ? 'Saved' : 'Save Job Description'}
+                  Clear
                 </Button>
-                {jobDescription.trim() && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleClearJobDescription}
-                  >
-                    Clear
-                  </Button>
-                )}
-              </Flex>
-            </VStack>
+              )}
+            </Flex>
           </Container>
         </Box>
 
-        {/* Main Content */}
+        {/* Main Content - Responsive Flex Layout */}
         <Box flex="1" overflow="hidden">
           <Container maxW="container.xl" h="100%" p={0}>
-            <HStack spacing={0} h="100%" align="stretch">
-              {/* Left Side - Chat */}
-              <Box 
-                w="50%" 
-                h="100%" 
-                bg="white" 
-                borderRight="1px solid" 
+            <Flex
+              direction={{ base: 'column', md: 'row' }}
+              h="100%"
+              align="stretch"
+              gap={{ base: 4, md: 0 }}
+            >
+              {/* Chat Pane (Left, 35% on desktop) */}
+              <Box
+                w={{ base: '100%', md: '35%' }}
+                minW={{ md: '320px' }}
+                maxW={{ md: '420px' }}
+                h={{ base: 'auto', md: '100%' }}
+                bg="white"
+                borderRight={{ md: '1px solid' }}
                 borderColor={borderColor}
                 display="flex"
                 flexDirection="column"
+                mb={{ base: 2, md: 0 }}
+                zIndex={1}
               >
-                <Box p={4} borderBottom="1px solid" borderColor="gray.100">
-                  <Heading size="md" mb={4}>Conversation</Heading>
-                  <FileUpload 
-                    onFilesUploaded={handleFilesUploaded} 
+                {/* File upload and chat history */}
+                <Box p={3} borderBottom="1px solid" borderColor="gray.100">
+                  <Heading size="sm" mb={2}>Conversation</Heading>
+                  <FileUpload
+                    onFilesUploaded={handleFilesUploaded}
                     isLoading={isLoading}
                     conversationId={conversationId}
                   />
                 </Box>
-                
                 <VStack flex="1" spacing={0} align="stretch" overflow="hidden">
-                  <Box 
-                    flex="1"
-                    overflow="auto"
-                    p={4}
-                  >
+                  <Box flex="1" overflow="auto" p={3}>
                     <MessageHistory messages={messages} />
                   </Box>
-                  
-                  <Box p={4} borderTop="1px solid" borderColor="gray.100">
-                    <ChatInput 
-                      onSendMessage={handleSendMessage} 
-                      isLoading={isLoading} 
+                  <Box p={3} borderTop="1px solid" borderColor="gray.100">
+                    <ChatInput
+                      onSendMessage={handleSendMessage}
+                      isLoading={isLoading}
                     />
                   </Box>
                 </VStack>
               </Box>
 
-              {/* Right Side - Resume Canvas */}
-              <Box w="50%" h="100%" bg="gray.50" p={4}>
-                <SpecCanvas 
+              {/* Canvas (Right, 65% on desktop, prominent) */}
+              <Box
+                w={{ base: '100%', md: '65%' }}
+                h={{ base: 'auto', md: '100%' }}
+                bg="gray.50"
+                p={{ base: 2, md: 6 }}
+                display="flex"
+                flexDirection="column"
+                justifyContent="flex-start"
+                alignItems="stretch"
+                overflow="auto"
+                zIndex={0}
+              >
+                {/* Resume Canvas is now visually dominant */}
+                <SpecCanvas
                   content={canvasContent}
                   title="Generated Resume"
                 />
               </Box>
-            </HStack>
+            </Flex>
           </Container>
         </Box>
       </Box>

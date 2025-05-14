@@ -8,6 +8,7 @@
 const express = require('express');
 const router = express.Router();
 const { sendMessageToClaudeWithMCP } = require('../../mcp/claudeService');
+const { extractPdfText } = require('../../../utils/pdfExtract');
 
 // Simple in-memory storage for conversation history and files
 // In production, use a database
@@ -200,7 +201,7 @@ router.post('/chat', async (req, res) => {
 /**
  * Upload files for context
  */
-router.post('/upload', (req, res) => {
+router.post('/upload', async (req, res) => {
     try {
       const { conversationId, files } = req.body;
       
@@ -219,40 +220,31 @@ router.post('/upload', (req, res) => {
         uploadedFiles[conversationId] = [];
       }
       
-      // Add file metadata to the conversation
-      const processedFiles = files.map((fileData, index) => {
-        console.log(`Backend: Raw file data ${index + 1}:`, {
-          keys: Object.keys(fileData),
-          name: fileData.name,
-          type: fileData.type,
-          size: fileData.size,
-          hasContentProperty: 'content' in fileData,
-          contentType: typeof fileData.content,
-          contentLength: fileData.content ? fileData.content.length : 0,
-          contentPreview: fileData.content ? 
-            fileData.content.substring(0, 50) + '...' : 
-            'No content property or empty'
-        });
-        
+      // Process files asynchronously for PDF extraction
+      const processedFiles = await Promise.all(files.map(async (fileData, index) => {
         const fileId = `file-${Date.now()}-${index}`;
+        let fileContent = fileData.content || '';
+        // If PDF, extract text
+        if (fileData.isPdf) {
+          try {
+            fileContent = await extractPdfText(fileData.content);
+          } catch (err) {
+            console.error(`Backend: Failed to extract text from PDF ${fileData.name}:`, err);
+            fileContent = '';
+          }
+        }
         const processedFile = {
           id: fileId,
           name: fileData.name,
           type: fileData.type,
           size: fileData.size,
-          content: fileData.content || '', // Ensure content property exists
+          content: fileContent,
           uploadedAt: new Date().toISOString()
         };
-        
-        console.log(`Backend: Processed file ${fileId}:`, {
-          name: processedFile.name,
-          hasContent: Boolean(processedFile.content),
-          contentLength: processedFile.content ? processedFile.content.length : 0
-        });
-        
+        uploadedFiles[conversationId] = uploadedFiles[conversationId] || [];
         uploadedFiles[conversationId].push(processedFile);
         return processedFile;
-      });
+      }));
       
       console.log(`Backend: Total files stored for conversation ${conversationId}: ${uploadedFiles[conversationId].length}`);
       console.log('Backend: Stored files with content check:', 
