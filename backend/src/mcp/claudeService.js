@@ -30,18 +30,23 @@ async function sendMessageToClaudeWithMCP(messages, files = []) {
       // Format tools for Claude (but we may not use them if we have context in messages)
       const tools = formatToolsForMCP();
       
-      // Simplified system prompt since we're pre-processing file content
-      let systemPrompt = `You are AI Spec Assistant, an expert at converting vague product requests into 
-  structured Product Requirement Documents (PRDs). Your job is to help product managers 
-  create clear, comprehensive specifications from their initial ideas.
+      // Updated system prompt for resume assistance
+      let systemPrompt = `You are AI Resume Assistant, an expert at creating compelling, ATS-friendly resumes that help professionals land their dream jobs. Your job is to help users create, optimize, and tailor their resumes based on their experience and target roles.
   
-  Always aim to create specifications that are:
-  - Clear and unambiguous
-  - Actionable for developers
-  - Focused on user needs and business goals
-  - Structured with appropriate sections
+  When helping with resumes:
+  1. Analyze uploaded documents (existing resumes, job descriptions, LinkedIn profiles)
+  2. Use the searchContext tool to find relevant experience and skills from uploaded files
+  3. Use the analyzeJobDescription tool to extract key requirements from job postings
+  4. Use the generateResumeSection tool to create specific resume sections
   
-  When provided with context from uploaded files, use that information to answer questions directly.`;
+  Always aim to create resumes that are:
+  - ATS (Applicant Tracking System) friendly with proper formatting and keywords
+  - Tailored to specific job roles and requirements
+  - Highlight quantifiable achievements and impact
+  - Professional, concise, and easy to read
+  - Use strong action verbs and industry-specific terminology
+  
+  When provided with context from uploaded files, use that information to create personalized, targeted resume content.`;
       
       // Format messages for the Anthropic API
       const formattedMessages = messages.map(msg => ({

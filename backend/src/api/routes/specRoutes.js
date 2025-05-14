@@ -15,7 +15,7 @@ const conversations = {};
 const uploadedFiles = {};
 
 /**
- * Start or continue a conversation with AI Spec Assistant
+ * Start or continue a conversation with AI Resume Assistant
  */
 router.post('/chat', async (req, res) => {
     try {
@@ -50,34 +50,44 @@ router.post('/chat', async (req, res) => {
       
       // If we have files, always include their content as context
       if (conversationFiles.length > 0) {
-        console.log('Backend Chat: Files available, adding full content as context');
+        console.log('Backend Chat: Files available, adding resume-focused context');
         
-        // Extract keywords from the user's message for better searching
+        // Extract resume-related keywords from the user's message
         const messageWords = message.toLowerCase().split(/\s+/);
         const searchQueries = [];
         
-        // Add specific search terms based on message content
-        if (messageWords.some(word => ['pdf', 'export', 'button'].includes(word))) {
-          searchQueries.push('pdf export');
-          searchQueries.push('pdf');
-          searchQueries.push('export');
-          searchQueries.push('button');
+        // Resume-specific search terms
+        if (messageWords.some(word => ['resume', 'cv', 'experience', 'work'].includes(word))) {
+          searchQueries.push('work experience');
+          searchQueries.push('experience');
+          searchQueries.push('employment');
         }
-        if (messageWords.some(word => ['spec', 'specification', 'requirement', 'feature'].includes(word))) {
-          searchQueries.push('requirement');
-          searchQueries.push('feature');
-          searchQueries.push('spec');
+        if (messageWords.some(word => ['job', 'position', 'role', 'posting'].includes(word))) {
+          searchQueries.push('job requirements');
+          searchQueries.push('qualifications');
+          searchQueries.push('responsibilities');
         }
-        if (messageWords.some(word => ['secret', 'code', 'label'].includes(word))) {
-          searchQueries.push('secret code');
-          searchQueries.push('code');
-          searchQueries.push('label');
+        if (messageWords.some(word => ['skills', 'technical', 'abilities'].includes(word))) {
+          searchQueries.push('skills');
+          searchQueries.push('technical skills');
+          searchQueries.push('capabilities');
+        }
+        if (messageWords.some(word => ['education', 'degree', 'certification'].includes(word))) {
+          searchQueries.push('education');
+          searchQueries.push('degree');
+          searchQueries.push('certification');
+        }
+        if (messageWords.some(word => ['create', 'generate', 'write', 'build'].includes(word))) {
+          searchQueries.push('resume');
+          searchQueries.push('experience');
+          searchQueries.push('skills');
         }
         
-        // If no specific queries, use the whole message or fallback terms
+        // If no specific queries, use generic resume terms
         if (searchQueries.length === 0) {
           searchQueries.push(message);
-          searchQueries.push('content');
+          searchQueries.push('experience');
+          searchQueries.push('skills');
         }
         
         // Try multiple search queries until we find results
@@ -86,7 +96,7 @@ router.post('/chat', async (req, res) => {
         
         for (const query of searchQueries) {
           console.log(`Backend Chat: Searching with query: "${query}"`);
-          const searchResult = await searchContext({ query, maxResults: 2 }, { files: conversationFiles });
+          const searchResult = await searchContext({ query, maxResults: 3 }, { files: conversationFiles });
           
           if (searchResult.results && searchResult.results.length > 0) {
             allResults = [...allResults, ...searchResult.results];
@@ -111,7 +121,7 @@ router.post('/chat', async (req, res) => {
         
         if (uniqueResults.length > 0) {
           const contextInfo = uniqueResults.map(r => 
-            `From file "${r.source}":\n${r.content}`
+            `From "${r.source}":\n${r.content}`
           ).join('\n\n---\n\n');
           
           finalMessage = `${message}
@@ -119,10 +129,10 @@ router.post('/chat', async (req, res) => {
   CONTEXT FROM UPLOADED FILES:
   ${contextInfo}
   
-  Please use this context to provide a comprehensive and accurate response.`;
+  Please use this context to create professional, ATS-friendly resume content that matches the requirements and highlights relevant experience.`;
           
           contextAdded = true;
-          console.log('Backend Chat: Enhanced message with context created');
+          console.log('Backend Chat: Enhanced message with resume context created');
           console.log(`Backend Chat: Added context from ${uniqueResults.length} source(s)`);
         }
       }
@@ -169,7 +179,7 @@ router.post('/chat', async (req, res) => {
           ...(claudeResponse.meta || {}),
           contextAdded,
           filesUsed: conversationFiles.length,
-          searchQueriesUsed: contextAdded
+          resumeFocused: true
         }
       });
     } catch (error) {

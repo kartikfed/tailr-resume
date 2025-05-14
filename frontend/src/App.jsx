@@ -10,7 +10,11 @@ import {
   Divider,
   useToast,
   Flex,
-  Spacer
+  Spacer,
+  Textarea,
+  Button,
+  useColorModeValue,
+  Badge
 } from '@chakra-ui/react';
 import { sendMessage, uploadFiles, getConversation } from './services/apiService';
 
@@ -26,9 +30,16 @@ function App() {
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [generatedSpec, setGeneratedSpec] = useState(null);
   const [conversationId, setConversationId] = useState(`conv-${Date.now()}`);
+  // New state for job description
+  const [jobDescription, setJobDescription] = useState('');
+  const [jobDescriptionSaved, setJobDescriptionSaved] = useState(false);
   // New state for the canvas content
   const [canvasContent, setCanvasContent] = useState(null);
   const toast = useToast();
+  
+  // Color mode values for styling
+  const bgColor = useColorModeValue('gray.50', 'gray.800');
+  const borderColor = useColorModeValue('gray.200', 'gray.600');
   
   // Load existing conversation if available
   useEffect(() => {
@@ -67,32 +78,140 @@ function App() {
     loadConversation();
   }, [toast]);
 
-  // Function to check if a message contains a specification
-  const extractSpecFromMessage = (content) => {
-    // Look for specification-like content
-    // You can customize this logic based on how you want to detect specs
-    const specKeywords = [
-      'product requirement document',
-      'prd',
-      'specification',
-      'requirements document',
-      'functional requirements',
-      'user stories',
-      'objectives'
+  // Function to save job description
+  const handleSaveJobDescription = () => {
+    if (jobDescription.trim()) {
+      setJobDescriptionSaved(true);
+      toast({
+        title: 'Job description saved',
+        description: 'This job description will be used as context for all resume generation.',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
+  // Function to clear job description
+  const handleClearJobDescription = () => {
+    setJobDescription('');
+    setJobDescriptionSaved(false);
+    toast({
+      title: 'Job description cleared',
+      status: 'info',
+      duration: 2000,
+      isClosable: true,
+    });
+  };
+
+  // Function to extract pure resume content from Claude's response
+  const extractResumeFromMessage = (content) => {
+    // First, try to find the actual resume content by looking for common patterns
+    
+    // Strategy 1: Look for content between introduction and explanation
+    // Find where the actual resume starts (after introductory text)
+    const resumeStartPatterns = [
+      /(?:here is|here's) a (?:tailored )?resume[^:]*:\s*/i,
+      /(?:below is|following is) (?:the )?resume[^:]*:\s*/i,
+      /resume for[^:]*:\s*/i,
+      /^[A-Z][a-z]+ [A-Z][a-z]+\s*$/m, // Name pattern (like "John Smith")
+      /^[A-Z][a-z]+ [A-Z][a-z]+\s+Software Engineer/m // Name + title pattern
     ];
     
-    const lowerContent = content.toLowerCase();
-    const containsSpecKeywords = specKeywords.some(keyword => 
-      lowerContent.includes(keyword)
+    // Find where the resume content starts
+    let resumeStart = 0;
+    for (const pattern of resumeStartPatterns) {
+      const match = content.match(pattern);
+      if (match) {
+        resumeStart = match.index + match[0].length;
+        break;
+      }
+    }
+    
+    // Strategy 2: Look for where the explanation/analysis begins
+    const explanationStartPatterns = [
+      /This resume (?:is tailored|highlights)/i,
+      /The resume (?:uses|highlights|focuses)/i,
+      /(?:^|\n)(?:This|The) (?:approach|resume|targeted approach)/i,
+      /(?:^|\n)Key highlights/i,
+      /(?:^|\n)The (?:skills|work experience|education)/i
+    ];
+    
+    // Find where the explanation starts (end of resume)
+    let resumeEnd = content.length;
+    for (const pattern of explanationStartPatterns) {
+      const match = content.slice(resumeStart).match(pattern);
+      if (match) {
+        resumeEnd = resumeStart + match.index;
+        break;
+      }
+    }
+    
+    // Extract the resume content
+    let resumeContent = content.slice(resumeStart, resumeEnd).trim();
+    
+    // Strategy 3: Clean up any remaining conversational bits
+    // Remove any lines that are clearly explanatory
+    const linesToRemove = [
+      /^This resume.*/i,
+      /^The resume.*/i,
+      /^Key highlights.*/i,
+      /^This targeted approach.*/i,
+      /^(?:This|The) (?:approach|content|structure).*/i
+    ];
+    
+    const lines = resumeContent.split('\n');
+    const cleanedLines = lines.filter(line => {
+      return !linesToRemove.some(pattern => pattern.test(line.trim()));
+    });
+    
+    resumeContent = cleanedLines.join('\n').trim();
+    
+    // Strategy 4: Verify this looks like actual resume content
+    const resumeIndicators = [
+      /^[A-Z][a-z]+ [A-Z][a-z]+/m, // Name
+      /(?:Professional Summary|Summary|Experience|Education|Skills)/i,
+      /@[\w.-]+\.[a-z]{2,}/i, // Email
+      /\d{3}[-.]?\d{3}[-.]?\d{4}/, // Phone
+      /\b\d+\+ years? of experience\b/i,
+      /^[•\-*]\s+/m // Bullet points
+    ];
+    
+    const hasResumeIndicators = resumeIndicators.some(pattern => 
+      pattern.test(resumeContent)
     );
     
-    // Also check for structured content (numbered sections)
-    const hasStructuredContent = /^\d+\.\s+/.test(content) || 
-                                content.includes('## ') || 
-                                content.includes('### ');
-    
-    if (containsSpecKeywords || hasStructuredContent) {
-      return content;
+    // Only return content if it looks like a resume and has substantial content
+    if (hasResumeIndicators && resumeContent.length > 100) {
+      // Format the content for better display
+      let formatted = resumeContent;
+      
+      // Convert resume sections to markdown headers if they aren't already
+      if (!formatted.includes('##')) {
+        formatted = formatted.replace(/^(Professional Summary|Summary|Objective)$/gmi, '## $1');
+        formatted = formatted.replace(/^(Work Experience|Experience|Employment History|Professional Experience)$/gmi, '## $1');
+        formatted = formatted.replace(/^(Technical Skills|Skills|Core Competencies)$/gmi, '## $1');
+        formatted = formatted.replace(/^(Education|Academic Background)$/gmi, '## $1');
+        formatted = formatted.replace(/^(Projects|Key Projects)$/gmi, '## $1');
+        formatted = formatted.replace(/^(Certifications|Licenses)$/gmi, '## $1');
+      }
+      
+      // Convert job titles and companies to subheaders
+      formatted = formatted.replace(/^([A-Z][^|\n]+)\s*\|\s*([^|\n]+)\s*\|\s*([^|\n]+)$/gmi, '### $1\n**$2** | $3');
+      
+      // Ensure bullet points are properly formatted
+      formatted = formatted.replace(/^[-•*]\s+/gm, '- ');
+      
+      // Clean up any bold markers that might be misplaced
+      formatted = formatted.replace(/\*\*(.*?)\*\*/g, '**$1**');
+      
+      // Add proper spacing between sections
+      formatted = formatted.replace(/^## /gm, '\n## ');
+      
+      // Clean up excessive whitespace
+      formatted = formatted.replace(/\n{3,}/g, '\n\n');
+      
+      return formatted.trim();
     }
     
     return null;
@@ -104,7 +223,18 @@ function App() {
 
     setIsLoading(true);
 
-    // Add user message to the conversation
+    // Add job description context to the message if available
+    let enhancedMessage = message;
+    if (jobDescriptionSaved && jobDescription.trim()) {
+      enhancedMessage = `${message}
+
+JOB DESCRIPTION CONTEXT:
+${jobDescription}
+
+Please use this job description to tailor the resume content accordingly, ensuring it includes relevant keywords and matches the job requirements.`;
+    }
+
+    // Add user message to the conversation (store the original message, not the enhanced one)
     const userMessage = {
       role: 'user',
       content: message,
@@ -114,10 +244,10 @@ function App() {
     setMessages(prev => [...prev, userMessage]);
 
     try {
-      // Call the API service to send the message
+      // Call the API service with the enhanced message
       const response = await sendMessage(
         conversationId, 
-        message, 
+        enhancedMessage, 
         uploadedFiles.map(file => file.id)
       );
       
@@ -132,17 +262,27 @@ function App() {
       // Add assistant response to the conversation
       setMessages(prev => [...prev, assistantMessage]);
       
-      // Check if the response contains a specification and update canvas
-      const specContent = extractSpecFromMessage(response.response);
-      if (specContent) {
-        setCanvasContent(specContent);
+      // Check if the response contains resume content and update canvas
+      console.log('Checking for resume content in response...');
+      const resumeContent = extractResumeFromMessage(response.response);
+      
+      if (resumeContent) {
+        console.log('Resume content detected, updating canvas');
+        setCanvasContent(resumeContent);
         
         // Also update the old spec display for backwards compatibility
         setGeneratedSpec({
-          title: "Generated Specification",
+          title: "Generated Resume",
           status: "Draft",
-          content: specContent
+          content: resumeContent
         });
+      } else {
+        console.log('No resume content detected');
+        // Still try to detect any structured content
+        if (response.response.includes('##') || response.response.includes('###')) {
+          console.log('Found structured content, updating canvas anyway');
+          setCanvasContent(response.response);
+        }
       }
     
       setIsLoading(false);
@@ -171,13 +311,13 @@ function App() {
     <ChakraProvider>
       <Box h="100vh" display="flex" flexDirection="column">
         {/* Header */}
-        <Box bg="white" borderBottom="1px solid" borderColor="gray.200" p={4}>
+        <Box bg="white" borderBottom="1px solid" borderColor={borderColor} p={4}>
           <Container maxW="container.xl">
             <Flex align="center">
               <VStack align="start" spacing={1}>
-                <Heading as="h1" size="lg">AI Spec Assistant</Heading>
+                <Heading as="h1" size="lg">AI Resume Assistant</Heading>
                 <Text fontSize="sm" color="gray.600">
-                  Turn vague product requests into structured specifications
+                  Create tailored, ATS-friendly resumes for specific job applications
                 </Text>
               </VStack>
               <Spacer />
@@ -187,6 +327,50 @@ function App() {
                 </Text>
               )}
             </Flex>
+          </Container>
+        </Box>
+
+        {/* Job Description Input Section */}
+        <Box bg={bgColor} borderBottom="1px solid" borderColor={borderColor} p={4}>
+          <Container maxW="container.xl">
+            <VStack spacing={3} align="stretch">
+              <Flex align="center" justify="space-between">
+                <Heading size="sm">Job Description</Heading>
+                {jobDescriptionSaved && (
+                  <Badge colorScheme="green" px={2} py={1}>
+                    ✓ Saved as Context
+                  </Badge>
+                )}
+              </Flex>
+              <Textarea
+                placeholder="Paste the job description here to tailor your resume to this specific role..."
+                value={jobDescription}
+                onChange={(e) => setJobDescription(e.target.value)}
+                rows={4}
+                bg="white"
+                resize="vertical"
+                _focus={{ borderColor: "blue.400", boxShadow: "0 0 0 1px #3182ce" }}
+              />
+              <Flex gap={2}>
+                <Button
+                  colorScheme="blue"
+                  size="sm"
+                  onClick={handleSaveJobDescription}
+                  isDisabled={!jobDescription.trim() || jobDescriptionSaved}
+                >
+                  {jobDescriptionSaved ? 'Saved' : 'Save Job Description'}
+                </Button>
+                {jobDescription.trim() && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleClearJobDescription}
+                  >
+                    Clear
+                  </Button>
+                )}
+              </Flex>
+            </VStack>
           </Container>
         </Box>
 
@@ -200,7 +384,7 @@ function App() {
                 h="100%" 
                 bg="white" 
                 borderRight="1px solid" 
-                borderColor="gray.200"
+                borderColor={borderColor}
                 display="flex"
                 flexDirection="column"
               >
@@ -231,11 +415,11 @@ function App() {
                 </VStack>
               </Box>
 
-              {/* Right Side - Spec Canvas */}
+              {/* Right Side - Resume Canvas */}
               <Box w="50%" h="100%" bg="gray.50" p={4}>
                 <SpecCanvas 
                   content={canvasContent}
-                  title="Generated Specification"
+                  title="Generated Resume"
                 />
               </Box>
             </HStack>

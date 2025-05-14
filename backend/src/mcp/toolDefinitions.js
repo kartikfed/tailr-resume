@@ -1,22 +1,22 @@
 /**
- * MCP Tool Definitions for AI Spec Assistant
+ * MCP Tool Definitions for AI Resume Assistant
  * 
- * This file defines the tools that Claude can use through Model Context Protocol.
- * Each tool has a name, description, and parameters schema.
+ * This file defines the tools that Claude can use through Model Context Protocol
+ * for resume creation and optimization.
  */
 
-// Tool definitions to be provided to Claude in MCP format
+// Tool definitions for resume assistance
 const toolDefinitions = [
     {
-      // Tool for searching through context documents uploaded by the user
+      // Tool for searching through uploaded documents (resumes, job descriptions, etc.)
       name: "searchContext",
-      description: "Search through all uploaded documents to find information relevant to the user's question. Use this when the user asks about content in files, secret codes, specific information, or when you need to find details from uploaded documents.",
+      description: "Search through uploaded documents to find relevant experience, skills, achievements, or requirements. Use this when you need to find specific information from uploaded resumes, job descriptions, or other career documents.",
       input_schema: {
         type: "object",
         properties: {
           query: {
             type: "string",
-            description: "The search query to find relevant information in uploaded documents (e.g., 'secret code', 'requirements', 'PDF export')"
+            description: "The search query to find relevant information (e.g., 'software engineering experience', 'leadership skills', 'required qualifications', 'Python programming')"
           },
           maxResults: {
             type: "integer",
@@ -28,50 +28,86 @@ const toolDefinitions = [
       }
     },
     {
-      // Tool for generating structured PRD sections
-      name: "generatePRDSection",
-      description: "Generate a specific section of a PRD based on user requirements and context from uploaded files",
+      // Tool for analyzing job descriptions
+      name: "analyzeJobDescription",
+      description: "Analyze a job description to extract key requirements, skills, qualifications, and keywords. Use this when you need to understand what a job posting is looking for.",
+      input_schema: {
+        type: "object",
+        properties: {
+          fileId: {
+            type: "string",
+            description: "ID of the job description file to analyze (optional - will analyze all uploaded files if not specified)"
+          },
+          analysisType: {
+            type: "string",
+            description: "Type of analysis to perform on the job description",
+            enum: ["full_analysis", "required_skills", "preferred_qualifications", "keywords", "experience_level", "responsibilities"]
+          }
+        },
+        required: ["analysisType"]
+      }
+    },
+    {
+      // Tool for generating specific resume sections
+      name: "generateResumeSection",
+      description: "Generate specific sections of a resume based on user experience and job requirements. Use this to create tailored resume content.",
       input_schema: {
         type: "object",
         properties: {
           sectionType: {
             type: "string",
-            description: "The type of PRD section to generate",
+            description: "The type of resume section to generate",
             enum: [
-              "problem_statement", 
-              "user_stories", 
-              "requirements", 
-              "success_metrics", 
-              "user_flow",
-              "technical_considerations"
+              "professional_summary",
+              "work_experience", 
+              "skills",
+              "education",
+              "projects",
+              "certifications",
+              "achievements",
+              "volunteer_experience"
             ]
           },
           context: {
             type: "string",
-            description: "Specific context or requirements for this section"
+            description: "Specific context or requirements for this section (e.g., job role, years of experience, key skills to highlight)"
+          },
+          tone: {
+            type: "string",
+            description: "Tone and style for the section",
+            enum: ["professional", "technical", "creative", "leadership-focused"],
+            default: "professional"
           }
         },
         required: ["sectionType", "context"]
       }
     },
     {
-      // Tool for analyzing uploaded files to extract relevant information
-      name: "analyzeFile",
-      description: "Analyze specific uploaded files to extract information like requirements, secret codes, or other content. Use this when you need to examine the content of a particular file.",
+      // Tool for optimizing content for ATS
+      name: "optimizeForATS",
+      description: "Analyze and optimize resume content for Applicant Tracking Systems (ATS). Use this to ensure the resume will pass through ATS filters.",
       input_schema: {
         type: "object",
         properties: {
-          fileId: {
+          content: {
             type: "string",
-            description: "ID of the file to analyze (if not specified, will analyze all available files)"
+            description: "Resume content to optimize for ATS"
           },
-          analysisType: {
+          jobKeywords: {
+            type: "array",
+            items: {
+              type: "string"
+            },
+            description: "Important keywords from the job description that should be included"
+          },
+          optimizationType: {
             type: "string",
-            description: "Type of analysis to perform",
-            enum: ["summary", "requirements", "stakeholders", "dependencies", "search_content", "extract_codes"]
+            description: "Type of ATS optimization to perform",
+            enum: ["keyword_density", "formatting_check", "section_order", "skills_matching", "full_optimization"],
+            default: "full_optimization"
           }
         },
-        required: ["analysisType"]
+        required: ["content"]
       }
     }
   ];
