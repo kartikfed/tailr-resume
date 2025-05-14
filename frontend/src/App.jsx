@@ -6,13 +6,11 @@ import {
   Heading,
   Text,
   VStack,
+  HStack,
   Divider,
   useToast,
-  Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel
+  Flex,
+  Spacer
 } from '@chakra-ui/react';
 import { sendMessage, uploadFiles, getConversation } from './services/apiService';
 
@@ -20,6 +18,7 @@ import ChatInput from './components/ChatInput';
 import FileUpload from './components/FileUpload';
 import MessageHistory from './components/MessageHistory';
 import SpecDisplay from './components/SpecDisplay';
+import SpecCanvas from './components/SpecCanvas';
 
 function App() {
   const [messages, setMessages] = useState([]);
@@ -27,6 +26,8 @@ function App() {
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [generatedSpec, setGeneratedSpec] = useState(null);
   const [conversationId, setConversationId] = useState(`conv-${Date.now()}`);
+  // New state for the canvas content
+  const [canvasContent, setCanvasContent] = useState(null);
   const toast = useToast();
   
   // Load existing conversation if available
@@ -66,6 +67,37 @@ function App() {
     loadConversation();
   }, [toast]);
 
+  // Function to check if a message contains a specification
+  const extractSpecFromMessage = (content) => {
+    // Look for specification-like content
+    // You can customize this logic based on how you want to detect specs
+    const specKeywords = [
+      'product requirement document',
+      'prd',
+      'specification',
+      'requirements document',
+      'functional requirements',
+      'user stories',
+      'objectives'
+    ];
+    
+    const lowerContent = content.toLowerCase();
+    const containsSpecKeywords = specKeywords.some(keyword => 
+      lowerContent.includes(keyword)
+    );
+    
+    // Also check for structured content (numbered sections)
+    const hasStructuredContent = /^\d+\.\s+/.test(content) || 
+                                content.includes('## ') || 
+                                content.includes('### ');
+    
+    if (containsSpecKeywords || hasStructuredContent) {
+      return content;
+    }
+    
+    return null;
+  };
+
   // Handle sending messages to the backend
   const handleSendMessage = async (message) => {
     if (!message.trim()) return;
@@ -100,33 +132,16 @@ function App() {
       // Add assistant response to the conversation
       setMessages(prev => [...prev, assistantMessage]);
       
-      // Check if we need to update the spec
-      // In a real implementation, this would parse structured data from Claude
-      if (message.toLowerCase().includes('pdf') || 
-          (assistantMessage.content && assistantMessage.content.toLowerCase().includes('pdf'))) {
-        // This is a simplified way to detect if we should show a spec
-        // In a real implementation, the backend would return structured data
+      // Check if the response contains a specification and update canvas
+      const specContent = extractSpecFromMessage(response.response);
+      if (specContent) {
+        setCanvasContent(specContent);
+        
+        // Also update the old spec display for backwards compatibility
         setGeneratedSpec({
-          title: "PDF Export Feature Specification",
+          title: "Generated Specification",
           status: "Draft",
-          problemStatement: "Users currently cannot export reports in PDF format, limiting their ability to share data with stakeholders who require formatted, print-ready documents.",
-          userStories: [
-            "As a marketing manager, I want to export campaign performance reports as PDFs so I can share them with executives in a professional format.",
-            "As a data analyst, I want to export data visualizations as PDFs so I can include them in presentations and reports.",
-            "As a customer success manager, I want to export client usage reports as PDFs so I can review them with clients during meetings."
-          ],
-          requirements: [
-            "The system must allow users to export any report view as a PDF document.",
-            "PDF exports must maintain all formatting, including tables, charts, and graphs.",
-            "Users should be able to customize headers and footers, including adding company logos.",
-            "The export process should take no more than 5 seconds for standard reports.",
-            "All PDFs should be accessible and meet WCAG 2.1 AA standards."
-          ],
-          successMetrics: [
-            "50% of users utilize the PDF export feature within 3 months of release.",
-            "Customer support tickets requesting PDF export capability reduced to zero.",
-            "User satisfaction ratings for reporting features increase by 15%."
-          ]
+          content: specContent
         });
       }
     
@@ -144,112 +159,89 @@ function App() {
   };
 
   // Handle file uploads
- // Handle file uploads
- const handleFilesUploaded = async (files) => {
-  // This function should only update the UI state, not trigger another upload
-  // The FileUpload component already handles the actual upload
-  
-  console.log('App: Received uploaded files:', files);
-  
-  // Simply add the files to our state - no API call needed here
-  setUploadedFiles(prev => [...prev, ...files]);
-  
-  // Optional: Show a confirmation toast (but the FileUpload component already does this)
-  // toast({
-  //   title: 'Files ready',
-  //   description: `${files.length} files ready for use`,
-  //   status: 'success',
-  //   duration: 3000,
-  //   isClosable: true,
-  // });
-};
+  const handleFilesUploaded = async (files) => {
+    // This function should only update the UI state, not trigger another upload
+    console.log('App: Received uploaded files:', files);
+    
+    // Simply add the files to our state - no API call needed here
+    setUploadedFiles(prev => [...prev, ...files]);
+  };
 
   return (
     <ChakraProvider>
-      <Container maxW="container.xl" py={8}>
-        <VStack spacing={8} align="stretch">
-          <Box textAlign="center">
-            <Heading as="h1" size="xl">AI Spec Assistant</Heading>
-            <Text mt={2} color="gray.600">
-              Turn vague product requests into structured specifications
-            </Text>
-          </Box>
+      <Box h="100vh" display="flex" flexDirection="column">
+        {/* Header */}
+        <Box bg="white" borderBottom="1px solid" borderColor="gray.200" p={4}>
+          <Container maxW="container.xl">
+            <Flex align="center">
+              <VStack align="start" spacing={1}>
+                <Heading as="h1" size="lg">AI Spec Assistant</Heading>
+                <Text fontSize="sm" color="gray.600">
+                  Turn vague product requests into structured specifications
+                </Text>
+              </VStack>
+              <Spacer />
+              {uploadedFiles.length > 0 && (
+                <Text fontSize="sm" color="blue.600" fontWeight="medium">
+                  {uploadedFiles.length} file(s) uploaded
+                </Text>
+              )}
+            </Flex>
+          </Container>
+        </Box>
 
-          <Tabs variant="enclosed" colorScheme="blue">
-            <TabList>
-              <Tab>Chat</Tab>
-              <Tab>Generated Specification</Tab>
-            </TabList>
-            
-            <TabPanels>
-              <TabPanel>
-                <VStack spacing={6} align="stretch">
+        {/* Main Content */}
+        <Box flex="1" overflow="hidden">
+          <Container maxW="container.xl" h="100%" p={0}>
+            <HStack spacing={0} h="100%" align="stretch">
+              {/* Left Side - Chat */}
+              <Box 
+                w="50%" 
+                h="100%" 
+                bg="white" 
+                borderRight="1px solid" 
+                borderColor="gray.200"
+                display="flex"
+                flexDirection="column"
+              >
+                <Box p={4} borderBottom="1px solid" borderColor="gray.100">
+                  <Heading size="md" mb={4}>Conversation</Heading>
                   <FileUpload 
                     onFilesUploaded={handleFilesUploaded} 
                     isLoading={isLoading}
-                    conversationId={conversationId} 
+                    conversationId={conversationId}
                   />
-                  
-                  <Divider />
-                  
-                  <Box>
-                    <Text fontWeight="medium" mb={3}>Conversation:</Text>
-                    <Box 
-                      border="1px solid" 
-                      borderColor="gray.200" 
-                      borderRadius="md" 
-                      p={4} 
-                      mb={4}
-                      maxHeight="400px"
-                      overflowY="auto"
-                    >
-                      <MessageHistory messages={messages} />
-                    </Box>
-                  </Box>
-                  
-                  <ChatInput 
-                    onSendMessage={handleSendMessage} 
-                    isLoading={isLoading} 
-                  />
-                </VStack>
-              </TabPanel>
-              
-              <TabPanel>
-                {generatedSpec ? (
-                  <SpecDisplay spec={generatedSpec} />
-                ) : (
+                </Box>
+                
+                <VStack flex="1" spacing={0} align="stretch" overflow="hidden">
                   <Box 
-                    p={6} 
-                    textAlign="center" 
-                    color="gray.500" 
-                    border="1px dashed" 
-                    borderColor="gray.200" 
-                    borderRadius="md"
+                    flex="1"
+                    overflow="auto"
+                    p={4}
                   >
-                    <Text>No specification generated yet. Start a conversation to create one.</Text>
+                    <MessageHistory messages={messages} />
                   </Box>
-                )}
-              </TabPanel>
-            </TabPanels>
-          </Tabs>
-          
-          {uploadedFiles.length > 0 && (
-            <Box>
-              <Text fontWeight="medium" mb={2}>Uploaded Files ({uploadedFiles.length}):</Text>
-              <Box 
-                p={3} 
-                bg="gray.50" 
-                borderRadius="md" 
-                fontSize="sm"
-              >
-                {uploadedFiles.map((file, index) => (
-                  <Text key={index}>{file.name}</Text>
-                ))}
+                  
+                  <Box p={4} borderTop="1px solid" borderColor="gray.100">
+                    <ChatInput 
+                      onSendMessage={handleSendMessage} 
+                      isLoading={isLoading} 
+                    />
+                  </Box>
+                </VStack>
               </Box>
-            </Box>
-          )}
-        </VStack>
-      </Container>
+
+              {/* Right Side - Spec Canvas */}
+              <Box w="50%" h="100%" bg="gray.50" p={4}>
+                <SpecCanvas 
+                  content={canvasContent}
+                  title="Generated Specification"
+                />
+              </Box>
+            </HStack>
+          </Container>
+        </Box>
+      </Box>
     </ChakraProvider>
   );
 }
