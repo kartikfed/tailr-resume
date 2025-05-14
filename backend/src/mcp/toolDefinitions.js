@@ -10,18 +10,18 @@ const toolDefinitions = [
     {
       // Tool for searching through context documents uploaded by the user
       name: "searchContext",
-      description: "Search through uploaded documents to find relevant information for creating a product spec",
+      description: "Search through all uploaded documents to find information relevant to the user's question. Use this when the user asks about content in files, secret codes, specific information, or when you need to find details from uploaded documents.",
       input_schema: {
         type: "object",
         properties: {
           query: {
             type: "string",
-            description: "The search query to find relevant information in uploaded documents"
+            description: "The search query to find relevant information in uploaded documents (e.g., 'secret code', 'requirements', 'PDF export')"
           },
           maxResults: {
             type: "integer",
             description: "Maximum number of relevant passages to return",
-            default: 3
+            default: 5
           }
         },
         required: ["query"]
@@ -30,7 +30,7 @@ const toolDefinitions = [
     {
       // Tool for generating structured PRD sections
       name: "generatePRDSection",
-      description: "Generate a specific section of a PRD based on user requirements",
+      description: "Generate a specific section of a PRD based on user requirements and context from uploaded files",
       input_schema: {
         type: "object",
         properties: {
@@ -57,21 +57,21 @@ const toolDefinitions = [
     {
       // Tool for analyzing uploaded files to extract relevant information
       name: "analyzeFile",
-      description: "Extract and summarize key information from an uploaded file",
+      description: "Analyze specific uploaded files to extract information like requirements, secret codes, or other content. Use this when you need to examine the content of a particular file.",
       input_schema: {
         type: "object",
         properties: {
           fileId: {
             type: "string",
-            description: "ID of the file to analyze"
+            description: "ID of the file to analyze (if not specified, will analyze all available files)"
           },
           analysisType: {
             type: "string",
             description: "Type of analysis to perform",
-            enum: ["summary", "requirements", "stakeholders", "dependencies"]
+            enum: ["summary", "requirements", "stakeholders", "dependencies", "search_content", "extract_codes"]
           }
         },
-        required: ["fileId", "analysisType"]
+        required: ["analysisType"]
       }
     }
   ];

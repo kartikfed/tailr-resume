@@ -12,11 +12,12 @@ import {
   useToast
 } from '@chakra-ui/react';
 import { AttachmentIcon, CheckCircleIcon } from '@chakra-ui/icons';
+import { uploadFiles } from '../services/apiService';
 
 /**
  * Component for uploading context files for the AI Spec Assistant
  */
-const FileUpload = ({ onFilesUploaded, isLoading }) => {
+const FileUpload = ({ onFilesUploaded, isLoading, conversationId }) => {
   const [files, setFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const toast = useToast();
@@ -25,8 +26,34 @@ const FileUpload = ({ onFilesUploaded, isLoading }) => {
     if (e.target.files) {
       // Convert FileList to Array
       const fileArray = Array.from(e.target.files);
+      console.log('Frontend: Files selected:', fileArray.map(f => ({ name: f.name, type: f.type, size: f.size })));
       setFiles(fileArray);
     }
+  };
+
+  const readFileContent = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      
+      reader.onload = function(event) {
+        const content = event.target.result;
+        console.log(`Frontend: Successfully read file ${file.name}:`, {
+          type: file.type,
+          size: file.size,
+          contentLength: content.length,
+          contentPreview: content.substring(0, 100) + '...'
+        });
+        resolve(content);
+      };
+      
+      reader.onerror = function(error) {
+        console.error(`Frontend: Error reading file ${file.name}:`, error);
+        reject(error);
+      };
+      
+      // Read the file as text
+      reader.readAsText(file);
+    });
   };
 
   const handleUpload = async () => {
@@ -35,12 +62,41 @@ const FileUpload = ({ onFilesUploaded, isLoading }) => {
     setIsUploading(true);
 
     try {
-      // For our MVP, we'll just pass the file metadata
-      onFilesUploaded(files);
+      console.log('Frontend: Starting file upload process...');
+      
+      // Read all files with content
+      const filePromises = files.map(async (file) => {
+        try {
+          const content = await readFileContent(file);
+          return {
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            content: content
+          };
+        } catch (error) {
+          console.error(`Frontend: Failed to read file ${file.name}:`, error);
+          throw error;
+        }
+      });
 
+      const fileMetadata = await Promise.all(filePromises);
+      
+      console.log('Frontend: All files read successfully:', fileMetadata.map(f => ({
+        name: f.name,
+        hasContent: Boolean(f.content),
+        contentLength: f.content ? f.content.length : 0
+      })));
+
+      // Send to backend
+      const response = await uploadFiles(conversationId, fileMetadata);
+      
+      // Update the UI with response
+      onFilesUploaded(response.files);
+      
       toast({
-        title: 'Files ready',
-        description: `${files.length} files ready for upload`,
+        title: 'Files uploaded',
+        description: `${files.length} files uploaded successfully`,
         status: 'success',
         duration: 3000,
         isClosable: true,
@@ -50,6 +106,7 @@ const FileUpload = ({ onFilesUploaded, isLoading }) => {
       setFiles([]);
       setIsUploading(false);
     } catch (error) {
+      console.error('Frontend: Upload error:', error);
       toast({
         title: 'Upload failed',
         description: error.message || 'Failed to upload files',
@@ -71,6 +128,7 @@ const FileUpload = ({ onFilesUploaded, isLoading }) => {
         display="none"
         id="file-upload"
         isDisabled={isLoading || isUploading}
+        accept=".txt,.md,.doc,.docx,text/*"
       />
       <Flex direction="column" gap={3}>
         <label htmlFor="file-upload">

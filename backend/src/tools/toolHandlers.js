@@ -18,13 +18,8 @@ async function searchContext(input, context) {
     const { query, maxResults = 3 } = input;
     const { files = [] } = context;
     
-    console.log(`Searching context with query: "${query}"`);
-    
-    // In a real implementation, this would use a vector database
-    // For now, we'll return mock data related to the query
-    
-    // Simple keyword-based matching for demonstration
-    const results = [];
+    console.log(`Searching context with query: "${query}" in ${files.length} files`);
+    console.log(`Files available: ${files.map(f => f.name).join(', ')}`);
     
     if (files.length === 0) {
       return {
@@ -33,39 +28,48 @@ async function searchContext(input, context) {
       };
     }
     
-    // Simple demonstration logic - in a real app, use proper search
-    if (query.includes("user") || query.includes("customer")) {
-      results.push({
-        source: "User Feedback.docx",
-        content: "Users have requested the ability to export reports in multiple formats, including PDF and CSV."
-      });
-    }
+    // Search through file content
+    const results = [];
     
-    if (query.includes("export") || query.includes("pdf")) {
-      results.push({
-        source: "Legacy Spec.docx",
-        content: "The current export functionality is limited to CSV only. PDF export was planned but not implemented."
-      });
+    for (const file of files) {
+      console.log(`Examining file: ${file.name}, has content: ${Boolean(file.content)}`);
       
-      results.push({
-        source: "Technical Requirements.docx",
-        content: "PDF generation should use the ReportEngine library which is already integrated with our backend."
-      });
+      if (file.content) {
+        // Simple keyword search in content
+        const lowerContent = file.content.toLowerCase();
+        const lowerQuery = query.toLowerCase();
+        
+        if (lowerContent.includes(lowerQuery)) {
+          // Extract relevant snippet around the match
+          const matchIndex = lowerContent.indexOf(lowerQuery);
+          const start = Math.max(0, matchIndex - 100);
+          const end = Math.min(file.content.length, matchIndex + query.length + 100);
+          const snippet = file.content.substring(start, end);
+          
+          results.push({
+            source: file.name,
+            content: snippet,
+            fileId: file.id
+          });
+          
+          console.log(`Found match in file: ${file.name}`);
+        } else {
+          console.log(`No match found in file: ${file.name}`);
+        }
+      } else {
+        console.log(`File ${file.name} has no content to search`);
+      }
     }
     
-    if (query.includes("requirement") || query.includes("feature")) {
-      results.push({
-        source: "Product Strategy.docx",
-        content: "All new features should align with our goal of improving data accessibility and shareability across teams."
-      });
-    }
+    console.log(`Search results: ${results.length} matches found`);
     
     return {
       results: results.slice(0, maxResults),
       totalFound: results.length,
+      filesSearched: files.length,
       message: results.length > 0 
-        ? `Found ${results.length} relevant passages` 
-        : "No relevant information found for this query"
+        ? `Found ${results.length} relevant passages in uploaded files` 
+        : "No relevant information found in uploaded files for this query"
     };
   }
   

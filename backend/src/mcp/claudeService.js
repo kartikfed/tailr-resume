@@ -5,7 +5,7 @@
  * including tool calling via the Model Context Protocol (MCP).
  */
 
-const { Anthropic } = require('@anthropic-ai/sdk');
+const Anthropic = require('@anthropic-ai/sdk');
 const { formatToolsForMCP } = require('./toolDefinitions');
 const toolHandlers = require('../tools/toolHandlers');
 const dotenv = require('dotenv');
@@ -19,23 +19,6 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
-// System prompt for the AI Spec Assistant
-const SYSTEM_PROMPT = `You are AI Spec Assistant, an expert at converting vague product requests into 
-structured Product Requirement Documents (PRDs). Your job is to help product managers 
-create clear, comprehensive specifications from their initial ideas.
-
-When analyzing a product request:
-1. Ask clarifying questions if the request is ambiguous
-2. Use the searchContext tool to find relevant information in uploaded documents
-3. Use the analyzeFile tool to extract information from specific files
-4. Use the generatePRDSection tool to create structured sections of the PRD
-
-Always aim to create specifications that are:
-- Clear and unambiguous
-- Actionable for developers
-- Focused on user needs and business goals
-- Structured with appropriate sections`;
-
 /**
  * Sends a message to Claude and handles any tool calling
  * @param {Array} messages - The conversation history
@@ -43,40 +26,59 @@ Always aim to create specifications that are:
  * @returns {Object} - Claude's response
  */
 async function sendMessageToClaudeWithMCP(messages, files = []) {
-  try {
-    // Format tools for Claude
-    const tools = formatToolsForMCP();
-    
-    // Format messages for the Anthropic API
-    const formattedMessages = messages.map(msg => ({
-      role: msg.role,
-      content: typeof msg.content === 'string' ? msg.content : msg.content
-    }));
-    
-    // Initial message to Claude with tools
-    const response = await anthropic.messages.create({
-      model: 'claude-3-opus-20240229',
-      system: SYSTEM_PROMPT,
-      messages: formattedMessages,
-      tools: tools,
-      max_tokens: 4096,
-    });
-
-    // Check if Claude wants to call a tool
-    if (response.content && 
-        response.content.length > 0 && 
-        response.content[0].type === 'tool_use') {
-      // Handle tool calling loop
-      return await handleToolCalls(response, formattedMessages, tools, files);
+    try {
+      // Format tools for Claude (but we may not use them if we have context in messages)
+      const tools = formatToolsForMCP();
+      
+      // Simplified system prompt since we're pre-processing file content
+      let systemPrompt = `You are AI Spec Assistant, an expert at converting vague product requests into 
+  structured Product Requirement Documents (PRDs). Your job is to help product managers 
+  create clear, comprehensive specifications from their initial ideas.
+  
+  Always aim to create specifications that are:
+  - Clear and unambiguous
+  - Actionable for developers
+  - Focused on user needs and business goals
+  - Structured with appropriate sections
+  
+  When provided with context from uploaded files, use that information to answer questions directly.`;
+      
+      // Format messages for the Anthropic API
+      const formattedMessages = messages.map(msg => ({
+        role: msg.role,
+        content: typeof msg.content === 'string' ? msg.content : msg.content
+      }));
+      
+      console.log('Claude Service: Sending message to Claude');
+      console.log('Claude Service: Number of messages:', formattedMessages.length);
+      console.log('Claude Service: Last message length:', formattedMessages[formattedMessages.length - 1].content.length);
+      
+      // Send to Claude without tools if we don't have files (context is in message)
+      const requestParams = {
+        model: 'claude-3-opus-20240229',
+        system: systemPrompt,
+        messages: formattedMessages,
+        max_tokens: 4096,
+      };
+      
+      // Only add tools if we have files to work with
+      if (files && files.length > 0) {
+        requestParams.tools = tools;
+      }
+      
+      const response = await anthropic.messages.create(requestParams);
+  
+      console.log('Claude Service: Response received');
+      console.log('Claude Service: Response type:', response.content[0].type);
+  
+      // For our simplified approach, we don't expect tool calls
+      // Just return the response directly
+      return response;
+    } catch (error) {
+      console.error('Claude Service: Error communicating with Claude:', error);
+      throw new Error(`Failed to communicate with AI: ${error.message}`);
     }
-
-    // If no tool calls, return the response directly
-    return response;
-  } catch (error) {
-    console.error('Error communicating with Claude:', error);
-    throw new Error(`Failed to communicate with AI: ${error.message}`);
   }
-}
 
 /**
  * Handles the tool calling loop
@@ -94,10 +96,9 @@ async function handleToolCalls(response, messages, tools, files) {
   while (currentResponse.content && 
          currentResponse.content.length > 0 && 
          currentResponse.content[0].type === 'tool_use') {
-    const toolCall = currentResponse.content[0].tool_use;
+    const toolCall = currentResponse.content[0];
     
-    // Log tool usage
-    console.log(`Claude is calling tool: ${toolCall.name}`);
+    console.log(`Claude Service: Tool call - Name: ${toolCall.name}, Input:`, toolCall.input);
     
     // Execute the tool
     let toolResult;
@@ -107,12 +108,13 @@ async function handleToolCalls(response, messages, tools, files) {
         toolCall.input, 
         { files }  // Pass files and other context
       );
+      console.log(`Claude Service: Tool result for ${toolCall.name}:`, toolResult);
     } catch (error) {
       // If the tool errors, return a helpful error message
       toolResult = { 
         error: `Error executing ${toolCall.name}: ${error.message}` 
       };
-      console.error(`Tool execution error:`, error);
+      console.error(`Claude Service: Tool execution error:`, error);
     }
     
     // Track tools that have been used
@@ -125,21 +127,26 @@ async function handleToolCalls(response, messages, tools, files) {
     // Create updated messages array with tool results
     const updatedMessages = [
       ...messages,
-      { role: 'assistant', content: [{ type: 'tool_use', tool_use: toolCall }] },
-      { role: 'user', content: [{ type: 'tool_result', tool_result: { 
-        name: toolCall.name, 
-        content: toolResult
-      }}]}
+      { role: 'assistant', content: currentResponse.content },
+      { role: 'user', content: [{ 
+        type: 'tool_result',
+        tool_use_id: toolCall.id,
+        content: JSON.stringify(toolResult)
+      }]}
     ];
+    
+    console.log('Claude Service: Sending tool result back to Claude');
     
     // Send updated messages to Claude
     currentResponse = await anthropic.messages.create({
       model: 'claude-3-opus-20240229',
-      system: SYSTEM_PROMPT,
+      system: systemPrompt,
       messages: updatedMessages,
       tools: tools,
       max_tokens: 4096,
     });
+    
+    console.log('Claude Service: Received follow-up response from Claude');
   }
   
   // Add metadata about tools used to the response

@@ -144,31 +144,25 @@ function App() {
   };
 
   // Handle file uploads
-  const handleFilesUploaded = async (files) => {
-    try {
-      // Call the API service to upload files
-      const response = await uploadFiles(conversationId, files);
-      
-      // Update the uploaded files state with the response
-      setUploadedFiles(prev => [...prev, ...response.files]);
-      
-      toast({
-        title: 'Files uploaded',
-        description: `${files.length} files uploaded and ready for reference`,
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-      });
-    } catch (error) {
-      toast({
-        title: 'Upload failed',
-        description: error.message || 'Failed to upload files',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  };
+ // Handle file uploads
+ const handleFilesUploaded = async (files) => {
+  // This function should only update the UI state, not trigger another upload
+  // The FileUpload component already handles the actual upload
+  
+  console.log('App: Received uploaded files:', files);
+  
+  // Simply add the files to our state - no API call needed here
+  setUploadedFiles(prev => [...prev, ...files]);
+  
+  // Optional: Show a confirmation toast (but the FileUpload component already does this)
+  // toast({
+  //   title: 'Files ready',
+  //   description: `${files.length} files ready for use`,
+  //   status: 'success',
+  //   duration: 3000,
+  //   isClosable: true,
+  // });
+};
 
   return (
     <ChakraProvider>
@@ -192,7 +186,8 @@ function App() {
                 <VStack spacing={6} align="stretch">
                   <FileUpload 
                     onFilesUploaded={handleFilesUploaded} 
-                    isLoading={isLoading} 
+                    isLoading={isLoading}
+                    conversationId={conversationId} 
                   />
                   
                   <Divider />

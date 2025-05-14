@@ -48,18 +48,20 @@ export const sendMessage = async (conversationId, message, files = []) => {
  */
 export const uploadFiles = async (conversationId, files) => {
   try {
-    // In a real implementation, this would use FormData to upload actual files
-    // For our MVP, we're just sending file metadata
-    const filesMetadata = files.map(file => ({
-      name: file.name,
-      type: file.type,
-      size: file.size,
-    }));
+    console.log('ApiService: About to upload files:', files.map(f => ({
+      name: f.name,
+      type: f.type,
+      size: f.size,
+      hasContent: Boolean(f.content),
+      contentLength: f.content ? f.content.length : 0
+    })));
 
-    const response = await apiClient.post('/spec/upload', {
+    const payload = {
       conversationId,
-      files: filesMetadata,
-    });
+      files: files
+    };
+
+    const response = await apiClient.post('/spec/upload', payload);
     return response.data;
   } catch (error) {
     console.error('Error uploading files:', error);
