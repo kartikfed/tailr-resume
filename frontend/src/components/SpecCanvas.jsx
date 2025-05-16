@@ -154,10 +154,13 @@ const SpecCanvas = ({
                       {item.dates && (
                         <Text fontSize="sm" color="gray.500">{item.dates}</Text>
                       )}
-                      {item.content && (
-                        <Box mt={2}>
-                          {renderContent(item.content)}
-                        </Box>
+                      {/* Render only bullets */}
+                      {item.bullets && item.bullets.length > 0 && (
+                        <List spacing={2} styleType="disc" pl={4}>
+                          {item.bullets.map((bullet, bIdx) => (
+                            <ListItem key={bIdx}>{bullet}</ListItem>
+                          ))}
+                        </List>
                       )}
                       {item.name && (
                         <Badge colorScheme="blue" width="fit-content">

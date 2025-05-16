@@ -280,15 +280,28 @@ router.post('/upload', async (req, res) => {
               structuredData.sections.push({
                 id: 'experience',
                 title: 'Experience',
-                items: affindaData.workExperience.map(exp => ({
-                  id: `exp-${exp.id}`,
-                  title: exp.jobTitle,
-                  company: exp.organization,
-                  location: exp.location?.formatted || '',
-                  dates: `${exp.dates?.startDate || ''} - ${exp.dates?.endDate || 'Present'}`,
-                  content: exp.jobDescription || '',
-                  type: 'experience'
-                })),
+                items: affindaData.workExperience.map(exp => {
+                  // Extract only bullet points from jobDescription
+                  let bullets = [];
+                  if (exp.jobDescription) {
+                    const lines = exp.jobDescription.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+                    // Find bullet lines
+                    bullets = lines.filter(line => /^[-•*]\s*/.test(line)).map(line => line.replace(/^[-•*]\s*/, ''));
+                    // If no bullets found, treat each line as a bullet
+                    if (bullets.length === 0) {
+                      bullets = lines;
+                    }
+                  }
+                  return {
+                    id: `exp-${exp.id}`,
+                    title: exp.jobTitle,
+                    company: exp.organization,
+                    location: exp.location?.formatted || '',
+                    dates: `${exp.dates?.startDate || ''} - ${exp.dates?.endDate || 'Present'}`,
+                    bullets,
+                    type: 'experience'
+                  };
+                }),
                 type: 'list'
               });
             }
@@ -317,6 +330,34 @@ router.post('/upload', async (req, res) => {
                       type: 'education'
                     })),
                     type: 'list'
+                  });
+                  return;
+                }
+
+                // For skills section, clean the formatting while preserving content
+                if (section.sectionType === 'Skills' && affindaData.skills?.length > 0) {
+                  // Clean each skill by removing special characters and extra formatting
+                  const cleanedSkills = affindaData.skills.map(skill => {
+                    // Remove special characters and extra formatting while preserving the actual skill text
+                    return skill.name
+                      .replace(/[•|\-–—]/g, '') // Remove bullets, pipes, and dashes
+                      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+                      .trim(); // Remove leading/trailing whitespace
+                  })
+                  .filter(skill => skill.length > 0) // Remove any empty skills
+                  .filter((skill, index, self) => self.indexOf(skill) === index); // Remove duplicates
+
+                  // Join skills with bullet points, ensuring no extra spaces
+                  const formattedSkills = cleanedSkills
+                    .map(skill => skill.trim())
+                    .filter(skill => skill) // Remove any empty strings
+                    .join(' • ');
+
+                  structuredData.sections.push({
+                    id: 'skills',
+                    title: 'Skills',
+                    content: formattedSkills,
+                    type: 'text'
                   });
                   return;
                 }
