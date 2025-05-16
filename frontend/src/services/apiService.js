@@ -61,7 +61,28 @@ export const uploadFiles = async (conversationId, files) => {
       files: files
     };
 
+    console.log('ApiService: Sending upload request with payload:', {
+      conversationId,
+      fileCount: files.length,
+      fileTypes: files.map(f => f.type)
+    });
+
     const response = await apiClient.post('/spec/upload', payload);
+    
+    console.log('ApiService: Received response:', response.data);
+    console.log('ApiService: Response files:', response.data.files);
+    console.log('ApiService: First file content type:', typeof response.data.files[0]?.content);
+    console.log('ApiService: First file content preview:', response.data.files[0]?.content?.substring(0, 200) + '...');
+    console.log('ApiService: First file content is JSON:', response.data.files[0]?.content?.startsWith('{'));
+    console.log('ApiService: First file content is valid JSON:', (() => {
+      try {
+        JSON.parse(response.data.files[0]?.content || '');
+        return true;
+      } catch (e) {
+        return false;
+      }
+    })());
+
     return response.data;
   } catch (error) {
     console.error('Error uploading files:', error);

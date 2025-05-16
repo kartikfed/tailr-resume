@@ -8,7 +8,10 @@
 const express = require('express');
 const router = express.Router();
 const { sendMessageToClaudeWithMCP } = require('../../mcp/claudeService');
-const { extractPdfText } = require('../../../utils/pdfExtract');
+const { extractPdfText, extractPdfMarkdown, extractPdfHtml } = require('../../../utils/pdfExtract');
+const { parseResumeWithAffinda, affindaResumeToMarkdown } = require('../../../utils/affindaResume');
+const sectionExtractorTool = require('../../mcp/tools/sectionExtractor');
+const AFFINDA_API_KEY = process.env.AFFINDA_API_KEY;
 
 // Simple in-memory storage for conversation history and files
 // In production, use a database
@@ -225,11 +228,123 @@ router.post('/upload', async (req, res) => {
         const fileId = `file-${Date.now()}-${index}`;
         let fileContent = fileData.content || '';
         // If PDF, extract text
-        if (fileData.isPdf) {
+        if (
+          fileData.isPdf ||
+          fileData.type === 'application/pdf' ||
+          fileData.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        ) {
           try {
-            fileContent = await extractPdfText(fileData.content);
+            const buffer = Buffer.from(fileData.content, 'base64');
+            console.log(`Backend: Sending file to Affinda: ${fileData.name}, type: ${fileData.type}`);
+            const affindaData = await parseResumeWithAffinda(buffer, fileData.name, AFFINDA_API_KEY);
+            console.log('Backend: Affinda full response:', JSON.stringify(affindaData, null, 2));
+            console.log('Backend: Affinda skills array:', JSON.stringify(affindaData.skills, null, 2));
+
+            // Structure the data for the frontend
+            const structuredData = {
+              metadata: {
+                name: affindaData.name?.formatted || '',
+                email: affindaData.emails?.[0] || '',
+                phone: affindaData.phoneNumbers?.[0] || '',
+                location: affindaData.location?.formatted || ''
+              },
+              sections: []
+            };
+
+            // Add personal details section at the top
+            const personalDetailsSection = affindaData.sections?.find(section => 
+              section.sectionType === 'PersonalDetails'
+            );
+
+            if (personalDetailsSection) {
+              structuredData.sections.push({
+                id: 'personal-details',
+                title: 'Personal Details',
+                content: personalDetailsSection.text,
+                type: 'text'
+              });
+            }
+
+            // Add summary if available
+            if (affindaData.summary) {
+              structuredData.sections.push({
+                id: 'summary',
+                title: 'Summary',
+                content: affindaData.summary,
+                type: 'text'
+              });
+            }
+
+            // Add work experience if available
+            if (affindaData.workExperience?.length > 0) {
+              structuredData.sections.push({
+                id: 'experience',
+                title: 'Experience',
+                items: affindaData.workExperience.map(exp => ({
+                  id: `exp-${exp.id}`,
+                  title: exp.jobTitle,
+                  company: exp.organization,
+                  location: exp.location?.formatted || '',
+                  dates: `${exp.dates?.startDate || ''} - ${exp.dates?.endDate || 'Present'}`,
+                  content: exp.jobDescription || '',
+                  type: 'experience'
+                })),
+                type: 'list'
+              });
+            }
+
+            // Process all sections from Affinda
+            if (affindaData.sections) {
+              affindaData.sections.forEach(section => {
+                // Skip sections we've already handled (summary, experience, and personal details)
+                if (section.sectionType === 'Summary' || 
+                    section.sectionType === 'WorkExperience' || 
+                    section.sectionType === 'PersonalDetails') {
+                  return;
+                }
+
+                // For education section
+                if (section.sectionType === 'Education' && affindaData.education?.length > 0) {
+                  structuredData.sections.push({
+                    id: 'education',
+                    title: 'Education',
+                    items: affindaData.education.map(edu => ({
+                      id: `edu-${edu.id}`,
+                      degree: edu.accreditation?.education,
+                      institution: edu.organization,
+                      dates: edu.dates?.completionDate || '',
+                      content: section.text, // Use the raw text from the section
+                      type: 'education'
+                    })),
+                    type: 'list'
+                  });
+                  return;
+                }
+
+                // For all other sections, use the raw text
+                structuredData.sections.push({
+                  id: section.sectionType.toLowerCase(),
+                  title: section.sectionType,
+                  content: section.text,
+                  type: 'text'
+                });
+              });
+            }
+
+            console.log('Backend: Structured data for frontend:', JSON.stringify(structuredData, null, 2));
+            fileContent = JSON.stringify(structuredData);
+            console.log('Backend: Final fileContent length:', fileContent.length);
+            console.log('Backend: Final fileContent preview:', fileContent.substring(0, 200) + '...');
+            console.log('Backend: Final fileContent is valid JSON:', (() => {
+              try {
+                JSON.parse(fileContent);
+                return true;
+              } catch (e) {
+                return false;
+              }
+            })());
           } catch (err) {
-            console.error(`Backend: Failed to extract text from PDF ${fileData.name}:`, err);
+            console.error(`Backend: Failed to parse resume with Affinda:`, err);
             fileContent = '';
           }
         }
@@ -251,20 +366,32 @@ router.post('/upload', async (req, res) => {
         uploadedFiles[conversationId].map(f => ({ 
           name: f.name, 
           hasContent: Boolean(f.content),
-          contentLength: f.content ? f.content.length : 0
+          contentLength: f.content ? f.content.length : 0,
+          isJson: f.content ? f.content.startsWith('{') : false
         }))
       );
       
-      res.json({
+      const response = {
         message: `${processedFiles.length} files uploaded successfully`,
         files: processedFiles.map(file => ({
           id: file.id,
           name: file.name,
           type: file.type,
           size: file.size,
-          uploadedAt: file.uploadedAt
+          uploadedAt: file.uploadedAt,
+          content: file.content
         }))
+      };
+
+      console.log('Backend: Sending response:', {
+        message: response.message,
+        fileCount: response.files.length,
+        firstFileContentType: typeof response.files[0]?.content,
+        firstFileContentPreview: response.files[0]?.content?.substring(0, 200) + '...',
+        firstFileContentIsJson: response.files[0]?.content?.startsWith('{')
       });
+      
+      res.json(response);
     } catch (error) {
       console.error('Backend: Error in upload endpoint:', error);
       res.status(500).json({ error: error.message });

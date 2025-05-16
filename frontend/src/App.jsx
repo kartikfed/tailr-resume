@@ -41,6 +41,13 @@ function App() {
   const bgColor = useColorModeValue('gray.50', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
   
+  const [startMode, setStartMode] = useState('choose'); // 'choose' | 'scratch' | 'existing'
+  // Track if user started with an existing resume
+  const [existingResumeMode, setExistingResumeMode] = useState(false);
+  
+  // State for structured resume data from Affinda
+  const [resumeStructured, setResumeStructured] = useState(null);
+
   // Load existing conversation if available
   useEffect(() => {
     const loadConversation = async () => {
@@ -61,6 +68,15 @@ function App() {
           
           if (conversationData.files) {
             setUploadedFiles(conversationData.files);
+            // If we have files, try to parse the structured data
+            if (conversationData.files[0]?.content) {
+              try {
+                const structured = JSON.parse(conversationData.files[0].content);
+                setResumeStructured(structured);
+              } catch (error) {
+                console.error('Error parsing saved file content:', error);
+              }
+            }
           }
           
           toast({
@@ -104,187 +120,75 @@ function App() {
     });
   };
 
-  // Function to extract pure resume content from Claude's response
-  const extractResumeFromMessage = (content) => {
-    // First, try to find the actual resume content by looking for common patterns
-    
-    // Strategy 1: Look for content between introduction and explanation
-    // Find where the actual resume starts (after introductory text)
-    const resumeStartPatterns = [
-      /(?:here is|here's) a (?:tailored )?resume[^:]*:\s*/i,
-      /(?:below is|following is) (?:the )?resume[^:]*:\s*/i,
-      /resume for[^:]*:\s*/i,
-      /^[A-Z][a-z]+ [A-Z][a-z]+\s*$/m, // Name pattern (like "John Smith")
-      /^[A-Z][a-z]+ [A-Z][a-z]+\s+Software Engineer/m // Name + title pattern
-    ];
-    
-    // Find where the resume content starts
-    let resumeStart = 0;
-    for (const pattern of resumeStartPatterns) {
-      const match = content.match(pattern);
-      if (match) {
-        resumeStart = match.index + match[0].length;
-        break;
-      }
-    }
-    
-    // Strategy 2: Look for where the explanation/analysis begins
-    const explanationStartPatterns = [
-      /This resume (?:is tailored|highlights)/i,
-      /The resume (?:uses|highlights|focuses)/i,
-      /(?:^|\n)(?:This|The) (?:approach|resume|targeted approach)/i,
-      /(?:^|\n)Key highlights/i,
-      /(?:^|\n)The (?:skills|work experience|education)/i
-    ];
-    
-    // Find where the explanation starts (end of resume)
-    let resumeEnd = content.length;
-    for (const pattern of explanationStartPatterns) {
-      const match = content.slice(resumeStart).match(pattern);
-      if (match) {
-        resumeEnd = resumeStart + match.index;
-        break;
-      }
-    }
-    
-    // Extract the resume content
-    let resumeContent = content.slice(resumeStart, resumeEnd).trim();
-    
-    // Strategy 3: Clean up any remaining conversational bits
-    // Remove any lines that are clearly explanatory
-    const linesToRemove = [
-      /^This resume.*/i,
-      /^The resume.*/i,
-      /^Key highlights.*/i,
-      /^This targeted approach.*/i,
-      /^(?:This|The) (?:approach|content|structure).*/i
-    ];
-    
-    const lines = resumeContent.split('\n');
-    const cleanedLines = lines.filter(line => {
-      return !linesToRemove.some(pattern => pattern.test(line.trim()));
-    });
-    
-    resumeContent = cleanedLines.join('\n').trim();
-    
-    // Strategy 4: Verify this looks like actual resume content
-    const resumeIndicators = [
-      /^[A-Z][a-z]+ [A-Z][a-z]+/m, // Name
-      /(?:Professional Summary|Summary|Experience|Education|Skills)/i,
-      /@[\w.-]+\.[a-z]{2,}/i, // Email
-      /\d{3}[-.]?\d{3}[-.]?\d{4}/, // Phone
-      /\b\d+\+ years? of experience\b/i,
-      /^[•\-*]\s+/m // Bullet points
-    ];
-    
-    const hasResumeIndicators = resumeIndicators.some(pattern => 
-      pattern.test(resumeContent)
-    );
-    
-    // Only return content if it looks like a resume and has substantial content
-    if (hasResumeIndicators && resumeContent.length > 100) {
-      // Format the content for better display
-      let formatted = resumeContent;
-      
-      // Convert resume sections to markdown headers if they aren't already
-      if (!formatted.includes('##')) {
-        formatted = formatted.replace(/^(Professional Summary|Summary|Objective)$/gmi, '## $1');
-        formatted = formatted.replace(/^(Work Experience|Experience|Employment History|Professional Experience)$/gmi, '## $1');
-        formatted = formatted.replace(/^(Technical Skills|Skills|Core Competencies)$/gmi, '## $1');
-        formatted = formatted.replace(/^(Education|Academic Background)$/gmi, '## $1');
-        formatted = formatted.replace(/^(Projects|Key Projects)$/gmi, '## $1');
-        formatted = formatted.replace(/^(Certifications|Licenses)$/gmi, '## $1');
-      }
-      
-      // Convert job titles and companies to subheaders
-      formatted = formatted.replace(/^([A-Z][^|\n]+)\s*\|\s*([^|\n]+)\s*\|\s*([^|\n]+)$/gmi, '### $1\n**$2** | $3');
-      
-      // Ensure bullet points are properly formatted
-      formatted = formatted.replace(/^[-•*]\s+/gm, '- ');
-      
-      // Clean up any bold markers that might be misplaced
-      formatted = formatted.replace(/\*\*(.*?)\*\*/g, '**$1**');
-      
-      // Add proper spacing between sections
-      formatted = formatted.replace(/^## /gm, '\n## ');
-      
-      // Clean up excessive whitespace
-      formatted = formatted.replace(/\n{3,}/g, '\n\n');
-      
-      return formatted.trim();
-    }
-    
-    return null;
-  };
+  // Detailed resume optimization plan for system prompt
+  const resumeOptimizationPlan = `You are an expert resume coach. When optimizing a resume for a specific job description, always follow this repeatable plan:
+
+Step 1: Job Description Analysis
+- Extract all role-specific keywords, hard/soft skills, and candidate traits.
+- Categorize the content into buckets: core competencies, tools/technologies, collaboration, domain focus, cultural traits.
+
+Step 2: Resume Assessment
+- Map the resume content against the categories from Step 1.
+- Identify what is covered, partially represented, or missing.
+- Evaluate for impact, clarity, quantified results, and outcome-oriented phrasing.
+
+Step 3: Strategic Repositioning
+- Rewrite the professional summary to align with the job's themes and tone.
+- Revise each experience bullet: start with action verbs, show ownership, quantify impact, and mirror JD language.
+- Consolidate repetitive points.
+
+Step 4: Fill Gaps and Tailor Further
+- Add missing competencies or traits in the most relevant section.
+- Adjust tone and language to match the JD.
+
+Step 5: Skills Section Optimization
+- Include relevant tools, frameworks, and methodologies from the JD.
+- Group skills thematically and add domain-specific tags if relevant.
+
+Step 6: Final QA and Formatting
+- Ensure ATS compatibility, consistent formatting, and conciseness.
+
+Always inform your suggestions and edits by the specific resume and job description provided.
+
+When responding:
+1. Suggest what to do and how to edit the resume content, referencing the plan above.
+2. End your response with: 'Would you like me to update the view with these changes?'
+Do not make any changes until the user explicitly says yes.`;
 
   // Handle sending messages to the backend
   const handleSendMessage = async (message) => {
     if (!message.trim()) return;
-
     setIsLoading(true);
-
-    // Add job description context to the message if available
-    let enhancedMessage = message;
-    if (jobDescriptionSaved && jobDescription.trim()) {
-      enhancedMessage = `${message}
-
-JOB DESCRIPTION CONTEXT:
-${jobDescription}
-
-Please use this job description to tailor the resume content accordingly, ensuring it includes relevant keywords and matches the job requirements.`;
-    }
-
-    // Add user message to the conversation (store the original message, not the enhanced one)
+    // Add user message to conversation
     const userMessage = {
       role: 'user',
       content: message,
       timestamp: new Date().toISOString()
     };
-    
     setMessages(prev => [...prev, userMessage]);
-
+    let enhancedMessage = message;
+    // If user started with an existing resume, prepend the detailed plan
+    if (existingResumeMode && resumeStructured) {
+      enhancedMessage = `${resumeOptimizationPlan}\n\nEXISTING RESUME:\n${JSON.stringify(resumeStructured, null, 2)}\n\nUSER REQUEST:\n${message}`;
+      if (jobDescriptionSaved && jobDescription.trim()) {
+        enhancedMessage += `\n\nJOB DESCRIPTION CONTEXT:\n${jobDescription}`;
+      }
+    } else if (jobDescriptionSaved && jobDescription.trim()) {
+      enhancedMessage = `${message}\n\nWhen responding, always:\n1. Suggest what to do and how to edit the resume content.\n2. End your response with: 'Would you like me to update the view with these changes?'\nDo not make any changes until the user explicitly says yes.\n\nJOB DESCRIPTION CONTEXT:\n${jobDescription}\n\nPlease use this job description to tailor the resume content accordingly, ensuring it includes relevant keywords and matches the job requirements.`;
+    }
     try {
-      // Call the API service with the enhanced message
       const response = await sendMessage(
         conversationId, 
         enhancedMessage, 
         uploadedFiles.map(file => file.id)
       );
-      
-      // Parse the response
       const assistantMessage = {
         role: 'assistant',
         content: response.response,
         timestamp: new Date().toISOString(),
         tools: response.meta?.toolsUsed || []
       };
-      
-      // Add assistant response to the conversation
       setMessages(prev => [...prev, assistantMessage]);
-      
-      // Check if the response contains resume content and update canvas
-      console.log('Checking for resume content in response...');
-      const resumeContent = extractResumeFromMessage(response.response);
-      
-      if (resumeContent) {
-        console.log('Resume content detected, updating canvas');
-        setCanvasContent(resumeContent);
-        
-        // Also update the old spec display for backwards compatibility
-        setGeneratedSpec({
-          title: "Generated Resume",
-          status: "Draft",
-          content: resumeContent
-        });
-      } else {
-        console.log('No resume content detected');
-        // Still try to detect any structured content
-        if (response.response.includes('##') || response.response.includes('###')) {
-          console.log('Found structured content, updating canvas anyway');
-          setCanvasContent(response.response);
-        }
-      }
-    
       setIsLoading(false);
     } catch (error) {
       toast({
@@ -298,14 +202,119 @@ Please use this job description to tailor the resume content accordingly, ensuri
     }
   };
 
-  // Handle file uploads
+  // Update file upload handlers to use structured data from Affinda
   const handleFilesUploaded = async (files) => {
-    // This function should only update the UI state, not trigger another upload
     console.log('App: Received uploaded files:', files);
-    
-    // Simply add the files to our state - no API call needed here
     setUploadedFiles(prev => [...prev, ...files]);
+    
+    if (files && files.length > 0 && files[0].content) {
+      try {
+        // Parse the JSON string from the backend
+        const structured = JSON.parse(files[0].content);
+        console.log('App: Parsed structured resume:', structured);
+        
+        // Store the structured data
+        setResumeStructured(structured);
+      } catch (error) {
+        console.error('App: Error parsing file content:', error);
+        console.log('App: Raw content received:', files[0].content.substring(0, 200) + '...');
+        toast({
+          title: 'Error',
+          description: 'Failed to process the uploaded file',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        });
+      }
+    } else {
+      console.log('App: No content found in uploaded file');
+    }
   };
+
+  const handleExistingResumeUpload = (files) => {
+    setUploadedFiles(prev => [...prev, ...files]);
+    if (files && files.length > 0 && files[0].content) {
+      try {
+        const structured = JSON.parse(files[0].content);
+        setResumeStructured(structured);
+      } catch (error) {
+        console.error('Error parsing file content:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to process the uploaded file',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        });
+      }
+    }
+    setStartMode('scratch'); // Enter main UI after upload
+  };
+
+  // Inline StartScreen component
+  const StartScreen = () => (
+    <Flex direction="column" align="center" justify="center" minH="100vh" bg={bgColor}>
+      <Box p={8} bg="white" borderRadius="lg" boxShadow="lg" minW="320px">
+        <Heading as="h2" size="lg" mb={4} textAlign="center">Welcome to AI Resume Assistant</Heading>
+        <Text fontSize="md" mb={6} textAlign="center">
+          How would you like to get started?
+        </Text>
+        <VStack spacing={4}>
+          <Button colorScheme="blue" size="lg" w="100%" onClick={() => { setStartMode('scratch'); setExistingResumeMode(false); }}>
+            Start from Scratch
+          </Button>
+          <Button colorScheme="teal" size="lg" w="100%" onClick={() => { setStartMode('existing'); setExistingResumeMode(true); }}>
+            Start with an Existing Resume
+          </Button>
+        </VStack>
+      </Box>
+    </Flex>
+  );
+
+  // Accept a pending revision for a section
+  function acceptRevision(sectionKey) {
+    setResumeSections(prev => ({
+      ...prev,
+      [sectionKey]: {
+        content: prev[sectionKey].pendingRevision,
+        pendingRevision: null
+      }
+    }));
+  }
+
+  // Reject a pending revision for a section
+  function rejectRevision(sectionKey) {
+    setResumeSections(prev => ({
+      ...prev,
+      [sectionKey]: {
+        ...prev[sectionKey],
+        pendingRevision: null
+      }
+    }));
+  }
+
+  // In the return, render StartScreen or main UI based on startMode
+  if (startMode === 'choose') {
+    return <StartScreen />;
+  }
+  if (startMode === 'existing') {
+    // Show only file upload for resume, then proceed
+    return (
+      <Flex direction="column" align="center" justify="center" minH="100vh" bg={bgColor}>
+        <Box p={8} bg="white" borderRadius="lg" boxShadow="lg" minW="320px">
+          <Heading as="h2" size="md" mb={4} textAlign="center">Upload Your Resume</Heading>
+          <Text fontSize="sm" mb={4} textAlign="center">
+            Upload your existing resume (PDF, DOCX, or TXT). The extracted text will be shown in the canvas for editing and optimization.
+          </Text>
+          <FileUpload
+            onFilesUploaded={handleExistingResumeUpload}
+            isLoading={isLoading}
+            conversationId={conversationId}
+          />
+        </Box>
+      </Flex>
+    );
+  }
 
   return (
     <ChakraProvider>
@@ -434,10 +443,21 @@ Please use this job description to tailor the resume content accordingly, ensuri
                 overflow="auto"
                 zIndex={0}
               >
+                {/* Debug logging */}
+                {console.log('App.jsx passing to SpecCanvas:', {
+                  resumeStructured,
+                  resumeHtml: null,
+                  resumeSections: null
+                })}
+                {/* Label above canvas */}
+                <Heading as="h2" size="md" mb={4} color="gray.600" userSelect="none">Revise Here</Heading>
                 {/* Resume Canvas is now visually dominant */}
                 <SpecCanvas
-                  content={canvasContent}
-                  title="Generated Resume"
+                  resumeStructured={resumeStructured}
+                  resumeHtml={null}
+                  resumeSections={null}
+                  onAcceptRevision={acceptRevision}
+                  onRejectRevision={rejectRevision}
                 />
               </Box>
             </Flex>

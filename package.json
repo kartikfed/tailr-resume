@@ -22,6 +22,7 @@
     "concurrently": "^8.2.0"
   },
   "dependencies": {
-    "pdf-parse": "^1.1.1"
+    "pdf-parse": "^1.1.1",
+    "pdf2md": "^1.0.2"
   }
 }

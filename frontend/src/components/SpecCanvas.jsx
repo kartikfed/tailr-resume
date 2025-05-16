@@ -1,168 +1,203 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
+  VStack,
   Heading,
   Text,
-  VStack,
-  Divider,
+  useToast,
+  Button,
+  List,
+  ListItem,
+  ListIcon,
+  Flex,
   Badge,
-  Container
+  Divider
 } from '@chakra-ui/react';
-import ReactMarkdown from 'react-markdown';
+import { CheckCircleIcon } from '@chakra-ui/icons';
 
 /**
- * Component for rendering specifications in a canvas-like experience
+ * Component for rendering resume content with text selection and revision support
  */
-const SpecCanvas = ({ content, title = "Generated Specification" }) => {
-  
-  // If no content, show empty state
-  if (!content) {
+const SpecCanvas = ({
+  resumeStructured = null,
+  onAcceptRevision,
+  onRejectRevision
+}) => {
+  const [selectedText, setSelectedText] = useState(null);
+  const toast = useToast();
+
+  // Debug logging
+  console.log('SpecCanvas received props:', {
+    resumeStructured
+  });
+
+  // Check if any content is available
+  const hasContent = () => {
+    console.log('Checking content:', {
+      hasStructured: !!resumeStructured
+    });
+    
+    return !!resumeStructured;
+  };
+
+  const handleTextSelection = () => {
+    const selection = window.getSelection();
+    if (selection.toString().trim()) {
+      setSelectedText(selection.toString().trim());
+      toast({
+        title: 'Text selected',
+        description: 'You can now request a revision for this text',
+        status: 'info',
+        duration: 2000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const handleRequestRevision = () => {
+    if (selectedText) {
+      toast({
+        title: 'Revision requested',
+        description: 'The AI will analyze your selection and suggest improvements',
+        status: 'info',
+        duration: 2000,
+        isClosable: true,
+      });
+      // TODO: Implement revision request logic
+    }
+  };
+
+  // Helper function to render content with proper line breaks
+  const renderContent = (content) => {
+    if (!content) return null;
+    
+    // Split content by newlines and filter out empty lines
+    const lines = content.split('\n').filter(line => line.trim());
+    
+    return (
+      <VStack align="start" spacing={2}>
+        {lines.map((line, index) => (
+          <Text key={index} whiteSpace="pre-wrap">
+            {line}
+          </Text>
+        ))}
+      </VStack>
+    );
+  };
+
+  if (!hasContent()) {
     return (
       <Box
-        h="100%"
-        bg="gray.50"
-        border="1px solid"
-        borderColor="gray.200"
-        borderRadius="md"
-        display="flex"
-        alignItems="center"
-        justifyContent="center"
         p={8}
+        bg="white"
+        borderRadius="lg"
+        boxShadow="sm"
+        textAlign="center"
+        color="gray.500"
       >
-        <VStack spacing={4} textAlign="center">
-          <Heading size="md" color="gray.500">
-            No Specification Generated
-          </Heading>
-          <Text color="gray.400">
-            Upload a file and ask Claude to create a specification to see it rendered here.
-          </Text>
-        </VStack>
+        <Text>No resume loaded</Text>
       </Box>
     );
   }
 
-  // Function to process the content and convert to proper markdown
-  const processContent = (text) => {
-    // If the content is already formatted nicely, use it as-is
-    // Otherwise, try to extract and format it
-    
-    // Check if content looks like it's already in a structured format
-    if (text.includes('## ') || text.includes('### ') || text.includes('#### ')) {
-      return text;
-    }
-    
-    // Try to convert numbered sections to markdown headers
-    let processedText = text;
-    
-    // Convert numbered sections like "1. Overview" to "## 1. Overview"
-    processedText = processedText.replace(/^(\d+\.\s+)([^.\n]+)$/gm, '## $1$2');
-    
-    // Convert lettered subsections like "- " to "### "
-    processedText = processedText.replace(/^-\s+([^:]+):/gm, '### $1');
-    
-    // Ensure proper spacing between sections
-    processedText = processedText.replace(/## /g, '\n\n## ');
-    
-    return processedText;
-  };
-
-  const processedContent = processContent(content);
-
   return (
     <Box
-      h="100%"
+      p={6}
       bg="white"
-      border="1px solid"
-      borderColor="gray.200"
-      borderRadius="md"
-      overflow="hidden"
-      display="flex"
-      flexDirection="column"
+      borderRadius="lg"
+      boxShadow="sm"
+      onMouseUp={handleTextSelection}
     >
-      {/* Header */}
-      <Box
-        bg="blue.50"
-        borderBottom="1px solid"
-        borderColor="gray.200"
-        p={4}
-      >
-        <Heading size="md" color="blue.900">
-          {title}
-        </Heading>
-        <Badge colorScheme="blue" size="sm" mt={1}>
-          Live Preview
-        </Badge>
-      </Box>
+      <VStack align="stretch" spacing={6}>
+        {/* Metadata */}
+        {resumeStructured.metadata && (
+          <Box mb={6}>
+            <Heading as="h3" size="md" mb={2}>Contact Information</Heading>
+            <VStack align="start" spacing={1}>
+              {resumeStructured.metadata.name && (
+                <Text fontWeight="bold">{resumeStructured.metadata.name}</Text>
+              )}
+              {resumeStructured.metadata.email && (
+                <Text>{resumeStructured.metadata.email}</Text>
+              )}
+              {resumeStructured.metadata.phone && (
+                <Text>{resumeStructured.metadata.phone}</Text>
+              )}
+              {resumeStructured.metadata.location && (
+                <Text>{resumeStructured.metadata.location}</Text>
+              )}
+            </VStack>
+          </Box>
+        )}
 
-      {/* Content */}
-      <Box
-        flex="1"
-        overflow="auto"
-        p={6}
-      >
-        <Container maxW="none" p={0}>
-          <ReactMarkdown
-            components={{
-              // Custom styling for markdown elements
-              h1: ({ children }) => (
-                <Heading as="h1" size="xl" mb={4} color="gray.800" borderBottom="2px solid" borderColor="blue.200" pb={2}>
-                  {children}
-                </Heading>
-              ),
-              h2: ({ children }) => (
-                <Heading as="h2" size="lg" mb={3} mt={6} color="gray.700">
-                  {children}
-                </Heading>
-              ),
-              h3: ({ children }) => (
-                <Heading as="h3" size="md" mb={2} mt={4} color="gray.600">
-                  {children}
-                </Heading>
-              ),
-              h4: ({ children }) => (
-                <Heading as="h4" size="sm" mb={2} mt={3} color="gray.600">
-                  {children}
-                </Heading>
-              ),
-              p: ({ children }) => (
-                <Text mb={3} lineHeight={1.6} color="gray.700">
-                  {children}
-                </Text>
-              ),
-              ul: ({ children }) => (
-                <Box as="ul" ml={4} mb={3}>
-                  {children}
-                </Box>
-              ),
-              ol: ({ children }) => (
-                <Box as="ol" ml={4} mb={3}>
-                  {children}
-                </Box>
-              ),
-              li: ({ children }) => (
-                <Text as="li" mb={1} color="gray.700">
-                  {children}
-                </Text>
-              ),
-              blockquote: ({ children }) => (
-                <Box
-                  borderLeft="4px solid"
-                  borderColor="blue.200"
-                  bg="blue.50"
-                  p={4}
-                  mb={4}
-                  fontStyle="italic"
-                >
-                  {children}
-                </Box>
-              ),
-              hr: () => <Divider my={6} />
-            }}
+        {/* Sections */}
+        {resumeStructured.sections?.map((section) => (
+          <Box key={section.id} mb={6}>
+            <Heading as="h3" size="md" mb={3}>{section.title}</Heading>
+            {section.type === 'text' && (
+              renderContent(section.content)
+            )}
+            {section.type === 'list' && section.items && (
+              <List spacing={4}>
+                {section.items.map((item) => (
+                  <ListItem key={item.id}>
+                    <Flex direction="column" gap={1}>
+                      {item.title && (
+                        <Text fontWeight="bold">{item.title}</Text>
+                      )}
+                      {item.company && (
+                        <Text color="gray.600">{item.company}</Text>
+                      )}
+                      {item.location && (
+                        <Text color="gray.600" fontSize="sm">{item.location}</Text>
+                      )}
+                      {item.dates && (
+                        <Text fontSize="sm" color="gray.500">{item.dates}</Text>
+                      )}
+                      {item.content && (
+                        <Box mt={2}>
+                          {renderContent(item.content)}
+                        </Box>
+                      )}
+                      {item.name && (
+                        <Badge colorScheme="blue" width="fit-content">
+                          {item.name}
+                        </Badge>
+                      )}
+                    </Flex>
+                  </ListItem>
+                ))}
+              </List>
+            )}
+          </Box>
+        ))}
+
+        {/* Revision UI */}
+        {selectedText && (
+          <Box
+            position="fixed"
+            bottom={4}
+            right={4}
+            bg="white"
+            p={4}
+            borderRadius="md"
+            boxShadow="lg"
+            zIndex={10}
           >
-            {processedContent}
-          </ReactMarkdown>
-        </Container>
-      </Box>
+            <VStack align="stretch" spacing={2}>
+              <Text fontSize="sm" fontWeight="medium">Selected Text:</Text>
+              <Text fontSize="sm" color="gray.600">{selectedText}</Text>
+              <Button
+                size="sm"
+                colorScheme="blue"
+                onClick={handleRequestRevision}
+              >
+                Request Revision
+              </Button>
+            </VStack>
+          </Box>
+        )}
+      </VStack>
     </Box>
   );
 };

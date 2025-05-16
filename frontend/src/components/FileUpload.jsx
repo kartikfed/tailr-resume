@@ -99,6 +99,10 @@ const FileUpload = ({ onFilesUploaded, isLoading, conversationId }) => {
       // Send to backend
       const response = await uploadFiles(conversationId, fileMetadata);
       
+      console.log('Frontend: Received response from backend:', response);
+      console.log('Frontend: Files in response:', response.files);
+      console.log('Frontend: First file content:', response.files[0]?.content?.substring(0, 200) + '...');
+      
       // Update the UI with response
       onFilesUploaded(response.files);
       
