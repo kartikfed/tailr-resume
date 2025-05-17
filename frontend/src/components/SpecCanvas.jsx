@@ -115,6 +115,7 @@ const SpecCanvas = ({
   const [showRevisionDialog, setShowRevisionDialog] = useState(false);
   const [hasSubmittedRevision, setHasSubmittedRevision] = useState(false);
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Add useEffect to monitor prop changes
   React.useEffect(() => {
@@ -175,6 +176,8 @@ const SpecCanvas = ({
       return;
     }
 
+    setIsSubmitting(true);
+    setError('');
     try {
       console.log('Sending revision request with:', {
         selectedText,
@@ -210,6 +213,8 @@ const SpecCanvas = ({
     } catch (error) {
       console.error('Error revising text:', error);
       setError(error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -345,7 +350,15 @@ const SpecCanvas = ({
               </Button>
             </>
           ) : (
-            <Button size="sm" colorScheme="blue" onClick={handleSubmitRevision}>Submit</Button>
+            <Button
+              size="sm"
+              colorScheme="blue"
+              onClick={handleSubmitRevision}
+              isLoading={isSubmitting}
+              loadingText="Revising..."
+            >
+              Submit
+            </Button>
           )}
         </HStack>
       </VStack>
