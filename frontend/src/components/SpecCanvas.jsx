@@ -400,6 +400,7 @@ const SpecCanvas = ({
         body: JSON.stringify({
           content: jobDescription,
           selectedText,
+          analysisType: 'full_analysis'
         }),
       });
 
@@ -409,6 +410,11 @@ const SpecCanvas = ({
 
       const analysis = await response.json();
       console.log('Job description analysis:', analysis);
+
+      // Update prompt presets if available
+      if (analysis.results?.prompt_presets && onRegeneratePrompts) {
+        onRegeneratePrompts(analysis.results.prompt_presets);
+      }
 
       // Show success toast
       toast({

@@ -144,6 +144,7 @@ function App() {
           },
           body: JSON.stringify({
             content: jobDescription,
+            analysisType: 'full_analysis'
           }),
         });
 
@@ -153,6 +154,16 @@ function App() {
 
         const analysis = await response.json();
         console.log('Job description analysis:', analysis);
+
+        // Store the analysis results
+        if (analysis.results) {
+          if (analysis.results.resume_emphasis) {
+            setResumeEmphasis(analysis.results.resume_emphasis);
+          }
+          if (analysis.results.prompt_presets) {
+            setPromptPresets(analysis.results.prompt_presets);
+          }
+        }
 
         // Show success toast
         toast({
