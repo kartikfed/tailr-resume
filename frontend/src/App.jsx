@@ -28,6 +28,7 @@ import MessageHistory from './components/MessageHistory';
 import SpecDisplay from './components/SpecDisplay';
 import SpecCanvas from './components/SpecCanvas';
 import ToneSelector from './components/ToneSelector';
+import TextInput from './components/TextInput';
 
 function App() {
   const [messages, setMessages] = useState([]);
@@ -547,91 +548,56 @@ ${structuredData.sections.map(section => {
         </Box>
 
         {/* Job Description Input Section */}
-        <Box bg={bgColor} borderBottom="1px solid" borderColor={borderColor} p={3}>
+        <Box bg={bgColor} borderBottom="1px solid" borderColor={borderColor} p={4}>
           <Container maxW="container.xl" px={0}>
-            <Flex align="center" justify="space-between" mb={2}>
-              <Heading size="xs" minW="120px" color={textColor}>Job Description</Heading>
+            <Flex align="center" justify="space-between" mb={3}>
+              <Heading size="sm" minW="120px" color={textColor}>Job Description</Heading>
+              <Text fontSize="xs" color="gray.500">Paste the job description to tailor your resume</Text>
             </Flex>
-            <Textarea
-              placeholder="Paste job description..."
-              value={jobDescription}
-              onChange={(e) => setJobDescription(e.target.value)}
-              rows={2}
-              fontSize="sm"
-              bg={inputBgColor}
-              color={textColor}
-              resize="vertical"
-              mb={2}
-              p={2}
-              _placeholder={{ color: 'gray.400' }}
-              _focus={{ borderColor: "blue.400", boxShadow: "0 0 0 1px #3182ce" }}
-            />
-            <Flex gap={2} mb={2}>
-              <Button
-                colorScheme="blue"
-                size="xs"
-                onClick={handleSaveJobDescription}
-                isDisabled={!jobDescription.trim() || jobDescriptionSaved || isSavingJobDescription}
-                isLoading={isSavingJobDescription}
-                loadingText="Saving..."
-              >
-                {jobDescriptionSaved ? 'Saved' : 'Save'}
-              </Button>
-              {jobDescription.trim() && (
+            <Box position="relative" w={{ base: '100%', md: '70%' }}>
+              <TextInput
+                id="job-description"
+                value={jobDescription}
+                onChange={(e) => setJobDescription(e.target.value)}
+                rows={5}
+                mb={3}
+                h="120px"
+              />
+              <Flex gap={2} mb={2}>
                 <Button
-                  variant="outline"
-                  size="xs"
-                  onClick={handleClearJobDescription}
-                  isDisabled={isSavingJobDescription}
-                  color={textColor}
-                  borderColor={borderColor}
-                  _hover={{ bg: 'gray.700' }}
+                  colorScheme="blue"
+                  size="sm"
+                  onClick={handleSaveJobDescription}
+                  isDisabled={!jobDescription.trim() || jobDescriptionSaved || isSavingJobDescription}
+                  isLoading={isSavingJobDescription}
+                  loadingText="Analyzing..."
+                  leftIcon={<CheckCircleIcon />}
+                  _hover={{ transform: 'translateY(-1px)', boxShadow: 'sm' }}
+                  transition="all 0.2s"
                 >
-                  Clear
+                  {jobDescriptionSaved ? 'Analyzed' : 'Analyze'}
                 </Button>
-              )}
-            </Flex>
-            {resumeEmphasis && (
-              <Box 
-                p={4} 
-                bg={chatPaneBgColor}
-                borderRadius="xl"
-                border="1px solid"
-                borderColor="purple.700"
-                mb={4}
-              >
-                <Text 
-                  fontSize="sm" 
-                  fontWeight="medium" 
-                  mb={2}
-                  color="white"
-                >
-                  Resume Focus Points:
-                </Text>
-                <Text 
-                  fontSize="sm" 
-                  color="white"
-                  opacity={0.9}
-                  mb={3}
-                >
-                  {resumeEmphasis.summary}
-                </Text>
-                <List spacing={2}>
-                  {resumeEmphasis.key_points.map((point, index) => (
-                    <ListItem key={index} display="flex" alignItems="center">
-                      <ListIcon as={CheckCircleIcon} color="white" opacity={0.9} />
-                      <Text color="white" opacity={0.9}>{point}</Text>
-                    </ListItem>
-                  ))}
-                </List>
-              </Box>
-            )}
-            <ToneSelector
-              value={writingTone}
-              onChange={setWritingTone}
-              label="Select your preferred writing style"
-              labelColor={textColor}
-            />
+                {jobDescription.trim() && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleClearJobDescription}
+                    isDisabled={isSavingJobDescription}
+                    color={textColor}
+                    borderColor={borderColor}
+                    _hover={{ 
+                      bg: 'gray.50',
+                      borderColor: 'gray.400',
+                      transform: 'translateY(-1px)',
+                      boxShadow: 'sm'
+                    }}
+                    transition="all 0.2s"
+                  >
+                    Clear
+                  </Button>
+                )}
+              </Flex>
+            </Box>
           </Container>
         </Box>
 

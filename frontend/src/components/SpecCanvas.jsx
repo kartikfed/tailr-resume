@@ -68,39 +68,16 @@ const SpecCanvas = ({
     
     console.log('SpecCanvas: Rendering content:', {
       contentLength: content.length,
-      hasHighlight: !!highlightedText,
-      highlightLength: highlightedText?.length,
       contentPreview: content.substring(0, 100) + '...'
     });
     
-    // If we have highlighted text, split and highlight it
-    if (highlightedText) {
-      const unescapedHighlight = unescapeMarkdown(highlightedText);
-      const unescapedContent = unescapeMarkdown(content);
-      console.log('SpecCanvas: Highlighting text:', {
-        original: highlightedText,
-        unescaped: unescapedHighlight,
-        content: unescapedContent,
-        selectedText
-      });
-      
-      // Replace the selected text with the revised text
-      const updatedContent = unescapedContent.replace(selectedText, unescapedHighlight);
-      
-      return (
-        <Box 
-          whiteSpace="pre-wrap" 
-          userSelect="text"
-          position="relative"
-        >
-          {updatedContent}
-        </Box>
-      );
-    }
-    
-    // Otherwise just render the content normally
+    // Render the content normally
     return (
-      <Box whiteSpace="pre-wrap" userSelect="text">
+      <Box 
+        whiteSpace="pre-wrap" 
+        userSelect="text"
+        position="relative"
+      >
         <ReactMarkdown rehypePlugins={[rehypeRaw]}>
           {content}
         </ReactMarkdown>
@@ -132,6 +109,9 @@ const SpecCanvas = ({
   const [isRegeneratingPrompts, setIsRegeneratingPrompts] = useState(false);
   const [isAddingExplanation, setIsAddingExplanation] = useState(false);
   const toast = useToast();
+  const [highlightTimeout, setHighlightTimeout] = useState(null);
+  const [localHighlightedText, setLocalHighlightedText] = useState(null);
+  const [highlightPosition, setHighlightPosition] = useState(null);
 
   // Add useEffect to monitor prop changes
   React.useEffect(() => {
@@ -256,7 +236,7 @@ const SpecCanvas = ({
     }
   };
 
-  // Modify handleAcceptRevision
+  // Modify handleAcceptRevision to remove highlight logic
   const handleAcceptRevision = async (selectedText, revisedTextMarkdown) => {
     console.log('handleAcceptRevision called with:', {
       selectedText,
@@ -270,7 +250,7 @@ const SpecCanvas = ({
     setRevisedTextMarkdown('');
     setUserInstructions('');
     setSelectedText('');
-
+    
     // Update the content
     onAcceptRevision(selectedText, revisedTextMarkdown);
     
@@ -290,7 +270,7 @@ const SpecCanvas = ({
             resumeContent: resumeMarkdown,
             writingTone,
             conversationId,
-            addToChat: true // Signal to add explanation to chat
+            addToChat: true
           }),
         });
 
@@ -300,14 +280,12 @@ const SpecCanvas = ({
 
         const data = await response.json();
         
-        // Add the explanation directly to the messages state
         const systemMessage = {
           role: 'system',
           content: data.explanation,
           timestamp: new Date().toISOString()
         };
         
-        // Update the messages state through the parent component
         if (onUpdateMessages) {
           onUpdateMessages(prevMessages => [...prevMessages, systemMessage]);
         }
@@ -504,20 +482,21 @@ const SpecCanvas = ({
       bg={bgColor}
       boxShadow="lg"
       borderRadius="md"
-      p={4}
-      minW="320px"
+      p={3}
+      minW="360px"
+      maxW="480px"
       zIndex={1001}
       pointerEvents="auto"
       color={textColor}
       border="1px solid"
       borderColor={borderColor}
     >
-      <VStack align="stretch" spacing={3}>
+      <VStack align="stretch" spacing={2}>
         {/* Add X button in top right */}
         <Flex justify="flex-end">
           <IconButton
             icon={<CloseIcon />}
-            size="sm"
+            size="xs"
             variant="ghost"
             onClick={handleClosePopover}
             aria-label="Close popover"
@@ -526,42 +505,48 @@ const SpecCanvas = ({
           />
         </Flex>
 
-        <Text fontWeight="bold" fontSize="sm" color={textColor}>Original Text:</Text>
-        <Box p={2} bg={inputBgColor} borderRadius="md" fontSize="sm" fontFamily="mono" whiteSpace="pre-wrap" color={textColor}>
+        <Text fontWeight="bold" fontSize="xs" color={textColor}>Original Text:</Text>
+        <Box p={2} bg={inputBgColor} borderRadius="md" fontSize="xs" fontFamily="mono" whiteSpace="pre-wrap" color={textColor} maxH="100px" overflowY="auto">
           {selectedText}
         </Box>
 
         {/* Prompt Presets with Regenerate Button */}
         {promptPresets.length > 0 && (
           <Box>
-            <Flex justify="space-between" align="center" mb={2}>
-              <Text fontWeight="bold" fontSize="sm" color={textColor}>Quick Revisions</Text>
-              <IconButton
-                icon={<RepeatIcon />}
-                size="sm"
-                variant="ghost"
+            <Flex justify="space-between" align="center" mb={1}>
+              <Text fontWeight="bold" fontSize="xs" color={textColor}>Quick Revisions</Text>
+              <Button
+                size="xs"
+                variant="outline"
                 onClick={handleRegeneratePrompts}
                 isLoading={isRegeneratingPrompts}
-                aria-label="Regenerate prompts"
-                color={textColor}
-                _hover={{ bg: 'gray.700' }}
-              />
+                color="gray.600"
+                borderColor="gray.300"
+                _hover={{ bg: 'gray.50', borderColor: 'gray.400' }}
+                fontSize="xs"
+                fontWeight="medium"
+                px={3}
+              >
+                Regenerate
+              </Button>
             </Flex>
-            <SimpleGrid columns={1} spacing={2}>
+            <SimpleGrid columns={1} spacing={1}>
               {promptPresets.map((preset, index) => (
                 <Button
                   key={index}
-                  size="sm"
+                  size="xs"
                   variant="outline"
                   onClick={() => setUserInstructions(preset.prompt)}
                   textAlign="left"
                   justifyContent="flex-start"
                   whiteSpace="normal"
                   height="auto"
-                  py={2}
+                  py={1}
+                  px={2}
                   color={textColor}
                   borderColor={borderColor}
                   _hover={{ bg: 'gray.700' }}
+                  fontSize="xs"
                 >
                   {preset.title}
                 </Button>
@@ -573,45 +558,49 @@ const SpecCanvas = ({
         {/* Revised Text Section */}
         {hasSubmittedRevision && (
           <Box>
-            <Text fontWeight="bold" mb={2} color={textColor}>Revised Text:</Text>
+            <Text fontWeight="bold" mb={1} fontSize="xs" color={textColor}>Revised Text:</Text>
             <Box
-              p={3}
+              p={2}
               bg={inputBgColor}
               borderRadius="md"
               border="1px solid"
               borderColor={borderColor}
+              fontSize="xs"
+              maxH="100px"
+              overflowY="auto"
             >
               <Text color={textColor}>{unescapeMarkdown(revisedText)}</Text>
             </Box>
           </Box>
         )}
         
-        <Text fontWeight="bold" fontSize="sm" color={textColor}>Instructions (optional):</Text>
+        <Text fontWeight="bold" fontSize="xs" color={textColor}>Instructions (optional):</Text>
         <Textarea
           value={userInstructions}
           onChange={e => setUserInstructions(e.target.value)}
           placeholder="E.g., Make this more results-oriented"
-          size="sm"
+          size="xs"
           rows={2}
           bg={inputBgColor}
           color={textColor}
           _placeholder={{ color: 'gray.400' }}
           borderColor={borderColor}
+          fontSize="xs"
         />
 
-        <HStack justify="space-between" spacing={2} pt={2}>
+        <HStack justify="space-between" spacing={2} pt={1}>
           <HStack spacing={2}>
             {hasSubmittedRevision && (
               <>
                 <Button 
-                  size="sm" 
+                  size="xs" 
                   colorScheme="red" 
                   onClick={handleReject}
                 >
                   Reject
                 </Button>
                 <Button 
-                  size="sm" 
+                  size="xs" 
                   colorScheme="green" 
                   onClick={() => {
                     console.log('Accept button clicked');
@@ -624,7 +613,7 @@ const SpecCanvas = ({
             )}
           </HStack>
           <Button
-            size="sm"
+            size="xs"
             colorScheme="blue"
             onClick={() => handleSubmitRevision(userInstructions)}
             isLoading={isSubmitting}
