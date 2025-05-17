@@ -24,13 +24,21 @@ const PORT = process.env.PORT || 3000;
 app.use(cors({
   origin: [
     'https://ai-spec-assistant-frontend.onrender.com',
-    'http://localhost:5173'  // Keep local development working
+    'https://tailr.onrender.com',
+    'http://localhost:5173',  // Local development
+    'http://localhost:3000',  // Local development
+    'http://127.0.0.1:5173',  // Local development alternative
+    'http://127.0.0.1:3000'   // Local development alternative
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  maxAge: 86400 // Cache preflight requests for 24 hours
 }));
-app.use(express.json({ limit: '20mb' }));
-app.use(express.urlencoded({ limit: '20mb', extended: true }));
+
+// Increase payload size limits for file uploads
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(morgan('dev'));
 
 // Routes
