@@ -135,17 +135,15 @@ function App() {
         setIsSavingJobDescription(true);
         // First save the job description
         setJobDescriptionSaved(true);
-        
-        // Then analyze it
-        const response = await fetch('http://localhost:3000/api/spec/analyze-job-description', {
+        setJobDescriptionProvided(true);
+
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/spec/analyze-job-description`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             content: jobDescription,
-            analysisType: 'full_analysis',
-            writingTone
           }),
         });
 
@@ -156,31 +154,23 @@ function App() {
         const analysis = await response.json();
         console.log('Job description analysis:', analysis);
 
-        // Store the prompt presets and resume emphasis
-        if (analysis.results.prompt_presets) {
-          setPromptPresets(analysis.results.prompt_presets);
-        }
-        if (analysis.results.resume_emphasis) {
-          setResumeEmphasis(analysis.results.resume_emphasis);
-        }
-
+        // Show success toast
         toast({
           title: 'Job description saved and analyzed',
           description: 'The job description has been analyzed and will be used as context for resume generation.',
           status: 'success',
-          duration: 2000,
+          duration: 5000,
           isClosable: true,
-          position: 'bottom-right'
         });
       } catch (error) {
         console.error('Error analyzing job description:', error);
+        // Show error toast but don't clear the saved state
         toast({
-          title: 'Error',
+          title: 'Analysis failed',
           description: 'Failed to analyze job description. It has been saved but may not be fully optimized.',
           status: 'warning',
-          duration: 3000,
+          duration: 5000,
           isClosable: true,
-          position: 'bottom-right'
         });
       } finally {
         setIsSavingJobDescription(false);

@@ -386,6 +386,55 @@ const SpecCanvas = ({
     }
   };
 
+  const handleAnalyzeJobDescription = async () => {
+    if (!selectedText || !jobDescription) return;
+    
+    try {
+      setIsAnalyzing(true);
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/spec/analyze-job-description`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: jobDescription,
+          selectedText,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to analyze job description');
+      }
+
+      const analysis = await response.json();
+      console.log('Job description analysis:', analysis);
+
+      // Show success toast
+      toast({
+        title: 'Analysis complete',
+        description: 'The job description has been analyzed successfully.',
+        status: 'success',
+        duration: 5000,
+        isClosable: true,
+      });
+
+      return analysis;
+    } catch (error) {
+      console.error('Error analyzing job description:', error);
+      toast({
+        title: 'Analysis failed',
+        description: 'Failed to analyze job description. Please try again.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+      throw error;
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   if (!hasContent()) {
     return (
       <Box
