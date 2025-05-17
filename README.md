@@ -14,12 +14,10 @@ Tailr is an intelligent resume optimization tool that helps job seekers tailor t
 
 ### 1. Getting Started
 
-When you first open Tailr, you'll see two options:
-- **Start from Scratch**: Begin with a blank canvas to create a new resume
-- **Start with an Existing Resume**: Upload your current resume for optimization
+When you first open Tailr, you'll see the following:
 
-![Welcome Screen](docs/screenshots/welcome-screen.png)
-*Welcome screen with options to start from scratch or upload an existing resume*
+![Screenshot 2025-05-17 at 4 35 20 PM](https://github.com/user-attachments/assets/450e6aa4-2cde-46f7-853b-50327e1fc8d9)
+
 
 ### 2. Writing Style Selection
 
@@ -28,69 +26,41 @@ Before proceeding, you'll be prompted to select your preferred writing style:
 - **Detailed & Technical**: Perfect for engineering-heavy positions
 - **Plain Language**: Best for nonprofit or generalist roles
 
-![Writing Style Selection](docs/screenshots/writing-style.png)
-*Writing style selector with examples for each style*
+
+![Screenshot 2025-05-17 at 4 36 09 PM](https://github.com/user-attachments/assets/d9eabc87-593b-4081-8ec2-38c2ce70742b)
+
+
+
+
 
 ### 3. Job Description Input
 
 1. Paste the job description in the provided text area
-2. Click "Save" to analyze the job description
+2. Click "Analyze" to analyze the job description
 3. The system will automatically extract key focus points and requirements
 
-![Job Description Input](docs/screenshots/job-description.png)
-*Job description input area with save button*
 
-### 4. Resume Focus Points
 
-After analyzing the job description, you'll see:
-- A summary of key requirements
-- Specific focus points for your resume
-- Suggested areas for improvement
+![Screenshot 2025-05-17 at 4 38 01 PM](https://github.com/user-attachments/assets/a5d73ac5-245d-449b-a864-2ab09fa12ffc)
 
-![Resume Focus Points](docs/screenshots/focus-points.png)
-*Focus points panel showing key requirements and suggestions*
 
-### 5. Resume Editing
 
-#### For New Resumes:
-1. Start with a blank canvas
-2. Use the AI chat interface to get suggestions
-3. Implement changes in real-time
-
-![New Resume Canvas](docs/screenshots/new-resume.png)
-*Blank canvas for creating a new resume*
-
-#### For Existing Resumes:
-1. Upload your resume (PDF, DOCX, or TXT)
-2. The system will parse and display your content
-3. Use the AI suggestions to optimize each section
-
-![Existing Resume Upload](docs/screenshots/resume-upload.png)
-*File upload interface for existing resumes*
-
-### 6. AI Chat Interface
-
-The chat interface allows you to:
-- Ask specific questions about your resume
-- Get suggestions for improvement
-- Request revisions for specific sections
-- Get explanations for suggested changes
-
-![Chat Interface](docs/screenshots/chat-interface.png)
-*AI chat interface with message history*
-
-### 7. Revision Process
+### 4. Revision Process
 
 1. Select any text in your resume
 2. Click the "Revise" button that appears
 3. Choose from quick revision suggestions or provide custom instructions
 4. Review the AI's suggested changes
 5. Accept or reject the revisions
+   
+![Screenshot 2025-05-17 at 4 40 14 PM](https://github.com/user-attachments/assets/5e46f46d-95d4-453e-ae1d-f7588b643158)
 
-![Revision Process](docs/screenshots/revision-process.png)
-*Text selection and revision interface*
+![Screenshot 2025-05-17 at 4 40 37 PM](https://github.com/user-attachments/assets/48518f28-9bfc-4da4-bf67-2cd87d590cf8)
 
-## Technical Features
+![Screenshot 2025-05-17 at 4 40 55 PM](https://github.com/user-attachments/assets/05258695-fcab-4c7e-9dde-94106a62eab7)
+
+
+## Features
 
 - **Real-time Analysis**: Instant feedback on resume improvements
 - **Context-Aware Suggestions**: AI considers both your resume and the job description
