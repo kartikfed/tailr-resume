@@ -479,33 +479,92 @@ router.post('/revise', async (req, res) => {
     if (!selectedText || !jobDescription) {
       return res.status(400).json({ error: 'selectedText and jobDescription are required.' });
     }
-    const revisionPrompt = `You are a resume revision assistant. You will be given a piece of resume text and a job description. Your task is to revise the selected text to maximize its alignment with the job description, optimizing for both ATS (Applicant Tracking System) and human recruiter appeal.
+    const systemPrompt = `You are a resume bullet point formatter operating in STRICT OUTPUT MODE.
 
-Instructions:
-- Do NOT change the core meaning or introduce new information.
-- Use the job description as context to improve wording, highlight relevant skills, and match keywords.
-- Preserve the original Markdown formatting (bullets, bold, italics, etc.).
-- Output ONLY the revised text in fully escaped Markdown (all Markdown special characters must be escaped with backslashes).
-- Do NOT include any explanations, introductions, or extra text—just the revised text.
+OUTPUT FORMAT REQUIREMENT: 
+Your response must preserve ALL original markdown formatting from the selected text.
 
-Example Input:
-Selected Text: \* Designed and implemented a new data pipeline for analytics resulting in 30\% faster reporting
-Job Description: Seeking a software engineer with experience in data pipelines, analytics, and cloud platforms.
+CRITICAL INSTRUCTIONS:
+1. DO NOT add any NEW markdown formatting
+2. NO headers, titles, notes, explanations, or comments
+3. NO multiple lines or line breaks
+4. PRESERVE all original markdown formatting from the selected text
+5. ONLY modify the text between <<< and >>> delimiters
+6. DO NOT add information not present in the original text
+7. DO NOT modify facts, numbers, or achievements
+8. ONLY revise the wording using the job description for context
+9. DO NOT output ANYTHING else - no resume sections, no contact info, no education, no skills
+10. DO NOT create new bullet points or achievements
+11. DO NOT add dates, locations, or company names
 
-Example Output:
-\* Designed and implemented a scalable data pipeline on cloud platforms, improving analytics efficiency by 30\%`;
-    let userContent = `Selected Text: ${selectedText}\nJob Description: ${jobDescription}`;
+
+STRICT ANTI-HALLUCINATION RULE:
+- DO NOT invent new achievements, metrics, or details
+- DO NOT change any numerical values present in the original text
+- DO NOT add information that wasn't in the original text
+- ONLY use factual information contained within the delimiters and other context provided
+- DO NOT create new sections or content
+- DO NOT add contact information or personal details
+- DO NOT add education or skills sections
+- DO NOT add any content outside the delimited text
+
+VERIFICATION STEP:
+Before submitting, confirm your response contains:
+1. Preserves all original markdown formatting
+2. No explanations or additional text
+3. No headers or section titles
+4. No contact information
+5. No education or skills sections
+6. No dates or locations
+7. No company names
+11. No NEW markdown formatting
+
+Selected Text to Revise:
+<<<
+${selectedText}
+>>>
+
+All information outside the delimiters (job description, full resume, etc.) is CONTEXT ONLY to help improve the revision of the text within the delimiters.`;
+
+    let userContent = `Selected Text:\n<<<\n${selectedText}\n>>>\nJob Description: ${jobDescription}`;
     if (userInstructions) {
       userContent += `\nUser Instructions: ${userInstructions}`;
     }
+    // Include the full resume content as context
+    const resumeContent = req.body.resumeContent || '';
+    userContent += `\nFull Resume Content: ${resumeContent}`;
+    userContent += `\n\nRemember: Output ONLY the revised text, and nothing else.`;
     const messages = [
       { role: 'user', content: userContent }
     ];
-    const claudeResponse = await sendMessageToClaudeWithMCP(messages, []);
+    const claudeResponse = await sendMessageToClaudeWithMCP(messages, [], systemPrompt);
     let revisedText = '';
     if (claudeResponse.content && claudeResponse.content.length > 0 && claudeResponse.content[0].type === 'text') {
       revisedText = claudeResponse.content[0].text.trim();
+      
+      // Validate the response format
+      // if (!revisedText.startsWith('* ')) {
+      //   console.error('Invalid response format - does not start with asterisk:', revisedText);
+      //   revisedText = `* ${revisedText.replace(/^[*\s]+/, '')}`;
+      // }
+      
+      // Only remove line breaks and normalize spaces, preserve other markdown
+      revisedText = revisedText
+        .replace(/\n/g, ' ') // Remove line breaks
+        .replace(/\s+/g, ' ') // Normalize spaces
+        .trim();
+      
+      // // Ensure it starts with an asterisk
+      // if (!revisedText.startsWith('*')) {
+      //   revisedText = `* ${revisedText}`;
+      // }
+      
+      // // Ensure it's a single line
+      // revisedText = revisedText.split('\n')[0];
     }
+    console.log('Backend /revise: Claude response:', claudeResponse);
+    console.log('Backend /revise: revisedText:', revisedText);
+    console.log('CLAUDES REVISION:', revisedText);
     res.json({ revisedText });
   } catch (error) {
     console.error('Backend: Error in /revise endpoint:', error);

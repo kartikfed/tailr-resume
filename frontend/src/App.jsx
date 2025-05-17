@@ -261,16 +261,87 @@ Do not make any changes until the user explicitly says yes.`;
     </Flex>
   );
 
-  // Accept a pending revision for a section
-  function acceptRevision(sectionKey) {
-    setResumeSections(prev => ({
-      ...prev,
-      [sectionKey]: {
-        content: prev[sectionKey].pendingRevision,
-        pendingRevision: null
+  // Accept a revision for selected text
+  function acceptRevision(selectedText, revisedText) {
+    console.log('App: Starting revision acceptance:', {
+      selectedText,
+      revisedText,
+      hasStructured: !!resumeStructured,
+      hasMarkdown: !!canvasContent,
+      currentContent: canvasContent
+    });
+
+    if (resumeStructured) {
+      console.log('App: Updating structured resume');
+      setResumeStructured(prev => ({
+        ...prev,
+        sections: prev.sections.map(section => ({
+          ...section,
+          content: section.content === selectedText ? revisedText : section.content,
+          items: section.items?.map(item => ({
+            ...item,
+            bullets: item.bullets?.map(bullet => bullet === selectedText ? revisedText : bullet)
+          }))
+        }))
+      }));
+    } else if (canvasContent) {
+      // Robust replacement logic
+      const unescapeMarkdown = (text) => text.replace(/\\([#*_[\]()`~>\-!{}<>|.])/g, '$1');
+      const original = canvasContent;
+      const unescapedOriginal = unescapeMarkdown(original);
+      const unescapedSelected = unescapeMarkdown(selectedText);
+      const idx = unescapedOriginal.indexOf(unescapedSelected);
+      if (idx === -1) {
+        console.warn('App: Could not find selectedText in unescaped content. No replacement made.', {
+          selectedText,
+          unescapedSelected,
+          unescapedOriginalPreview: unescapedOriginal.substring(0, 100)
+        });
+        return;
       }
-    }));
+      // Map the index in unescapedOriginal back to the original string
+      let origStart = 0, origEnd = 0, uIdx = 0;
+      while (origStart < original.length && uIdx < idx) {
+        if (original[origStart] === '\\' && /[#*_[\]()`~>\-!{}<>|.]/.test(original[origStart+1])) {
+          origStart += 2;
+        } else {
+          origStart++;
+        }
+        uIdx++;
+      }
+      origEnd = origStart;
+      let uLen = 0;
+      while (origEnd < original.length && uLen < unescapedSelected.length) {
+        if (original[origEnd] === '\\' && /[#*_[\]()`~>\-!{}<>|.]/.test(original[origEnd+1])) {
+          origEnd += 2;
+        } else {
+          origEnd++;
+        }
+        uLen++;
+      }
+      // Replace the substring in the original markdown
+      const updatedContent = original.slice(0, origStart) + revisedText + original.slice(origEnd);
+      setCanvasContent(updatedContent);
+      console.log('App: Replaced selectedText in markdown.', {
+        origStart,
+        origEnd,
+        before: original.slice(origStart, origEnd),
+        after: revisedText
+      });
+    } else {
+      console.error('App: No content available to revise');
+    }
   }
+
+  // Add useEffect to monitor content changes
+  useEffect(() => {
+    console.log('App: Content changed:', {
+      canvasContent,
+      resumeStructured,
+      contentLength: canvasContent?.length,
+      contentPreview: canvasContent?.substring(0, 100) + '...'
+    });
+  }, [canvasContent, resumeStructured]);
 
   // Reject a pending revision for a section
   function rejectRevision(sectionKey) {
@@ -450,6 +521,8 @@ Do not make any changes until the user explicitly says yes.`;
                   resumeSections={null}
                   onAcceptRevision={acceptRevision}
                   onRejectRevision={rejectRevision}
+                  jobDescriptionProvided={!!jobDescription.trim()}
+                  jobDescription={jobDescription}
                 />
               </Box>
             </Flex>

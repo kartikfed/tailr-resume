@@ -20,7 +20,7 @@ const anthropic = new Anthropic({
 });
 
 // Strict Markdown system prompt for all resume flows
-const systemPrompt = `You are a resume formatting assistant. You will be given an entire resume text. Output ONLY the resume in valid escaped Markdown format. Do NOT include any explanations, introductions, or extra text. Do NOT include any preamble such as 'Here is the resume formatted in valid escaped markdown.' Formatting requirements: - Use # or ## for section headers (e.g., ## Experience) - Use * at the start of a line for bullet points - Use bold for names, roles, or other important text - Use italic for team/sub-section names if needed - Do not use all-caps for section headers; use escaped Markdown headings instead - Do not add any text before or after the resume - Preserve the original wording, punctuation, and order of the text - Maintain the overall structure of the resume including sections like Contact Information, Experience, Education, Projects, etc. - Ensure all dates, company names, and contact information are on separate lines for easy extraction - ALL markdown special characters must be escaped with backslashes (\\)\nExample Input: Designed and implemented a new data pipeline for analytics resulting in 30% faster reporting Collaborated with cross-functional teams to define requirements Improved data quality by 25% through validation scripts\nExample Output:\n\\* Designed and implemented a new data pipeline for analytics resulting in 30\\% faster reporting\n\\* Collaborated with cross-functional teams to define requirements\n\\* Improved data quality by 25\\% through validation scripts`;
+const DEFAULT_SYSTEM_PROMPT = `You are a resume formatting assistant. You will be given an entire resume text. Output ONLY the resume in valid escaped Markdown format. Do NOT include any explanations, introductions, or extra text. Do NOT include any preamble such as 'Here is the resume formatted in valid escaped markdown.' Formatting requirements: - Use # or ## for section headers (e.g., ## Experience) - Use * at the start of a line for bullet points - Use bold for names, roles, or other important text - Use italic for team/sub-section names if needed - Do not use all-caps for section headers; use escaped Markdown headings instead - Do not add any text before or after the resume - Preserve the original wording, punctuation, and order of the text - Maintain the overall structure of the resume including sections like Contact Information, Experience, Education, Projects, etc. - Ensure all dates, company names, and contact information are on separate lines for easy extraction - ALL markdown special characters must be escaped with backslashes (\\)\nExample Input: Designed and implemented a new data pipeline for analytics resulting in 30% faster reporting Collaborated with cross-functional teams to define requirements Improved data quality by 25% through validation scripts\nExample Output:\n\\* Designed and implemented a new data pipeline for analytics resulting in 30\\% faster reporting\n\\* Collaborated with cross-functional teams to define requirements\n\\* Improved data quality by 25\\% through validation scripts`;
 
 /**
  * Sends a message to Claude and handles any tool calling
@@ -28,7 +28,7 @@ const systemPrompt = `You are a resume formatting assistant. You will be given a
  * @param {Array} files - Any files uploaded by the user
  * @returns {Object} - Claude's response
  */
-async function sendMessageToClaudeWithMCP(messages, files = []) {
+async function sendMessageToClaudeWithMCP(messages, files = [], systemPrompt = DEFAULT_SYSTEM_PROMPT) {
     try {
       const tools = formatToolsForMCP();
       const formattedMessages = messages.map(msg => ({
@@ -39,7 +39,7 @@ async function sendMessageToClaudeWithMCP(messages, files = []) {
       console.log('Claude Service: Number of messages:', formattedMessages.length);
       console.log('Claude Service: Last message length:', formattedMessages[formattedMessages.length - 1].content.length);
       const requestParams = {
-        model: 'claude-3-opus-20240229',
+        model: 'claude-3-7-sonnet-20250219',
         system: systemPrompt,
         messages: formattedMessages,
         max_tokens: 4096,
@@ -116,8 +116,8 @@ async function handleToolCalls(response, messages, tools, files) {
     
     // Send updated messages to Claude
     currentResponse = await anthropic.messages.create({
-      model: 'claude-3-opus-20240229',
-      system: systemPrompt,
+      model: 'claude-3-7-sonnet-20250219',
+      system: DEFAULT_SYSTEM_PROMPT,
       messages: updatedMessages,
       tools: tools,
       max_tokens: 4096,
