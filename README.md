@@ -18,6 +18,9 @@ When you first open Tailr, you'll see two options:
 - **Start from Scratch**: Begin with a blank canvas to create a new resume
 - **Start with an Existing Resume**: Upload your current resume for optimization
 
+![Welcome Screen](docs/screenshots/welcome-screen.png)
+*Welcome screen with options to start from scratch or upload an existing resume*
+
 ### 2. Writing Style Selection
 
 Before proceeding, you'll be prompted to select your preferred writing style:
@@ -25,11 +28,17 @@ Before proceeding, you'll be prompted to select your preferred writing style:
 - **Detailed & Technical**: Perfect for engineering-heavy positions
 - **Plain Language**: Best for nonprofit or generalist roles
 
+![Writing Style Selection](docs/screenshots/writing-style.png)
+*Writing style selector with examples for each style*
+
 ### 3. Job Description Input
 
 1. Paste the job description in the provided text area
 2. Click "Save" to analyze the job description
 3. The system will automatically extract key focus points and requirements
+
+![Job Description Input](docs/screenshots/job-description.png)
+*Job description input area with save button*
 
 ### 4. Resume Focus Points
 
@@ -38,6 +47,9 @@ After analyzing the job description, you'll see:
 - Specific focus points for your resume
 - Suggested areas for improvement
 
+![Resume Focus Points](docs/screenshots/focus-points.png)
+*Focus points panel showing key requirements and suggestions*
+
 ### 5. Resume Editing
 
 #### For New Resumes:
@@ -45,10 +57,16 @@ After analyzing the job description, you'll see:
 2. Use the AI chat interface to get suggestions
 3. Implement changes in real-time
 
+![New Resume Canvas](docs/screenshots/new-resume.png)
+*Blank canvas for creating a new resume*
+
 #### For Existing Resumes:
 1. Upload your resume (PDF, DOCX, or TXT)
 2. The system will parse and display your content
 3. Use the AI suggestions to optimize each section
+
+![Existing Resume Upload](docs/screenshots/resume-upload.png)
+*File upload interface for existing resumes*
 
 ### 6. AI Chat Interface
 
@@ -58,6 +76,9 @@ The chat interface allows you to:
 - Request revisions for specific sections
 - Get explanations for suggested changes
 
+![Chat Interface](docs/screenshots/chat-interface.png)
+*AI chat interface with message history*
+
 ### 7. Revision Process
 
 1. Select any text in your resume
@@ -66,6 +87,9 @@ The chat interface allows you to:
 4. Review the AI's suggested changes
 5. Accept or reject the revisions
 
+![Revision Process](docs/screenshots/revision-process.png)
+*Text selection and revision interface*
+
 ## Technical Features
 
 - **Real-time Analysis**: Instant feedback on resume improvements
@@ -73,6 +97,9 @@ The chat interface allows you to:
 - **Markdown Support**: Rich text formatting for better presentation
 - **Responsive Design**: Works seamlessly on desktop and mobile devices
 - **Dark Mode**: Modern, eye-friendly interface
+
+![Dark Mode Interface](docs/screenshots/dark-mode.png)
+*Application interface in dark mode*
 
 ## Best Practices
 
@@ -109,3 +136,25 @@ If you need assistance:
 - Enhanced AI capabilities
 - Integration with job boards
 - Resume template library
+
+## Screenshot Guidelines
+
+To add screenshots to this README:
+
+1. Create a `docs/screenshots` directory in the project root
+2. Save screenshots with the following naming convention:
+   - welcome-screen.png
+   - writing-style.png
+   - job-description.png
+   - focus-points.png
+   - new-resume.png
+   - resume-upload.png
+   - chat-interface.png
+   - revision-process.png
+   - dark-mode.png
+
+3. Recommended screenshot specifications:
+   - Resolution: 1920x1080 or higher
+   - Format: PNG with transparency
+   - File size: Optimize for web (under 500KB)
+   - Style: Include relevant UI elements and context
