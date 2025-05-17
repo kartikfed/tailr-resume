@@ -12,7 +12,10 @@ export default defineConfig({
   },
   build: {
     commonjsOptions: {
-      include: [/remark-gfm/, /react-markdown/]
+      transformMixedEsModules: true
     }
+  },
+  resolve: {
+    dedupe: ['react', 'react-dom']
   }
 });

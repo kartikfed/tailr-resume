@@ -20,7 +20,7 @@ import {
 } from '@chakra-ui/react';
 import { CheckCircleIcon, RepeatIcon, CloseIcon } from '@chakra-ui/icons';
 import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 import ReactDOM from 'react-dom';
 
 /**
@@ -100,7 +100,7 @@ const SpecCanvas = ({
     // Otherwise just render the content normally
     return (
       <Box whiteSpace="pre-wrap" userSelect="text">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+        <ReactMarkdown rehypePlugins={[rehypeRaw]}>
           {content}
         </ReactMarkdown>
       </Box>
@@ -596,7 +596,7 @@ const SpecCanvas = ({
           <Box key={resumeMarkdown.length}>
           <ReactMarkdown
               children={unescapeMarkdown(resumeMarkdown)}
-              remarkPlugins={[remarkGfm]}
+              rehypePlugins={[rehypeRaw]}
             components={{
                 h1: ({node, ...props}) => <Heading as="h1" size="lg" my={4} {...props} />,
                 h2: ({node, ...props}) => <Heading as="h2" size="md" my={3} {...props} />,
