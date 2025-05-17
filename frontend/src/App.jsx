@@ -480,7 +480,7 @@ ${structuredData.sections.map(section => {
 
   return (
     <ChakraProvider>
-      <Box h="100vh" display="flex" flexDirection="column">
+      <Box minH="100vh" display="flex" flexDirection="column">
         {/* Header */}
         <Box bg="white" borderBottom="1px solid" borderColor={borderColor} p={3}>
           <Container maxW="container.xl">
@@ -579,7 +579,7 @@ ${structuredData.sections.map(section => {
         </Box>
 
         {/* Main Content - Responsive Flex Layout */}
-        <Box flex="1" overflow="hidden">
+        <Box flex="1">
           <Container maxW="container.xl" h="100%" p={0}>
             <Flex
               direction={{ base: 'column', md: 'row' }}
