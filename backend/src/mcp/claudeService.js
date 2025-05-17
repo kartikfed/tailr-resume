@@ -6,8 +6,6 @@
  */
 
 const Anthropic = require('@anthropic-ai/sdk');
-const { formatToolsForMCP } = require('./toolDefinitions');
-const toolHandlers = require('../tools/toolHandlers');
 const dotenv = require('dotenv');
 const path = require('path');
 
@@ -30,6 +28,7 @@ const DEFAULT_SYSTEM_PROMPT = `You are a resume formatting assistant. You will b
  */
 async function sendMessageToClaudeWithMCP(messages, files = [], systemPrompt = DEFAULT_SYSTEM_PROMPT) {
     try {
+      const { formatToolsForMCP } = require('./toolDefinitions');
       const tools = formatToolsForMCP();
       const formattedMessages = messages.map(msg => ({
         role: msg.role,
@@ -81,6 +80,7 @@ async function handleToolCalls(response, messages, tools, files) {
     let toolResult;
     try {
       // Call the appropriate tool handler and pass context
+      const toolHandlers = require('../tools/toolHandlers');
       toolResult = await toolHandlers[toolCall.name](
         toolCall.input, 
         { files }  // Pass files and other context
@@ -136,5 +136,6 @@ async function handleToolCalls(response, messages, tools, files) {
 }
 
 module.exports = {
-  sendMessageToClaudeWithMCP
+  sendMessageToClaudeWithMCP,
+  handleToolCalls
 };

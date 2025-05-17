@@ -20,7 +20,7 @@ import { uploadFiles } from '../services/apiService';
 /**
  * Component for uploading context files for the AI Spec Assistant
  */
-const FileUpload = ({ onFilesUploaded, isLoading, conversationId }) => {
+const FileUpload = ({ onFilesUploaded, isLoading, conversationId, bg, color }) => {
   const [files, setFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const toast = useToast();
@@ -111,12 +111,11 @@ const FileUpload = ({ onFilesUploaded, isLoading, conversationId }) => {
       onFilesUploaded(response.files);
       
       toast({
-        title: 'Files uploaded',
-        description: `${files.length} files uploaded successfully`,
+        title: 'File uploaded successfully',
         status: 'success',
         duration: 2000,
         isClosable: true,
-        position: 'bottom-right'
+        position: 'top-right'
       });
 
       // Clear files after upload
@@ -124,12 +123,12 @@ const FileUpload = ({ onFilesUploaded, isLoading, conversationId }) => {
     } catch (error) {
       console.error('Frontend: Upload error:', error);
       toast({
-        title: 'Upload failed',
-        description: error.message || 'Failed to upload files',
+        title: 'Error uploading file',
+        description: error.message || 'Failed to upload file',
         status: 'error',
         duration: 2000,
         isClosable: true,
-        position: 'bottom-right'
+        position: 'top-right'
       });
     } finally {
       setIsUploading(false);
@@ -138,7 +137,7 @@ const FileUpload = ({ onFilesUploaded, isLoading, conversationId }) => {
 
   return (
     <Box width="100%" mb={4}>
-      <Text mb={2} fontWeight="medium">Upload supporting files (optional):</Text>
+      <Text mb={2} fontWeight="medium" color={color}>Upload supporting files (optional):</Text>
       <Input
         type="file"
         multiple
@@ -153,10 +152,14 @@ const FileUpload = ({ onFilesUploaded, isLoading, conversationId }) => {
           <Button
             as="span"
             leftIcon={<AttachmentIcon />}
-            colorScheme="gray"
+            bg={bg}
+            color={color}
             size="md"
             cursor="pointer"
             isDisabled={isLoading || isUploading}
+            _hover={{ bg: 'purple.700' }}
+            border="1px solid"
+            borderColor="purple.700"
           >
             Select Files
           </Button>
@@ -168,9 +171,9 @@ const FileUpload = ({ onFilesUploaded, isLoading, conversationId }) => {
               {files.map((file, index) => (
                 <ListItem key={index}>
                   <Flex alignItems="center">
-                    <ListIcon as={CheckCircleIcon} color="green.500" />
-                    <Text fontSize="sm">{file.name}</Text>
-                    <Badge ml={2} colorScheme="gray" fontSize="xs">
+                    <ListIcon as={CheckCircleIcon} color="white" />
+                    <Text fontSize="sm" color={color}>{file.name}</Text>
+                    <Badge ml={2} bg="purple.700" color="white" fontSize="xs">
                       {(file.size / 1024).toFixed(1)} KB
                     </Badge>
                   </Flex>
@@ -180,11 +183,15 @@ const FileUpload = ({ onFilesUploaded, isLoading, conversationId }) => {
 
             <Button
               onClick={handleUpload}
-              colorScheme="blue"
+              bg={bg}
+              color={color}
               size="sm"
               isLoading={isUploading}
               loadingText="Uploading..."
               width="fit-content"
+              _hover={{ bg: 'purple.700' }}
+              border="1px solid"
+              borderColor="purple.700"
             >
               Upload {files.length} {files.length === 1 ? 'File' : 'Files'}
             </Button>

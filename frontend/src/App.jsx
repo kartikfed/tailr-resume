@@ -53,8 +53,14 @@ function App() {
   const toast = useToast();
   
   // Color mode values for styling
-  const bgColor = useColorModeValue('gray.50', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.600');
+  const bgColor = useColorModeValue('gray.900', 'gray.900');
+  const borderColor = useColorModeValue('gray.700', 'gray.700');
+  const textColor = useColorModeValue('gray.100', 'gray.100');
+  const cardBgColor = useColorModeValue('gray.800', 'gray.800');
+  const inputBgColor = useColorModeValue('gray.700', 'gray.700');
+  const canvasBgColor = useColorModeValue('white', 'white');
+  const chatPaneBgColor = useColorModeValue('purple.900', 'purple.900');
+  const chatInputBgColor = useColorModeValue('purple.800', 'purple.800');
   
   const [startMode, setStartMode] = useState('choose'); // 'choose' | 'scratch' | 'existing'
   // Track if user started with an existing resume
@@ -116,7 +122,7 @@ function App() {
             status: 'info',
             duration: 2000,
             isClosable: true,
-            position: 'bottom-right'
+            position: 'top-right'
           });
         }
       } catch (error) {
@@ -137,6 +143,11 @@ function App() {
         setJobDescriptionSaved(true);
         setJobDescriptionProvided(true);
 
+        console.log('Sending job description for analysis:', {
+          url: `${import.meta.env.VITE_API_URL}/api/spec/analyze-job-description`,
+          contentLength: jobDescription.length
+        });
+
         const response = await fetch(`${import.meta.env.VITE_API_URL}/api/spec/analyze-job-description`, {
           method: 'POST',
           headers: {
@@ -149,7 +160,13 @@ function App() {
         });
 
         if (!response.ok) {
-          throw new Error('Failed to analyze job description');
+          const errorData = await response.json().catch(() => null);
+          console.error('Analysis failed:', {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorData
+          });
+          throw new Error(errorData?.message || `Failed to analyze job description: ${response.status} ${response.statusText}`);
         }
 
         const analysis = await response.json();
@@ -172,17 +189,22 @@ function App() {
           status: 'success',
           duration: 5000,
           isClosable: true,
+          position: 'top-right'
         });
       } catch (error) {
         console.error('Error analyzing job description:', error);
-        // Show error toast but don't clear the saved state
+        // Show error toast with more detailed message
         toast({
           title: 'Analysis failed',
-          description: 'Failed to analyze job description. It has been saved but may not be fully optimized.',
-          status: 'warning',
+          description: error.message || 'Failed to analyze job description. Please try again.',
+          status: 'error',
           duration: 5000,
           isClosable: true,
+          position: 'top-right'
         });
+        // Don't clear the saved state since the job description was saved
+        setJobDescriptionSaved(true);
+        setJobDescriptionProvided(true);
       } finally {
         setIsSavingJobDescription(false);
       }
@@ -200,7 +222,7 @@ function App() {
       status: 'info',
       duration: 2000,
       isClosable: true,
-      position: 'bottom-right'
+      position: 'top-right'
     });
   };
 
@@ -307,7 +329,7 @@ ${structuredData.sections.map(section => {
         status: 'error',
         duration: 2000,
         isClosable: true,
-        position: 'bottom-right'
+        position: 'top-right'
       });
       setIsLoading(false);
     }
@@ -423,7 +445,7 @@ ${structuredData.sections.map(section => {
         status: "success",
         duration: 2000,
         isClosable: true,
-        position: "bottom-right"
+        position: "top-right"
       });
     }
   }
@@ -457,20 +479,31 @@ ${structuredData.sections.map(section => {
     return (
       <ChakraProvider>
         <Flex direction="column" align="center" justify="center" minH="100vh" bg={bgColor}>
-          <Box p={8} bg="white" borderRadius="lg" boxShadow="lg" minW="320px">
-            <Heading as="h2" size="md" mb={4} textAlign="center">Tailr Your Resume</Heading>
-            <Text fontSize="sm" mb={4} textAlign="center">
+          <Box 
+            p={8} 
+            bg={chatPaneBgColor}
+            borderRadius="xl"
+            boxShadow="lg" 
+            minW="320px"
+            border="1px solid"
+            borderColor="purple.700"
+          >
+            <Heading as="h2" size="md" mb={4} textAlign="center" color="white">Tailr Your Resume</Heading>
+            <Text fontSize="sm" mb={4} textAlign="center" color="white" opacity={0.9}>
               Upload your existing resume (PDF, DOCX, or TXT). The extracted text will be shown in the canvas for editing and optimization.
             </Text>
             <ToneSelector
               value={writingTone}
               onChange={setWritingTone}
               label="Select your preferred writing style"
+              labelColor="white"
             />
             <FileUpload
               onFilesUploaded={handleExistingResumeUpload}
               isLoading={isLoading}
               conversationId={conversationId}
+              bg={chatInputBgColor}
+              color="white"
             />
           </Box>
         </Flex>
@@ -480,9 +513,9 @@ ${structuredData.sections.map(section => {
 
   return (
     <ChakraProvider>
-      <Box minH="100vh" display="flex" flexDirection="column">
+      <Box minH="100vh" display="flex" flexDirection="column" bg={bgColor}>
         {/* Header */}
-        <Box bg="white" borderBottom="1px solid" borderColor={borderColor} p={3}>
+        <Box bg={cardBgColor} borderBottom="1px solid" borderColor={borderColor} p={3}>
           <Container maxW="container.xl">
             <Flex align="center">
               <Box
@@ -503,8 +536,8 @@ ${structuredData.sections.map(section => {
                 />
               </Box>
               <VStack align="start" spacing={0.5} ref={textBlockRef}>
-                <Heading as="h1" size="2xl" fontWeight="bold" color="#000003">Tailr</Heading>
-                <Text fontSize="md" color="gray.600">
+                <Heading as="h1" size="2xl" fontWeight="bold" color="white">Tailr</Heading>
+                <Text fontSize="md" color="gray.400">
                   Tailor any resume for any job application
                 </Text>
               </VStack>
@@ -517,7 +550,7 @@ ${structuredData.sections.map(section => {
         <Box bg={bgColor} borderBottom="1px solid" borderColor={borderColor} p={3}>
           <Container maxW="container.xl" px={0}>
             <Flex align="center" justify="space-between" mb={2}>
-              <Heading size="xs" minW="120px">Job Description</Heading>
+              <Heading size="xs" minW="120px" color={textColor}>Job Description</Heading>
             </Flex>
             <Textarea
               placeholder="Paste job description..."
@@ -525,10 +558,12 @@ ${structuredData.sections.map(section => {
               onChange={(e) => setJobDescription(e.target.value)}
               rows={2}
               fontSize="sm"
-              bg="white"
+              bg={inputBgColor}
+              color={textColor}
               resize="vertical"
               mb={2}
               p={2}
+              _placeholder={{ color: 'gray.400' }}
               _focus={{ borderColor: "blue.400", boxShadow: "0 0 0 1px #3182ce" }}
             />
             <Flex gap={2} mb={2}>
@@ -548,24 +583,44 @@ ${structuredData.sections.map(section => {
                   size="xs"
                   onClick={handleClearJobDescription}
                   isDisabled={isSavingJobDescription}
+                  color={textColor}
+                  borderColor={borderColor}
+                  _hover={{ bg: 'gray.700' }}
                 >
                   Clear
                 </Button>
               )}
             </Flex>
             {resumeEmphasis && (
-              <Box mb={2} p={3} bg="blue.50" borderRadius="md" fontSize="sm">
-                <Text fontWeight="medium" color="blue.700" mb={2}>
+              <Box 
+                p={4} 
+                bg={chatPaneBgColor}
+                borderRadius="xl"
+                border="1px solid"
+                borderColor="purple.700"
+                mb={4}
+              >
+                <Text 
+                  fontSize="sm" 
+                  fontWeight="medium" 
+                  mb={2}
+                  color="white"
+                >
                   Resume Focus Points:
                 </Text>
-                <Text color="gray.700" mb={2}>
+                <Text 
+                  fontSize="sm" 
+                  color="white"
+                  opacity={0.9}
+                  mb={3}
+                >
                   {resumeEmphasis.summary}
                 </Text>
                 <List spacing={2}>
                   {resumeEmphasis.key_points.map((point, index) => (
                     <ListItem key={index} display="flex" alignItems="center">
-                      <ListIcon as={CheckCircleIcon} color="blue.500" />
-                      <Text>{point}</Text>
+                      <ListIcon as={CheckCircleIcon} color="white" opacity={0.9} />
+                      <Text color="white" opacity={0.9}>{point}</Text>
                     </ListItem>
                   ))}
                 </List>
@@ -574,6 +629,8 @@ ${structuredData.sections.map(section => {
             <ToneSelector
               value={writingTone}
               onChange={setWritingTone}
+              label="Select your preferred writing style"
+              labelColor={textColor}
             />
           </Container>
         </Box>
@@ -591,8 +648,10 @@ ${structuredData.sections.map(section => {
               <Box
                 w={{ base: '100%', md: '70%' }}
                 h={{ base: 'auto', md: '100%' }}
-                bg="gray.50"
-                p={6}
+                px={0}
+                pt={2}
+                pb={8}
+                pr={2}
                 display="flex"
                 flexDirection="column"
                 justifyContent="flex-start"
@@ -600,32 +659,22 @@ ${structuredData.sections.map(section => {
                 overflow="auto"
                 zIndex={0}
               >
-                <Box
-                  maxW="850px"
-                  mx="auto"
-                  w="100%"
-                  bg="white"
-                  p={8}
-                  borderRadius="md"
-                  boxShadow="sm"
-                >
-                  <SpecCanvas
-                    resumeStructured={resumeStructured}
-                    resumeMarkdown={canvasContent}
-                    resumeHtml={null}
-                    resumeSections={null}
-                    onAcceptRevision={acceptRevision}
-                    onRejectRevision={rejectRevision}
-                    jobDescriptionProvided={!!jobDescription.trim()}
-                    jobDescription={jobDescription}
-                    highlightedText={highlightedText}
-                    promptPresets={promptPresets}
-                    onRegeneratePrompts={handleRegeneratePrompts}
-                    writingTone={writingTone}
-                    conversationId={conversationId}
-                    onUpdateMessages={setMessages}
-                  />
-                </Box>
+                <SpecCanvas
+                  resumeStructured={resumeStructured}
+                  resumeMarkdown={canvasContent}
+                  resumeHtml={null}
+                  resumeSections={null}
+                  onAcceptRevision={acceptRevision}
+                  onRejectRevision={rejectRevision}
+                  jobDescriptionProvided={!!jobDescription.trim()}
+                  jobDescription={jobDescription}
+                  highlightedText={highlightedText}
+                  promptPresets={promptPresets}
+                  onRegeneratePrompts={handleRegeneratePrompts}
+                  writingTone={writingTone}
+                  conversationId={conversationId}
+                  onUpdateMessages={setMessages}
+                />
               </Box>
 
               {/* Chat Pane (Right, 30% on desktop) */}
@@ -634,26 +683,31 @@ ${structuredData.sections.map(section => {
                 minW={{ md: '340px' }}
                 maxW={{ md: '480px' }}
                 h={{ base: 'auto', md: '100%' }}
-                bg="white"
+                bg={chatPaneBgColor}
                 borderRight={{ md: '1px solid' }}
                 borderColor={borderColor}
                 display="flex"
                 flexDirection="column"
                 mb={{ base: 2, md: 0 }}
                 zIndex={1}
+                borderRadius="xl"
+                overflow="hidden"
+                border="1px solid"
               >
                 {/* Chat history */}
-                <Box p={3} borderBottom="1px solid" borderColor="gray.100">
-                  <Heading size="sm" mb={2}>Ask me anything</Heading>
+                <Box p={3} borderBottom="1px solid" borderColor={borderColor}>
+                  <Heading size="sm" mb={2} color={textColor}>Ask me anything</Heading>
                 </Box>
                 <VStack flex="1" spacing={0} align="stretch" overflow="hidden">
                   <Box flex="1" overflow="auto" p={3}>
                     <MessageHistory messages={messages} />
                   </Box>
-                  <Box p={3} borderTop="1px solid" borderColor="gray.100">
+                  <Box p={3} borderTop="1px solid" borderColor={borderColor}>
                     <ChatInput
                       onSendMessage={handleSendMessage}
                       isLoading={isLoading}
+                      bg={chatInputBgColor}
+                      color={textColor}
                     />
                   </Box>
                 </VStack>

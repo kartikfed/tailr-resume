@@ -154,7 +154,7 @@ ${structuredData.sections.map(section => {
       if (conversationFiles.length > 0) {
         formattedMessages.unshift({
           role: 'assistant',
-          content: `I am reviewing your resume and will provide feedback based on the content you've shared. I can see your resume content and will use it to answer your questions.`
+          content: `I am reviewing your resume and will provide feedback based on the content you've shared. I will always give an explanation that meets your request. I can see your resume content and will use it to answer your questions.I will always respond to your direct question or prompt. My goal is to always prioritize meeting your request. I will use everything I have available to me as context. As a resume support expert, my goal is to help you improve your resume in the best way possible, otherwise I have failed. I will never just spit out content without explaining exactly how i am attempting to answer your question or meet your request.`
         });
       }
       
@@ -753,7 +753,7 @@ IMPORTANT:
   * Should use direct, first-person language
   * Should NOT use phrases like "revise my resume" or "update my resume" since they apply to single bullet points
   * Should use natural language that a user would use when asking for a revision
-  * Should match the specified writing tone (${writingTone})
+  * Should match the specified writing tone
   * If selected text is provided, tailor the prompts to be more specific to that text
 - The resume_emphasis section should:
   * Provide a concise summary of what to emphasize in the resume
@@ -770,65 +770,60 @@ IMPORTANT:
     console.log('System prompt length:', systemPrompt.length);
     console.log('Message content length:', messages[0].content.length);
     
-    try {
-      // Send to Claude for analysis
-      const claudeResponse = await sendMessageToClaudeWithMCP(messages, [], systemPrompt);
-      
-      console.log('Received response from Claude');
-      console.log('Response type:', typeof claudeResponse);
-      console.log('Response content:', claudeResponse.content);
-      
-      if (!claudeResponse.content || claudeResponse.content.length === 0) {
-        throw new Error('Empty response from Claude');
-      }
-      
-      // Extract the JSON from Claude's response
-      const responseText = claudeResponse.content[0].text;
-      console.log('Raw response text:', responseText);
-      
-      // Find the JSON object in the response
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error('No JSON found in Claude response');
-      }
-      
-      const cleanedJson = jsonMatch[0]
-        .replace(/```json\n?/g, '')
-        .replace(/```\n?/g, '')
-        .trim();
-      
-      console.log('Cleaned JSON:', cleanedJson);
-      
-      const analysis = JSON.parse(cleanedJson);
-      console.log('Successfully parsed JSON response');
-      
-      // Return the requested analysis type or full analysis
-      const results = analysisType === 'full_analysis' ? analysis : analysis[analysisType];
-      
-      console.log('Analysis results:', {
-        analysisType,
-        resultKeys: Object.keys(results),
-        resultPreview: JSON.stringify(results).substring(0, 100) + '...'
-      });
-      
-      console.log('=== Job Description Analysis Completed ===');
-      
-      res.json({
-        fileName: 'job-description.txt',
-        analysisType,
-        results,
-        message: `Completed ${analysisType} analysis of job description`
-      });
-    } catch (error) {
-      console.error('Error in job description analysis:', error);
-      console.error('Error stack:', error.stack);
-      res.status(500).json({
-        error: `Failed to analyze job description: ${error.message}`
-      });
+    // Send to Claude for analysis
+    const claudeResponse = await sendMessageToClaudeWithMCP(messages, [], systemPrompt);
+    
+    console.log('Received response from Claude');
+    console.log('Response type:', typeof claudeResponse);
+    console.log('Response content:', claudeResponse.content);
+    
+    if (!claudeResponse.content || claudeResponse.content.length === 0) {
+      throw new Error('Empty response from Claude');
     }
+    
+    // Extract the JSON from Claude's response
+    const responseText = claudeResponse.content[0].text;
+    console.log('Raw response text:', responseText);
+    
+    // Find the JSON object in the response
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('No JSON found in Claude response');
+    }
+    
+    const cleanedJson = jsonMatch[0]
+      .replace(/```json\n?/g, '')
+      .replace(/```\n?/g, '')
+      .trim();
+    
+    console.log('Cleaned JSON:', cleanedJson);
+    
+    const analysis = JSON.parse(cleanedJson);
+    console.log('Successfully parsed JSON response');
+    
+    // Return the requested analysis type or full analysis
+    const results = analysisType === 'full_analysis' ? analysis : analysis[analysisType];
+    
+    console.log('Analysis results:', {
+      analysisType,
+      resultKeys: Object.keys(results),
+      resultPreview: JSON.stringify(results).substring(0, 100) + '...'
+    });
+    
+    console.log('=== Job Description Analysis Completed ===');
+    
+    res.json({
+      fileName: 'job-description.txt',
+      analysisType,
+      results,
+      message: `Completed ${analysisType} analysis of job description`
+    });
   } catch (error) {
     console.error('Error in job description analysis:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Error stack:', error.stack);
+    res.status(500).json({
+      error: `Failed to analyze job description: ${error.message}`
+    });
   }
 });
 

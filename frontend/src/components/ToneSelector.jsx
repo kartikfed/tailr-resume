@@ -5,7 +5,8 @@ import {
   FormLabel,
   Text,
   VStack,
-  Box
+  Box,
+  useColorModeValue
 } from '@chakra-ui/react';
 
 const TONE_OPTIONS = [
@@ -29,14 +30,22 @@ const TONE_OPTIONS = [
   }
 ];
 
-const ToneSelector = ({ value, onChange, label = 'Writing Style' }) => {
+const ToneSelector = ({ value, onChange, label = 'Writing Style', labelColor }) => {
+  const textColor = useColorModeValue('gray.600', 'gray.200');
+  const descriptionColor = useColorModeValue('gray.500', 'gray.300');
+
   return (
     <FormControl>
-      <FormLabel>{label}</FormLabel>
+      <FormLabel color={labelColor}>{label}</FormLabel>
       <Select
         value={value}
         onChange={(e) => onChange(e.target.value)}
         size="md"
+        bg="gray.700"
+        color="white"
+        borderColor="gray.600"
+        _hover={{ borderColor: 'gray.500' }}
+        _focus={{ borderColor: 'blue.400', boxShadow: '0 0 0 1px #3182ce' }}
       >
         {TONE_OPTIONS.map((option) => (
           <option key={option.value} value={option.value}>
@@ -46,10 +55,10 @@ const ToneSelector = ({ value, onChange, label = 'Writing Style' }) => {
       </Select>
       {value && (
         <VStack align="start" mt={2} spacing={1}>
-          <Text fontSize="sm" color="gray.600">
+          <Text fontSize="sm" color="white" fontWeight="medium">
             {TONE_OPTIONS.find(opt => opt.value === value)?.description}
           </Text>
-          <Text fontSize="xs" color="gray.500" fontStyle="italic">
+          <Text fontSize="xs" color="white" fontStyle="italic" opacity={0.9}>
             {TONE_OPTIONS.find(opt => opt.value === value)?.example}
           </Text>
         </VStack>

@@ -35,15 +35,13 @@ const MessageHistory = ({ messages }) => {
           <Flex align="center" mb={2}>
             <Badge 
               colorScheme={
-                message.role === 'user' ? 'blue' : 
-                message.role === 'system' ? 'purple' : 'green'
+                message.role === 'user' ? 'blue' : 'green'
               }
               px={2}
               py={1}
               borderRadius="md"
             >
-              {message.role === 'user' ? 'You' : 
-               message.role === 'system' ? "Tailr's Thoughts" : 'Tailr'}
+              {message.role === 'user' ? 'You' : 'Tailr'}
             </Badge>
             {message.timestamp && (
               <Text fontSize="xs" color="gray.500" ml={2}>
@@ -54,15 +52,13 @@ const MessageHistory = ({ messages }) => {
           
           <Box 
             bg={
-              message.role === 'user' ? 'blue.50' : 
-              message.role === 'system' ? 'purple.50' : 'green.50'
+              message.role === 'user' ? 'blue.50' : 'green.50'
             }
             p={3}
             borderRadius="md"
             borderLeftWidth="4px"
             borderLeftColor={
-              message.role === 'user' ? 'blue.200' : 
-              message.role === 'system' ? 'purple.200' : 'green.200'
+              message.role === 'user' ? 'blue.200' : 'green.200'
             }
           >
             {typeof message.content === 'string' ? (

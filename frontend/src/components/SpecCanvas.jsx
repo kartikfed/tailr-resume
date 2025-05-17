@@ -16,7 +16,8 @@ import {
   HStack,
   SimpleGrid,
   IconButton,
-  PopoverBody
+  PopoverBody,
+  useColorModeValue
 } from '@chakra-ui/react';
 import { CheckCircleIcon, RepeatIcon, CloseIcon } from '@chakra-ui/icons';
 import ReactMarkdown from 'react-markdown';
@@ -192,7 +193,7 @@ const SpecCanvas = ({
         status: 'error',
         duration: 3000,
         isClosable: true,
-        position: 'bottom-right'
+        position: 'top-right'
       });
       return;
     }
@@ -238,7 +239,7 @@ const SpecCanvas = ({
         status: 'success',
         duration: 2000,
         isClosable: true,
-        position: 'bottom-right'
+        position: 'top-right'
       });
     } catch (error) {
       console.error('Error getting revision:', error);
@@ -248,7 +249,7 @@ const SpecCanvas = ({
         status: 'error',
         duration: 3000,
         isClosable: true,
-        position: 'bottom-right'
+        position: 'top-right'
       });
     } finally {
       setIsSubmitting(false);
@@ -318,7 +319,7 @@ const SpecCanvas = ({
           status: 'error',
           duration: 3000,
           isClosable: true,
-          position: 'bottom-right'
+          position: 'top-right'
         });
       } finally {
         setIsAddingExplanation(false);
@@ -341,7 +342,7 @@ const SpecCanvas = ({
     
     setIsRegeneratingPrompts(true);
     try {
-      const response = await fetch('http://localhost:3000/api/spec/analyze-job-description', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/spec/analyze-job-description`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -355,7 +356,13 @@ const SpecCanvas = ({
       });
 
       if (!response.ok) {
-        throw new Error('Failed to regenerate prompts');
+        const errorData = await response.json().catch(() => null);
+        console.error('Failed to regenerate prompts:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
+        throw new Error(errorData?.message || `Failed to regenerate prompts: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
@@ -366,18 +373,18 @@ const SpecCanvas = ({
           status: 'success',
           duration: 2000,
           isClosable: true,
-          position: 'bottom-right'
+          position: 'top-right'
         });
       }
     } catch (error) {
       console.error('Error regenerating prompts:', error);
       toast({
         title: 'Error',
-        description: 'Failed to regenerate prompts',
+        description: error.message || 'Failed to regenerate prompts',
         status: 'error',
-        duration: 2000,
+        duration: 5000,
         isClosable: true,
-        position: 'bottom-right'
+        position: 'top-right'
       });
     } finally {
       setIsRegeneratingPrompts(false);
@@ -439,6 +446,12 @@ const SpecCanvas = ({
     }
   };
 
+  // Add color mode values at the top of the component
+  const textColor = useColorModeValue('black', 'black');
+  const bgColor = useColorModeValue('white', 'white');
+  const borderColor = useColorModeValue('gray.200', 'gray.200');
+  const inputBgColor = useColorModeValue('gray.50', 'gray.50');
+
   if (!hasContent()) {
     return (
       <Box
@@ -488,13 +501,16 @@ const SpecCanvas = ({
       position="absolute"
       top={reviseButtonPosition.top + 36}
       left={reviseButtonPosition.left}
-      bg="white"
+      bg={bgColor}
       boxShadow="lg"
       borderRadius="md"
       p={4}
       minW="320px"
       zIndex={1001}
       pointerEvents="auto"
+      color={textColor}
+      border="1px solid"
+      borderColor={borderColor}
     >
       <VStack align="stretch" spacing={3}>
         {/* Add X button in top right */}
@@ -505,11 +521,13 @@ const SpecCanvas = ({
             variant="ghost"
             onClick={handleClosePopover}
             aria-label="Close popover"
+            color={textColor}
+            _hover={{ bg: 'gray.700' }}
           />
         </Flex>
 
-        <Text fontWeight="bold" fontSize="sm">Original Text:</Text>
-        <Box p={2} bg="gray.50" borderRadius="md" fontSize="sm" fontFamily="mono" whiteSpace="pre-wrap">
+        <Text fontWeight="bold" fontSize="sm" color={textColor}>Original Text:</Text>
+        <Box p={2} bg={inputBgColor} borderRadius="md" fontSize="sm" fontFamily="mono" whiteSpace="pre-wrap" color={textColor}>
           {selectedText}
         </Box>
 
@@ -517,7 +535,7 @@ const SpecCanvas = ({
         {promptPresets.length > 0 && (
           <Box>
             <Flex justify="space-between" align="center" mb={2}>
-              <Text fontWeight="bold" fontSize="sm">Quick Revisions</Text>
+              <Text fontWeight="bold" fontSize="sm" color={textColor}>Quick Revisions</Text>
               <IconButton
                 icon={<RepeatIcon />}
                 size="sm"
@@ -525,6 +543,8 @@ const SpecCanvas = ({
                 onClick={handleRegeneratePrompts}
                 isLoading={isRegeneratingPrompts}
                 aria-label="Regenerate prompts"
+                color={textColor}
+                _hover={{ bg: 'gray.700' }}
               />
             </Flex>
             <SimpleGrid columns={1} spacing={2}>
@@ -539,6 +559,9 @@ const SpecCanvas = ({
                   whiteSpace="normal"
                   height="auto"
                   py={2}
+                  color={textColor}
+                  borderColor={borderColor}
+                  _hover={{ bg: 'gray.700' }}
                 >
                   {preset.title}
                 </Button>
@@ -550,26 +573,30 @@ const SpecCanvas = ({
         {/* Revised Text Section */}
         {hasSubmittedRevision && (
           <Box>
-            <Text fontWeight="bold" mb={2}>Revised Text:</Text>
+            <Text fontWeight="bold" mb={2} color={textColor}>Revised Text:</Text>
             <Box
               p={3}
-              bg="gray.50"
+              bg={inputBgColor}
               borderRadius="md"
               border="1px solid"
-        borderColor="gray.200"
+              borderColor={borderColor}
             >
-              <Text>{unescapeMarkdown(revisedText)}</Text>
+              <Text color={textColor}>{unescapeMarkdown(revisedText)}</Text>
             </Box>
-      </Box>
+          </Box>
         )}
         
-        <Text fontWeight="bold" fontSize="sm">Instructions (optional):</Text>
+        <Text fontWeight="bold" fontSize="sm" color={textColor}>Instructions (optional):</Text>
         <Textarea
           value={userInstructions}
           onChange={e => setUserInstructions(e.target.value)}
           placeholder="E.g., Make this more results-oriented"
           size="sm"
           rows={2}
+          bg={inputBgColor}
+          color={textColor}
+          _placeholder={{ color: 'gray.400' }}
+          borderColor={borderColor}
         />
 
         <HStack justify="space-between" spacing={2} pt={2}>
@@ -617,12 +644,15 @@ const SpecCanvas = ({
   return (
     <Box
       ref={canvasRef}
-        p={6}
-      bg="white"
-      borderRadius="lg"
+      p={6}
+      bg={bgColor}
+      borderRadius="xl"
       boxShadow="sm"
       position="relative"
       style={{ overflow: 'visible', zIndex: 9999 }}
+      color={textColor}
+      border="1px solid"
+      borderColor={borderColor}
     >
       {/* Floating Revise Button (via portal) */}
       {reviseButtonPortal}
@@ -634,11 +664,12 @@ const SpecCanvas = ({
           position="fixed"
           bottom="20px"
           right="20px"
-          bg="white"
+          bg={bgColor}
           p={3}
           borderRadius="md"
           boxShadow="md"
           zIndex={1002}
+          color={textColor}
         >
           <Text fontSize="sm" color="gray.600">Adding explanation to chat...</Text>
         </Box>
@@ -647,37 +678,37 @@ const SpecCanvas = ({
         {/* Render Markdown if present (Claude flow) */}
         {resumeMarkdown && (
           <Box key={resumeMarkdown.length}>
-          <ReactMarkdown
+            <ReactMarkdown
               children={unescapeMarkdown(resumeMarkdown)}
               rehypePlugins={[rehypeRaw]}
-            components={{
-                h1: ({node, ...props}) => <Heading as="h1" size="lg" my={4} {...props} />,
-                h2: ({node, ...props}) => <Heading as="h2" size="md" my={3} {...props} />,
-                h3: ({node, ...props}) => <Heading as="h3" size="sm" my={2} {...props} />,
+              components={{
+                h1: ({node, ...props}) => <Heading as="h1" size="lg" my={4} color={textColor} {...props} />,
+                h2: ({node, ...props}) => <Heading as="h2" size="md" my={3} color={textColor} {...props} />,
+                h3: ({node, ...props}) => <Heading as="h3" size="sm" my={2} color={textColor} {...props} />,
                 p: ({node, ...props}) => (
-                  <Text my={2}>
+                  <Text my={2} color={textColor}>
                     {props.children}
                   </Text>
                 ),
                 strong: ({node, ...props}) => (
-                  <Text as="span" fontWeight="bold">
+                  <Text as="span" fontWeight="bold" color={textColor}>
                     {props.children}
                   </Text>
                 ),
                 em: ({node, ...props}) => (
-                  <Text as="span" fontStyle="italic">
+                  <Text as="span" fontStyle="italic" color={textColor}>
                     {props.children}
-                </Text>
-              ),
-                hr: ({node, ...props}) => <Divider my={4} {...props} />,
+                  </Text>
+                ),
+                hr: ({node, ...props}) => <Divider my={4} borderColor={borderColor} {...props} />,
                 text: ({node, ...props}) => (
-                  <Text as="span">
+                  <Text as="span" color={textColor}>
                     {props.children}
                   </Text>
                 )
               }}
             />
-                </Box>
+          </Box>
         )}
         {/* Fallback: Render structured data (Affinda flow) */}
         {!resumeMarkdown && resumeStructured && (
@@ -685,28 +716,28 @@ const SpecCanvas = ({
             {/* Metadata */}
             {resumeStructured.metadata && (
               <Box mb={6}>
-                <Heading as="h3" size="md" mb={2}>Contact Information</Heading>
+                <Heading as="h3" size="md" mb={2} color={textColor}>Contact Information</Heading>
                 <VStack align="start" spacing={1}>
                   {resumeStructured.metadata.name && (
-                    <Text fontWeight="bold">{resumeStructured.metadata.name}</Text>
+                    <Text fontWeight="bold" color={textColor}>{resumeStructured.metadata.name}</Text>
                   )}
                   {resumeStructured.metadata.email && (
-                    <Text>{resumeStructured.metadata.email}</Text>
+                    <Text color="gray.600">{resumeStructured.metadata.email}</Text>
                   )}
                   {resumeStructured.metadata.phone && (
-                    <Text>{resumeStructured.metadata.phone}</Text>
+                    <Text color="gray.600">{resumeStructured.metadata.phone}</Text>
                   )}
                   {resumeStructured.metadata.location && (
-                    <Text>{resumeStructured.metadata.location}</Text>
+                    <Text color="gray.600">{resumeStructured.metadata.location}</Text>
                   )}
                 </VStack>
-                </Box>
+              </Box>
             )}
 
             {/* Sections */}
             {resumeStructured.sections?.map((section) => (
               <Box key={section.id} mb={6}>
-                <Heading as="h3" size="md" mb={3}>{section.title}</Heading>
+                <Heading as="h3" size="md" mb={3} color={textColor}>{section.title}</Heading>
                 {section.type === 'text' && (
                   renderContent(section.content)
                 )}
@@ -716,7 +747,7 @@ const SpecCanvas = ({
                       <ListItem key={item.id}>
                         <Flex direction="column" gap={1}>
                           {item.title && (
-                            <Text fontWeight="bold">{item.title}</Text>
+                            <Text fontWeight="bold" color={textColor}>{item.title}</Text>
                           )}
                           {item.company && (
                             <Text color="gray.600">{item.company}</Text>
@@ -731,7 +762,7 @@ const SpecCanvas = ({
                           {item.bullets && item.bullets.length > 0 && (
                             <List spacing={2} styleType="disc" pl={4}>
                               {item.bullets.map((bullet, bIdx) => (
-                                <ListItem key={bIdx}>{bullet}</ListItem>
+                                <ListItem key={bIdx} color="gray.700">{bullet}</ListItem>
                               ))}
                             </List>
                           )}
@@ -745,7 +776,7 @@ const SpecCanvas = ({
                     ))}
                   </List>
                 )}
-                </Box>
+              </Box>
             ))}
           </>
         )}

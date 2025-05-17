@@ -1,48 +1,52 @@
 import React, { useState } from 'react';
-import { 
-  Box, 
-  Textarea, 
-  Button, 
-  Flex
+import {
+  Input,
+  Button,
+  HStack,
+  useColorModeValue
 } from '@chakra-ui/react';
 
 /**
  * Component for entering messages to the AI Spec Assistant
  */
-const ChatInput = ({ onSendMessage, isLoading }) => {
+const ChatInput = ({ onSendMessage, isLoading, bg, color }) => {
   const [message, setMessage] = useState('');
+  const borderColor = useColorModeValue('gray.600', 'gray.600');
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (message.trim() === '') return;
-    
-    onSendMessage(message);
-    setMessage('');
+    if (message.trim()) {
+      onSendMessage(message);
+      setMessage('');
+    }
   };
 
   return (
-    <Box as="form" onSubmit={handleSubmit} width="100%">
-      <Textarea
-        value={message}
-        onChange={(e) => setMessage(e.target.value)}
-        placeholder="Ask me anything about your resume"
-        size="md"
-        rows={4}
-        mb={3}
-        isDisabled={isLoading}
-      />
-      <Flex justifyContent="flex-end">
-        <Button 
-          type="submit" 
-          colorScheme="blue" 
+    <form onSubmit={handleSubmit}>
+      <HStack>
+        <Input
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="Type your message..."
+          size="md"
+          bg={bg}
+          color={color}
+          borderColor={borderColor}
+          _placeholder={{ color: 'gray.400' }}
+          _hover={{ borderColor: 'gray.500' }}
+          _focus={{ borderColor: 'blue.400', boxShadow: '0 0 0 1px #3182ce' }}
+        />
+        <Button
+          type="submit"
+          colorScheme="blue"
+          size="md"
           isLoading={isLoading}
           loadingText="Sending..."
-          isDisabled={message.trim() === '' || isLoading}
         >
           Send
         </Button>
-      </Flex>
-    </Box>
+      </HStack>
+    </form>
   );
 };
 
