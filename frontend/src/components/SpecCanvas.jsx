@@ -29,7 +29,8 @@ const SpecCanvas = ({
   onAcceptRevision,
   onRejectRevision,
   jobDescriptionProvided = false,
-  jobDescription = ''
+  jobDescription = '',
+  highlightedText = null
 }) => {
   // Debug logging
   console.log('SpecCanvas received props:', {
@@ -114,8 +115,16 @@ const SpecCanvas = ({
   const [showRevisionDialog, setShowRevisionDialog] = useState(false);
   const [hasSubmittedRevision, setHasSubmittedRevision] = useState(false);
   const [error, setError] = useState('');
-  const [highlightedText, setHighlightedText] = useState(null);
-  const [highlightTimeout, setHighlightTimeout] = useState(null);
+
+  // Add useEffect to monitor prop changes
+  React.useEffect(() => {
+    console.log('SpecCanvas: Props changed:', {
+      highlightedText,
+      resumeMarkdownLength: resumeMarkdown?.length,
+      hasStructured: !!resumeStructured,
+      timestamp: new Date().toISOString()
+    });
+  }, [highlightedText, resumeMarkdown, resumeStructured]);
 
   // Remove onMouseUp from the canvas and use selectionchange event
   React.useEffect(() => {
@@ -204,23 +213,17 @@ const SpecCanvas = ({
     }
   };
 
-  // Handle accepting a revision
+  // Modify handleAcceptRevision
   const handleAcceptRevision = (selectedText, revisedTextMarkdown) => {
-    console.log('SpecCanvas: Accept clicked:', {
+    console.log('handleAcceptRevision called with:', {
       selectedText,
-      revisedTextMarkdown,
-      currentContent: resumeMarkdown
+      revisedTextMarkdown
     });
 
-    if (!hasContent()) {
-      console.error('SpecCanvas: No content available to revise');
-      return;
-    }
-
-    // Call the parent's onAcceptRevision with the original selected text and the markdown version
+    // Update the content
     onAcceptRevision(selectedText, revisedTextMarkdown);
     
-    // Close the popover and reset state
+    // Close the popover
     setShowRevisionPopover(false);
     setHasSubmittedRevision(false);
     setRevisedText('');
@@ -330,7 +333,16 @@ const SpecCanvas = ({
           {hasSubmittedRevision ? (
             <>
               <Button size="sm" onClick={handleReject}>Reject</Button>
-              <Button size="sm" colorScheme="blue" onClick={() => handleAcceptRevision(selectedText, revisedTextMarkdown)}>Accept</Button>
+              <Button 
+                size="sm" 
+                colorScheme="blue" 
+                onClick={() => {
+                  console.log('Accept button clicked');
+                  handleAcceptRevision(selectedText, revisedTextMarkdown);
+                }}
+              >
+                Accept
+              </Button>
             </>
           ) : (
             <Button size="sm" colorScheme="blue" onClick={handleSubmitRevision}>Submit</Button>
@@ -344,26 +356,16 @@ const SpecCanvas = ({
   // Debug: log showRevisionPopover before render
   console.log('showRevisionPopover (before render):', showRevisionPopover);
 
-  // Add keyframes for highlight animation
-  const highlightKeyframes = `
-    @keyframes highlight {
-      0% { background-color: yellow.200; }
-      50% { background-color: yellow.100; }
-      100% { background-color: transparent; }
-    }
-  `;
-
   return (
     <Box
       ref={canvasRef}
-        p={6}
+      p={6}
       bg="white"
       borderRadius="lg"
       boxShadow="sm"
       position="relative"
       style={{ overflow: 'visible', zIndex: 9999 }}
     >
-      <style>{highlightKeyframes}</style>
       {/* Floating Revise Button (via portal) */}
       {reviseButtonPortal}
       {/* Revision Popover (via portal, fixed position for debug) */}
@@ -372,20 +374,37 @@ const SpecCanvas = ({
         {/* Render Markdown if present (Claude flow) */}
         {resumeMarkdown && (
           <Box key={resumeMarkdown.length}>
-          <ReactMarkdown
+            <ReactMarkdown
               children={unescapeMarkdown(resumeMarkdown)}
               remarkPlugins={[remarkGfm]}
-            components={{
+              components={{
                 h1: ({node, ...props}) => <Heading as="h1" size="lg" my={4} {...props} />,
                 h2: ({node, ...props}) => <Heading as="h2" size="md" my={3} {...props} />,
                 h3: ({node, ...props}) => <Heading as="h3" size="sm" my={2} {...props} />,
-                p: ({node, ...props}) => <Text my={2} {...props} />,
-                strong: ({node, ...props}) => <Text as="span" fontWeight="bold" {...props} />,
-                em: ({node, ...props}) => <Text as="span" fontStyle="italic" {...props} />,
+                p: ({node, ...props}) => (
+                  <Text my={2}>
+                    {props.children}
+                  </Text>
+                ),
+                strong: ({node, ...props}) => (
+                  <Text as="span" fontWeight="bold">
+                    {props.children}
+                  </Text>
+                ),
+                em: ({node, ...props}) => (
+                  <Text as="span" fontStyle="italic">
+                    {props.children}
+                  </Text>
+                ),
                 hr: ({node, ...props}) => <Divider my={4} {...props} />,
+                text: ({node, ...props}) => (
+                  <Text as="span">
+                    {props.children}
+                  </Text>
+                )
               }}
             />
-                </Box>
+          </Box>
         )}
         {/* Fallback: Render structured data (Affinda flow) */}
         {!resumeMarkdown && resumeStructured && (

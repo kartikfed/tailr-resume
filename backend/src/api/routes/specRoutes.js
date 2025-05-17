@@ -18,6 +18,21 @@ const AFFINDA_API_KEY = process.env.AFFINDA_API_KEY;
 const conversations = {};
 const uploadedFiles = {};
 
+const highlightKeyframes = `
+  @keyframes highlight {
+    0% { background-color: yellow.400; }
+    50% { background-color: yellow.200; }
+    100% { background-color: transparent; }
+  }
+`;
+
+// Helper function to unescape Markdown special characters
+function unescapeMarkdown(text) {
+  if (!text) return text;
+  // Unescape common Markdown characters: \\* \\# \\_ \\` \\~ \\> \\- \\! \\[ \\] \\( \\) \\{ \\} \\< \\> \\| \\.
+  return text.replace(/\\([#*_[\]()`~>\-!{}<>|.])/g, '$1');
+}
+
 /**
  * Start or continue a conversation with AI Resume Assistant
  */
@@ -542,29 +557,16 @@ All information outside the delimiters (job description, full resume, etc.) is C
     if (claudeResponse.content && claudeResponse.content.length > 0 && claudeResponse.content[0].type === 'text') {
       revisedText = claudeResponse.content[0].text.trim();
       
-      // Validate the response format
-      // if (!revisedText.startsWith('* ')) {
-      //   console.error('Invalid response format - does not start with asterisk:', revisedText);
-      //   revisedText = `* ${revisedText.replace(/^[*\s]+/, '')}`;
-      // }
-      
       // Only remove line breaks and normalize spaces, preserve other markdown
       revisedText = revisedText
         .replace(/\n/g, ' ') // Remove line breaks
         .replace(/\s+/g, ' ') // Normalize spaces
         .trim();
-      
-      // // Ensure it starts with an asterisk
-      // if (!revisedText.startsWith('*')) {
-      //   revisedText = `* ${revisedText}`;
-      // }
-      
-      // // Ensure it's a single line
-      // revisedText = revisedText.split('\n')[0];
     }
     console.log('Backend /revise: Claude response:', claudeResponse);
     console.log('Backend /revise: revisedText:', revisedText);
     console.log('CLAUDES REVISION:', revisedText);
+    
     res.json({ revisedText });
   } catch (error) {
     console.error('Backend: Error in /revise endpoint:', error);

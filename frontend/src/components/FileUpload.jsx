@@ -115,8 +115,9 @@ const FileUpload = ({ onFilesUploaded, isLoading, conversationId }) => {
         title: 'Files uploaded',
         description: `${files.length} files uploaded successfully`,
         status: 'success',
-        duration: 3000,
+        duration: 2000,
         isClosable: true,
+        position: 'bottom-right'
       });
 
       // Clear files after upload
@@ -128,8 +129,9 @@ const FileUpload = ({ onFilesUploaded, isLoading, conversationId }) => {
         title: 'Upload failed',
         description: error.message || 'Failed to upload files',
         status: 'error',
-        duration: 3000,
+        duration: 2000,
         isClosable: true,
+        position: 'bottom-right'
       });
       setIsUploading(false);
     }

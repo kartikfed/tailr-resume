@@ -30,11 +30,19 @@ function App() {
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [generatedSpec, setGeneratedSpec] = useState(null);
   const [conversationId, setConversationId] = useState(`conv-${Date.now()}`);
-  // New state for job description
+  const [canvasContent, setCanvasContent] = useState('');
+  const [resumeStructured, setResumeStructured] = useState(null);
+  const [resumeMarkdown, setResumeMarkdown] = useState('');
   const [jobDescription, setJobDescription] = useState('');
   const [jobDescriptionSaved, setJobDescriptionSaved] = useState(false);
-  // New state for the canvas content
-  const [canvasContent, setCanvasContent] = useState(null);
+  const [jobDescriptionProvided, setJobDescriptionProvided] = useState(false);
+  const [showRevisionDialog, setShowRevisionDialog] = useState(false);
+  const [selectedText, setSelectedText] = useState('');
+  const [userInstructions, setUserInstructions] = useState('');
+  const [revisedText, setRevisedText] = useState('');
+  const [revisedTextMarkdown, setRevisedTextMarkdown] = useState('');
+  const [hasSubmittedRevision, setHasSubmittedRevision] = useState(false);
+  const [error, setError] = useState('');
   const toast = useToast();
   
   // Color mode values for styling
@@ -46,7 +54,8 @@ function App() {
   const [existingResumeMode, setExistingResumeMode] = useState(false);
   
   // State for structured resume data from Affinda
-  const [resumeStructured, setResumeStructured] = useState(null);
+  const [highlightedText, setHighlightedText] = useState(null);
+  const [highlightTimeout, setHighlightTimeout] = useState(null);
 
   // Load existing conversation if available
   useEffect(() => {
@@ -83,6 +92,8 @@ function App() {
             title: 'Conversation loaded',
             status: 'info',
             duration: 2000,
+            isClosable: true,
+            position: 'bottom-right'
           });
         }
       } catch (error) {
@@ -102,8 +113,9 @@ function App() {
         title: 'Job description saved',
         description: 'This job description will be used as context for all resume generation.',
         status: 'success',
-        duration: 3000,
+        duration: 2000,
         isClosable: true,
+        position: 'bottom-right'
       });
     }
   };
@@ -117,6 +129,7 @@ function App() {
       status: 'info',
       duration: 2000,
       isClosable: true,
+      position: 'bottom-right'
     });
   };
 
@@ -183,7 +196,6 @@ Do not make any changes until the user explicitly says yes.`;
         uploadedFiles.map(file => file.id)
       );
       const assistantMessage = {
-        role: 'assistant',
         content: response.response,
         timestamp: new Date().toISOString(),
         tools: response.meta?.toolsUsed || []
@@ -195,8 +207,9 @@ Do not make any changes until the user explicitly says yes.`;
         title: 'Error',
         description: error.message || 'Failed to get response from AI',
         status: 'error',
-        duration: 5000,
+        duration: 2000,
         isClosable: true,
+        position: 'bottom-right'
       });
       setIsLoading(false);
     }
@@ -263,16 +276,7 @@ Do not make any changes until the user explicitly says yes.`;
 
   // Accept a revision for selected text
   function acceptRevision(selectedText, revisedText) {
-    console.log('App: Starting revision acceptance:', {
-      selectedText,
-      revisedText,
-      hasStructured: !!resumeStructured,
-      hasMarkdown: !!canvasContent,
-      currentContent: canvasContent
-    });
-
     if (resumeStructured) {
-      console.log('App: Updating structured resume');
       setResumeStructured(prev => ({
         ...prev,
         sections: prev.sections.map(section => ({
@@ -285,21 +289,13 @@ Do not make any changes until the user explicitly says yes.`;
         }))
       }));
     } else if (canvasContent) {
-      // Robust replacement logic
       const unescapeMarkdown = (text) => text.replace(/\\([#*_[\]()`~>\-!{}<>|.])/g, '$1');
       const original = canvasContent;
       const unescapedOriginal = unescapeMarkdown(original);
       const unescapedSelected = unescapeMarkdown(selectedText);
       const idx = unescapedOriginal.indexOf(unescapedSelected);
-      if (idx === -1) {
-        console.warn('App: Could not find selectedText in unescaped content. No replacement made.', {
-          selectedText,
-          unescapedSelected,
-          unescapedOriginalPreview: unescapedOriginal.substring(0, 100)
-        });
-        return;
-      }
-      // Map the index in unescapedOriginal back to the original string
+      if (idx === -1) return;
+      
       let origStart = 0, origEnd = 0, uIdx = 0;
       while (origStart < original.length && uIdx < idx) {
         if (original[origStart] === '\\' && /[#*_[\]()`~>\-!{}<>|.]/.test(original[origStart+1])) {
@@ -319,29 +315,20 @@ Do not make any changes until the user explicitly says yes.`;
         }
         uLen++;
       }
-      // Replace the substring in the original markdown
+      
       const updatedContent = original.slice(0, origStart) + revisedText + original.slice(origEnd);
       setCanvasContent(updatedContent);
-      console.log('App: Replaced selectedText in markdown.', {
-        origStart,
-        origEnd,
-        before: original.slice(origStart, origEnd),
-        after: revisedText
+      
+      toast({
+        title: "Text updated",
+        description: "The selected text has been replaced",
+        status: "success",
+        duration: 2000,
+        isClosable: true,
+        position: "bottom-right"
       });
-    } else {
-      console.error('App: No content available to revise');
     }
   }
-
-  // Add useEffect to monitor content changes
-  useEffect(() => {
-    console.log('App: Content changed:', {
-      canvasContent,
-      resumeStructured,
-      contentLength: canvasContent?.length,
-      contentPreview: canvasContent?.substring(0, 100) + '...'
-    });
-  }, [canvasContent, resumeStructured]);
 
   // Reject a pending revision for a section
   function rejectRevision(sectionKey) {
@@ -356,24 +343,30 @@ Do not make any changes until the user explicitly says yes.`;
 
   // In the return, render StartScreen or main UI based on startMode
   if (startMode === 'choose') {
-    return <StartScreen />;
+    return (
+      <ChakraProvider>
+        <StartScreen />
+      </ChakraProvider>
+    );
   }
   if (startMode === 'existing') {
     // Show only file upload for resume, then proceed
     return (
-      <Flex direction="column" align="center" justify="center" minH="100vh" bg={bgColor}>
-        <Box p={8} bg="white" borderRadius="lg" boxShadow="lg" minW="320px">
-          <Heading as="h2" size="md" mb={4} textAlign="center">Upload Your Resume</Heading>
-          <Text fontSize="sm" mb={4} textAlign="center">
-            Upload your existing resume (PDF, DOCX, or TXT). The extracted text will be shown in the canvas for editing and optimization.
-          </Text>
-          <FileUpload
-            onFilesUploaded={handleExistingResumeUpload}
-            isLoading={isLoading}
-            conversationId={conversationId}
-          />
-        </Box>
-      </Flex>
+      <ChakraProvider>
+        <Flex direction="column" align="center" justify="center" minH="100vh" bg={bgColor}>
+          <Box p={8} bg="white" borderRadius="lg" boxShadow="lg" minW="320px">
+            <Heading as="h2" size="md" mb={4} textAlign="center">Upload Your Resume</Heading>
+            <Text fontSize="sm" mb={4} textAlign="center">
+              Upload your existing resume (PDF, DOCX, or TXT). The extracted text will be shown in the canvas for editing and optimization.
+            </Text>
+            <FileUpload
+              onFilesUploaded={handleExistingResumeUpload}
+              isLoading={isLoading}
+              conversationId={conversationId}
+            />
+          </Box>
+        </Flex>
+      </ChakraProvider>
     );
   }
 
@@ -523,6 +516,7 @@ Do not make any changes until the user explicitly says yes.`;
                   onRejectRevision={rejectRevision}
                   jobDescriptionProvided={!!jobDescription.trim()}
                   jobDescription={jobDescription}
+                  highlightedText={highlightedText}
                 />
               </Box>
             </Flex>
