@@ -472,4 +472,45 @@ router.get('/conversation/:conversationId', (req, res) => {
   });
 });
 
+// Add a new endpoint for resume revision
+router.post('/revise', async (req, res) => {
+  try {
+    const { selectedText, jobDescription, userInstructions } = req.body;
+    if (!selectedText || !jobDescription) {
+      return res.status(400).json({ error: 'selectedText and jobDescription are required.' });
+    }
+    const revisionPrompt = `You are a resume revision assistant. You will be given a piece of resume text and a job description. Your task is to revise the selected text to maximize its alignment with the job description, optimizing for both ATS (Applicant Tracking System) and human recruiter appeal.
+
+Instructions:
+- Do NOT change the core meaning or introduce new information.
+- Use the job description as context to improve wording, highlight relevant skills, and match keywords.
+- Preserve the original Markdown formatting (bullets, bold, italics, etc.).
+- Output ONLY the revised text in fully escaped Markdown (all Markdown special characters must be escaped with backslashes).
+- Do NOT include any explanations, introductions, or extra text—just the revised text.
+
+Example Input:
+Selected Text: \* Designed and implemented a new data pipeline for analytics resulting in 30\% faster reporting
+Job Description: Seeking a software engineer with experience in data pipelines, analytics, and cloud platforms.
+
+Example Output:
+\* Designed and implemented a scalable data pipeline on cloud platforms, improving analytics efficiency by 30\%`;
+    let userContent = `Selected Text: ${selectedText}\nJob Description: ${jobDescription}`;
+    if (userInstructions) {
+      userContent += `\nUser Instructions: ${userInstructions}`;
+    }
+    const messages = [
+      { role: 'user', content: userContent }
+    ];
+    const claudeResponse = await sendMessageToClaudeWithMCP(messages, []);
+    let revisedText = '';
+    if (claudeResponse.content && claudeResponse.content.length > 0 && claudeResponse.content[0].type === 'text') {
+      revisedText = claudeResponse.content[0].text.trim();
+    }
+    res.json({ revisedText });
+  } catch (error) {
+    console.error('Backend: Error in /revise endpoint:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;

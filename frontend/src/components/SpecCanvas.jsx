@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Box,
   VStack,
@@ -11,11 +11,14 @@ import {
   ListIcon,
   Flex,
   Badge,
-  Divider
+  Divider,
+  Textarea,
+  HStack
 } from '@chakra-ui/react';
 import { CheckCircleIcon } from '@chakra-ui/icons';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import ReactDOM from 'react-dom';
 
 /**
  * Component for rendering resume content with text selection and revision support
@@ -42,21 +45,13 @@ const SpecCanvas = ({
     return !!resumeStructured || !!resumeMarkdown;
   };
 
-  // Helper function to render content with proper line breaks
+  // Helper function to render content with proper line breaks and allow fine-grained selection
   const renderContent = (content) => {
     if (!content) return null;
-    
-    // Split content by newlines and filter out empty lines
-    const lines = content.split('\n').filter(line => line.trim());
-    
     return (
-      <VStack align="start" spacing={2}>
-        {lines.map((line, index) => (
-          <Text key={index} whiteSpace="pre-wrap">
-            {line}
-          </Text>
-        ))}
-      </VStack>
+      <Box whiteSpace="pre-wrap" userSelect="text">
+        {content}
+      </Box>
     );
   };
 
@@ -66,6 +61,56 @@ const SpecCanvas = ({
     // Unescape common Markdown characters: \\* \\# \\_ \\` \\~ \\> \\- \\! \\[ \\] \\( \\) \\{ \\} \\< \\> \\| \\.
     return text.replace(/\\([#*_[\]()`~>\-!{}<>|.])/g, '$1');
   }
+
+  const [showReviseButton, setShowReviseButton] = useState(false);
+  const [reviseButtonPosition, setReviseButtonPosition] = useState({ top: 0, left: 0 });
+  const [selectedText, setSelectedText] = useState('');
+  const canvasRef = useRef(null);
+  const floatingRef = useRef(null);
+  const ignoreNextClickAway = useRef(false);
+  const [showRevisionPopover, setShowRevisionPopover] = useState(false);
+  const [userInstructions, setUserInstructions] = useState('');
+
+  // Remove onMouseUp from the canvas and use selectionchange event
+  React.useEffect(() => {
+    function handleSelectionChange() {
+      if (showRevisionPopover) return; // Ignore selection changes while popover is open
+      const selection = window.getSelection();
+      const text = selection.toString().trim();
+      if (
+        text.length > 0 &&
+        canvasRef.current &&
+        selection.rangeCount > 0 &&
+        canvasRef.current.contains(selection.anchorNode)
+      ) {
+        setSelectedText(text);
+        const range = selection.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+        setReviseButtonPosition({
+          top: rect.top + window.scrollY - 40,
+          left: rect.left + window.scrollX
+        });
+        setShowReviseButton(true);
+      } else {
+        setShowReviseButton(false);
+        setShowRevisionPopover(false);
+        setSelectedText('');
+      }
+    }
+    document.addEventListener('selectionchange', handleSelectionChange);
+    return () => document.removeEventListener('selectionchange', handleSelectionChange);
+  }, [showRevisionPopover]);
+
+  // Show popover when Revise button is clicked
+  const handleReviseClick = () => {
+    setShowRevisionPopover(true);
+  };
+
+  // Close popover
+  const handleClosePopover = () => {
+    setShowRevisionPopover(false);
+    setUserInstructions('');
+  };
 
   if (!hasContent()) {
     return (
@@ -86,13 +131,85 @@ const SpecCanvas = ({
     console.log('Rendering resumeMarkdown:', resumeMarkdown);
   }
 
+  // Render the Revise button as a portal
+  const reviseButtonPortal = showReviseButton ? ReactDOM.createPortal(
+    <Box
+      ref={floatingRef}
+      position="absolute"
+      top={reviseButtonPosition.top}
+      left={reviseButtonPosition.left}
+      zIndex={1000}
+    >
+      <Button size="sm" colorScheme="blue" pointerEvents="auto" onClick={handleReviseClick}>
+        Revise
+      </Button>
+    </Box>,
+    document.body
+  ) : null;
+
+  // Render the popover as a separate portal at the same coordinates (with offset)
+  const revisionPopoverPortal = showRevisionPopover ? ReactDOM.createPortal(
+    <Box
+      position="absolute"
+      top={reviseButtonPosition.top + 36}
+      left={reviseButtonPosition.left}
+      bg="white"
+      boxShadow="lg"
+      borderRadius="md"
+      p={4}
+      minW="320px"
+      zIndex={1001}
+      pointerEvents="auto"
+    >
+      <VStack align="stretch" spacing={3}>
+        <Text fontWeight="bold" fontSize="sm">Selected Text:</Text>
+        <Box p={2} bg="gray.50" borderRadius="md" fontSize="sm" fontFamily="mono" whiteSpace="pre-wrap">
+          {selectedText}
+        </Box>
+        <Text fontWeight="bold" fontSize="sm">Instructions (optional):</Text>
+        <Textarea
+          value={userInstructions}
+          onChange={e => setUserInstructions(e.target.value)}
+          placeholder="E.g., Make this more results-oriented"
+          size="sm"
+          rows={2}
+        />
+        <HStack justify="end" spacing={2} pt={2}>
+          <Button size="sm" onClick={handleClosePopover}>Cancel</Button>
+          <Button size="sm" colorScheme="blue" isDisabled={!selectedText}>Submit</Button>
+        </HStack>
+      </VStack>
+    </Box>,
+    document.body
+  ) : null;
+
+  // Debug: log showRevisionPopover before render
+  console.log('showRevisionPopover (before render):', showRevisionPopover);
+
+  // Debug: test portal
+  const testPortal = ReactDOM.createPortal(
+    <div style={{ position: 'fixed', top: 200, left: 200, background: 'red', zIndex: 9999, padding: 20 }}>
+      TEST PORTAL
+    </div>,
+    document.body
+  );
+
   return (
     <Box
+      ref={canvasRef}
       p={6}
       bg="white"
       borderRadius="lg"
       boxShadow="sm"
+      position="relative"
+      style={{ overflow: 'visible', zIndex: 9999 }}
     >
+      {/* Floating Revise Button (via portal) */}
+      {reviseButtonPortal}
+      {/* Revision Popover (via portal, fixed position for debug) */}
+      {revisionPopoverPortal}
+      {/* Debug: test portal */}
+      {testPortal}
       <VStack align="stretch" spacing={6}>
         {/* Render Markdown if present (Claude flow) */}
         {resumeMarkdown && (
@@ -105,8 +222,6 @@ const SpecCanvas = ({
                 h2: ({node, ...props}) => <Heading as="h2" size="md" my={3} {...props} />,
                 h3: ({node, ...props}) => <Heading as="h3" size="sm" my={2} {...props} />,
                 p: ({node, ...props}) => <Text my={2} {...props} />,
-                ul: ({node, ...props}) => <List styleType="disc" pl={4} {...props} />,
-                ol: ({node, ...props}) => <List as="ol" styleType="decimal" pl={4} {...props} />,
                 strong: ({node, ...props}) => <Text as="span" fontWeight="bold" {...props} />,
                 em: ({node, ...props}) => <Text as="span" fontStyle="italic" {...props} />,
                 hr: ({node, ...props}) => <Divider my={4} {...props} />,
