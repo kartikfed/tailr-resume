@@ -206,25 +206,18 @@ Do not make any changes until the user explicitly says yes.`;
   const handleFilesUploaded = async (files) => {
     console.log('App: Received uploaded files:', files);
     setUploadedFiles(prev => [...prev, ...files]);
-    
     if (files && files.length > 0 && files[0].content) {
       try {
-        // Parse the JSON string from the backend
+        // Try to parse as JSON (Affinda flow)
         const structured = JSON.parse(files[0].content);
         console.log('App: Parsed structured resume:', structured);
-        
-        // Store the structured data
         setResumeStructured(structured);
+        setCanvasContent(null);
       } catch (error) {
-        console.error('App: Error parsing file content:', error);
-        console.log('App: Raw content received:', files[0].content.substring(0, 200) + '...');
-        toast({
-          title: 'Error',
-          description: 'Failed to process the uploaded file',
-          status: 'error',
-          duration: 5000,
-          isClosable: true,
-        });
+        // If not JSON, treat as Markdown (Claude flow)
+        console.log('App: Treating file content as Markdown');
+        setResumeStructured(null);
+        setCanvasContent(files[0].content);
       }
     } else {
       console.log('App: No content found in uploaded file');
@@ -237,15 +230,12 @@ Do not make any changes until the user explicitly says yes.`;
       try {
         const structured = JSON.parse(files[0].content);
         setResumeStructured(structured);
+        setCanvasContent(null);
       } catch (error) {
-        console.error('Error parsing file content:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to process the uploaded file',
-          status: 'error',
-          duration: 5000,
-          isClosable: true,
-        });
+        // If not JSON, treat as Markdown (Claude flow)
+        console.log('App: Treating file content as Markdown');
+        setResumeStructured(null);
+        setCanvasContent(files[0].content);
       }
     }
     setStartMode('scratch'); // Enter main UI after upload
@@ -446,6 +436,7 @@ Do not make any changes until the user explicitly says yes.`;
                 {/* Debug logging */}
                 {console.log('App.jsx passing to SpecCanvas:', {
                   resumeStructured,
+                  resumeMarkdown: canvasContent,
                   resumeHtml: null,
                   resumeSections: null
                 })}
@@ -454,6 +445,7 @@ Do not make any changes until the user explicitly says yes.`;
                 {/* Resume Canvas is now visually dominant */}
                 <SpecCanvas
                   resumeStructured={resumeStructured}
+                  resumeMarkdown={canvasContent}
                   resumeHtml={null}
                   resumeSections={null}
                   onAcceptRevision={acceptRevision}

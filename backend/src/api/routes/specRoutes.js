@@ -227,165 +227,182 @@ router.post('/upload', async (req, res) => {
       const processedFiles = await Promise.all(files.map(async (fileData, index) => {
         const fileId = `file-${Date.now()}-${index}`;
         let fileContent = fileData.content || '';
-        // If PDF, extract text
+        // Check for useClaude flag (query param or fileData)
+        const useClaude = fileData.useClaude || req.query.useClaude;
         if (
           fileData.isPdf ||
           fileData.type === 'application/pdf' ||
           fileData.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
         ) {
           try {
-            const buffer = Buffer.from(fileData.content, 'base64');
-            console.log(`Backend: Sending file to Affinda: ${fileData.name}, type: ${fileData.type}`);
-            const affindaData = await parseResumeWithAffinda(buffer, fileData.name, AFFINDA_API_KEY);
-            console.log('Backend: Affinda full response:', JSON.stringify(affindaData, null, 2));
-            console.log('Backend: Affinda skills array:', JSON.stringify(affindaData.skills, null, 2));
+            if (useClaude) {
+              // New flow: extract raw text and send to Claude
+              const rawText = await extractPdfText(fileData.content);
+              const systemPrompt = `You are a resume formatting assistant. You will be given an entire resume text. Output ONLY the resume in valid escaped Markdown format. Do NOT include any explanations, introductions, or extra text. Formatting requirements: - Use # or ## for section headers (e.g., ## Experience) - Use * at the start of a line for bullet points - Use bold for names, roles, or other important text - Use italic for team/sub-section names if needed - Do not use all-caps for section headers; use escaped Markdown headings instead - Do not add any text before or after the resume - Preserve the original wording, punctuation, and order of the text - Maintain the overall structure of the resume including sections like Contact Information, Experience, Education, Projects, etc. - Ensure all dates, company names, and contact information are on separate lines for easy extraction - ALL markdown special characters must be escaped with backslashes () Example Input: Designed and implemented a new data pipeline for analytics resulting in 30% faster reporting Collaborated with cross-functional teams to define requirements Improved data quality by 25% through validation scripts Example Output: * Designed and implemented a new data pipeline for analytics resulting in 30% faster reporting * Collaborated with cross-functional teams to define requirements * Improved data quality by 25% through validation scripts`;
+              const messages = [
+                { role: 'user', content: rawText }
+              ];
+              const claudeResponse = await sendMessageToClaudeWithMCP(messages, [], systemPrompt);
+              let markdown = '';
+              if (claudeResponse.content && claudeResponse.content.length > 0 && claudeResponse.content[0].type === 'text') {
+                markdown = claudeResponse.content[0].text;
+              }
+              fileContent = markdown;
+            } else {
+              // Existing Affinda flow
+              const buffer = Buffer.from(fileData.content, 'base64');
+              console.log(`Backend: Sending file to Affinda: ${fileData.name}, type: ${fileData.type}`);
+              const affindaData = await parseResumeWithAffinda(buffer, fileData.name, AFFINDA_API_KEY);
+              console.log('Backend: Affinda full response:', JSON.stringify(affindaData, null, 2));
+              console.log('Backend: Affinda skills array:', JSON.stringify(affindaData.skills, null, 2));
 
-            // Structure the data for the frontend
-            const structuredData = {
-              metadata: {
-                name: affindaData.name?.formatted || '',
-                email: affindaData.emails?.[0] || '',
-                phone: affindaData.phoneNumbers?.[0] || '',
-                location: affindaData.location?.formatted || ''
-              },
-              sections: []
-            };
+              // Structure the data for the frontend
+              const structuredData = {
+                metadata: {
+                  name: affindaData.name?.formatted || '',
+                  email: affindaData.emails?.[0] || '',
+                  phone: affindaData.phoneNumbers?.[0] || '',
+                  location: affindaData.location?.formatted || ''
+                },
+                sections: []
+              };
 
-            // Add personal details section at the top
-            const personalDetailsSection = affindaData.sections?.find(section => 
-              section.sectionType === 'PersonalDetails'
-            );
+              // Add personal details section at the top
+              const personalDetailsSection = affindaData.sections?.find(section => 
+                section.sectionType === 'PersonalDetails'
+              );
 
-            if (personalDetailsSection) {
-              structuredData.sections.push({
-                id: 'personal-details',
-                title: 'Personal Details',
-                content: personalDetailsSection.text,
-                type: 'text'
-              });
-            }
-
-            // Add summary if available
-            if (affindaData.summary) {
-              structuredData.sections.push({
-                id: 'summary',
-                title: 'Summary',
-                content: affindaData.summary,
-                type: 'text'
-              });
-            }
-
-            // Add work experience if available
-            if (affindaData.workExperience?.length > 0) {
-              structuredData.sections.push({
-                id: 'experience',
-                title: 'Experience',
-                items: affindaData.workExperience.map(exp => {
-                  // Extract only bullet points from jobDescription
-                  let bullets = [];
-                  if (exp.jobDescription) {
-                    const lines = exp.jobDescription.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
-                    // Find bullet lines
-                    bullets = lines.filter(line => /^[-•*]\s*/.test(line)).map(line => line.replace(/^[-•*]\s*/, ''));
-                    // If no bullets found, treat each line as a bullet
-                    if (bullets.length === 0) {
-                      bullets = lines;
-                    }
-                  }
-                  return {
-                    id: `exp-${exp.id}`,
-                    title: exp.jobTitle,
-                    company: exp.organization,
-                    location: exp.location?.formatted || '',
-                    dates: `${exp.dates?.startDate || ''} - ${exp.dates?.endDate || 'Present'}`,
-                    bullets,
-                    type: 'experience'
-                  };
-                }),
-                type: 'list'
-              });
-            }
-
-            // Process all sections from Affinda
-            if (affindaData.sections) {
-              affindaData.sections.forEach(section => {
-                // Skip sections we've already handled (summary, experience, and personal details)
-                if (section.sectionType === 'Summary' || 
-                    section.sectionType === 'WorkExperience' || 
-                    section.sectionType === 'PersonalDetails') {
-                  return;
-                }
-
-                // For education section
-                if (section.sectionType === 'Education' && affindaData.education?.length > 0) {
-                  structuredData.sections.push({
-                    id: 'education',
-                    title: 'Education',
-                    items: affindaData.education.map(edu => ({
-                      id: `edu-${edu.id}`,
-                      degree: edu.accreditation?.education,
-                      institution: edu.organization,
-                      dates: edu.dates?.completionDate || '',
-                      content: section.text, // Use the raw text from the section
-                      type: 'education'
-                    })),
-                    type: 'list'
-                  });
-                  return;
-                }
-
-                // For skills section, clean the formatting while preserving content
-                if (section.sectionType === 'Skills' && affindaData.skills?.length > 0) {
-                  // Clean each skill by removing special characters and extra formatting
-                  const cleanedSkills = affindaData.skills.map(skill => {
-                    // Remove special characters and extra formatting while preserving the actual skill text
-                    return skill.name
-                      .replace(/[•|\-–—]/g, '') // Remove bullets, pipes, and dashes
-                      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
-                      .trim(); // Remove leading/trailing whitespace
-                  })
-                  .filter(skill => skill.length > 0) // Remove any empty skills
-                  .filter((skill, index, self) => self.indexOf(skill) === index); // Remove duplicates
-
-                  // Join skills with bullet points, ensuring no extra spaces
-                  const formattedSkills = cleanedSkills
-                    .map(skill => skill.trim())
-                    .filter(skill => skill) // Remove any empty strings
-                    .join(' • ');
-
-                  structuredData.sections.push({
-                    id: 'skills',
-                    title: 'Skills',
-                    content: formattedSkills,
-                    type: 'text'
-                  });
-                  return;
-                }
-
-                // For all other sections, use the raw text
+              if (personalDetailsSection) {
                 structuredData.sections.push({
-                  id: section.sectionType.toLowerCase(),
-                  title: section.sectionType,
-                  content: section.text,
+                  id: 'personal-details',
+                  title: 'Personal Details',
+                  content: personalDetailsSection.text,
                   type: 'text'
                 });
-              });
-            }
-
-            console.log('Backend: Structured data for frontend:', JSON.stringify(structuredData, null, 2));
-            fileContent = JSON.stringify(structuredData);
-            console.log('Backend: Final fileContent length:', fileContent.length);
-            console.log('Backend: Final fileContent preview:', fileContent.substring(0, 200) + '...');
-            console.log('Backend: Final fileContent is valid JSON:', (() => {
-              try {
-                JSON.parse(fileContent);
-                return true;
-              } catch (e) {
-                return false;
               }
-            })());
+
+              // Add summary if available
+              if (affindaData.summary) {
+                structuredData.sections.push({
+                  id: 'summary',
+                  title: 'Summary',
+                  content: affindaData.summary,
+                  type: 'text'
+                });
+              }
+
+              // Add work experience if available
+              if (affindaData.workExperience?.length > 0) {
+                structuredData.sections.push({
+                  id: 'experience',
+                  title: 'Experience',
+                  items: affindaData.workExperience.map(exp => {
+                    // Extract only bullet points from jobDescription
+                    let bullets = [];
+                    if (exp.jobDescription) {
+                      const lines = exp.jobDescription.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+                      // Find bullet lines
+                      bullets = lines.filter(line => /^[-•*]\s*/.test(line)).map(line => line.replace(/^[-•*]\s*/, ''));
+                      // If no bullets found, treat each line as a bullet
+                      if (bullets.length === 0) {
+                        bullets = lines;
+                      }
+                    }
+                    return {
+                      id: `exp-${exp.id}`,
+                      title: exp.jobTitle,
+                      company: exp.organization,
+                      location: exp.location?.formatted || '',
+                      dates: `${exp.dates?.startDate || ''} - ${exp.dates?.endDate || 'Present'}`,
+                      bullets,
+                      type: 'experience'
+                    };
+                  }),
+                  type: 'list'
+                });
+              }
+
+              // Process all sections from Affinda
+              if (affindaData.sections) {
+                affindaData.sections.forEach(section => {
+                  // Skip sections we've already handled (summary, experience, and personal details)
+                  if (section.sectionType === 'Summary' || 
+                      section.sectionType === 'WorkExperience' || 
+                      section.sectionType === 'PersonalDetails') {
+                    return;
+                  }
+
+                  // For education section
+                  if (section.sectionType === 'Education' && affindaData.education?.length > 0) {
+                    structuredData.sections.push({
+                      id: 'education',
+                      title: 'Education',
+                      items: affindaData.education.map(edu => ({
+                        id: `edu-${edu.id}`,
+                        degree: edu.accreditation?.education,
+                        institution: edu.organization,
+                        dates: edu.dates?.completionDate || '',
+                        content: section.text, // Use the raw text from the section
+                        type: 'education'
+                      })),
+                      type: 'list'
+                    });
+                    return;
+                  }
+
+                  // For skills section, clean the formatting while preserving content
+                  if (section.sectionType === 'Skills' && affindaData.skills?.length > 0) {
+                    // Clean each skill by removing special characters and extra formatting
+                    const cleanedSkills = affindaData.skills.map(skill => {
+                      // Remove special characters and extra formatting while preserving the actual skill text
+                      return skill.name
+                        .replace(/[•|\-–—]/g, '') // Remove bullets, pipes, and dashes
+                        .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+                        .trim(); // Remove leading/trailing whitespace
+                    })
+                    .filter(skill => skill.length > 0) // Remove any empty skills
+                    .filter((skill, index, self) => self.indexOf(skill) === index); // Remove duplicates
+
+                    // Join skills with bullet points, ensuring no extra spaces
+                    const formattedSkills = cleanedSkills
+                      .map(skill => skill.trim())
+                      .filter(skill => skill) // Remove any empty strings
+                      .join(' • ');
+
+                    structuredData.sections.push({
+                      id: 'skills',
+                      title: 'Skills',
+                      content: formattedSkills,
+                      type: 'text'
+                    });
+                    return;
+                  }
+
+                  // For all other sections, use the raw text
+                  structuredData.sections.push({
+                    id: section.sectionType.toLowerCase(),
+                    title: section.sectionType,
+                    content: section.text,
+                    type: 'text'
+                  });
+                });
+              }
+
+              console.log('Backend: Structured data for frontend:', JSON.stringify(structuredData, null, 2));
+              fileContent = JSON.stringify(structuredData);
+              console.log('Backend: Final fileContent length:', fileContent.length);
+              console.log('Backend: Final fileContent preview:', fileContent.substring(0, 200) + '...');
+              console.log('Backend: Final fileContent is valid JSON:', (() => {
+                try {
+                  JSON.parse(fileContent);
+                  return true;
+                } catch (e) {
+                  return false;
+                }
+              })());
+            }
           } catch (err) {
-            console.error(`Backend: Failed to parse resume with Affinda:`, err);
+            console.error(`Backend: Failed to process resume:`, err);
             fileContent = '';
           }
         }

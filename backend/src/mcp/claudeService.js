@@ -19,6 +19,9 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
+// Strict Markdown system prompt for all resume flows
+const systemPrompt = `You are a resume formatting assistant. You will be given an entire resume text. Output ONLY the resume in valid escaped Markdown format. Do NOT include any explanations, introductions, or extra text. Formatting requirements: - Use # or ## for section headers (e.g., ## Experience) - Use * at the start of a line for bullet points - Use bold for names, roles, or other important text - Use italic for team/sub-section names if needed - Do not use all-caps for section headers; use escaped Markdown headings instead - Do not add any text before or after the resume - Preserve the original wording, punctuation, and order of the text - Maintain the overall structure of the resume including sections like Contact Information, Experience, Education, Projects, etc. - Ensure all dates, company names, and contact information are on separate lines for easy extraction - ALL markdown special characters must be escaped with backslashes () Example Input: Designed and implemented a new data pipeline for analytics resulting in 30% faster reporting Collaborated with cross-functional teams to define requirements Improved data quality by 25% through validation scripts Example Output: * Designed and implemented a new data pipeline for analytics resulting in 30% faster reporting * Collaborated with cross-functional teams to define requirements * Improved data quality by 25% through validation scripts`;
+
 /**
  * Sends a message to Claude and handles any tool calling
  * @param {Array} messages - The conversation history
@@ -27,57 +30,26 @@ const anthropic = new Anthropic({
  */
 async function sendMessageToClaudeWithMCP(messages, files = []) {
     try {
-      // Format tools for Claude (but we may not use them if we have context in messages)
       const tools = formatToolsForMCP();
-      
-      // Updated system prompt for resume assistance
-      let systemPrompt = `You are AI Resume Assistant, an expert at creating compelling, ATS-friendly resumes that help professionals land their dream jobs. Your job is to help users create, optimize, and tailor their resumes based on their experience and target roles.
-  
-  When helping with resumes:
-  1. Analyze uploaded documents (existing resumes, job descriptions, LinkedIn profiles)
-  2. Use the searchContext tool to find relevant experience and skills from uploaded files
-  3. Use the analyzeJobDescription tool to extract key requirements from job postings
-  4. Use the generateResumeSection tool to create specific resume sections
-  
-  Always aim to create resumes that are:
-  - ATS (Applicant Tracking System) friendly with proper formatting and keywords
-  - Tailored to specific job roles and requirements
-  - Highlight quantifiable achievements and impact
-  - Professional, concise, and easy to read
-  - Use strong action verbs and industry-specific terminology
-  
-  When provided with context from uploaded files, use that information to create personalized, targeted resume content.`;
-      
-      // Format messages for the Anthropic API
       const formattedMessages = messages.map(msg => ({
         role: msg.role,
         content: typeof msg.content === 'string' ? msg.content : msg.content
       }));
-      
       console.log('Claude Service: Sending message to Claude');
       console.log('Claude Service: Number of messages:', formattedMessages.length);
       console.log('Claude Service: Last message length:', formattedMessages[formattedMessages.length - 1].content.length);
-      
-      // Send to Claude without tools if we don't have files (context is in message)
       const requestParams = {
         model: 'claude-3-opus-20240229',
         system: systemPrompt,
         messages: formattedMessages,
         max_tokens: 4096,
       };
-      
-      // Only add tools if we have files to work with
       if (files && files.length > 0) {
         requestParams.tools = tools;
       }
-      
       const response = await anthropic.messages.create(requestParams);
-  
       console.log('Claude Service: Response received');
       console.log('Claude Service: Response type:', response.content[0].type);
-  
-      // For our simplified approach, we don't expect tool calls
-      // Just return the response directly
       return response;
     } catch (error) {
       console.error('Claude Service: Error communicating with Claude:', error);
