@@ -484,31 +484,97 @@ ${structuredData.sections.map(section => {
       <ChakraProvider>
         <Flex direction="column" align="center" justify="center" minH="100vh" bg={bgColor}>
           <Box 
-            p={8} 
+            p={12} 
             bg={chatPaneBgColor}
             borderRadius="xl"
             boxShadow="lg" 
-            minW="320px"
+            minW="1000px"
+            minH="600px"
             border="1px solid"
             borderColor="purple.700"
+            display="flex"
+            gap={12}
           >
-            <Heading as="h2" size="md" mb={4} textAlign="center" color="white">Tailr Your Resume</Heading>
-            <Text fontSize="sm" mb={4} textAlign="center" color="white" opacity={0.9}>
-              Upload your existing resume (PDF, DOCX, or TXT). The extracted text will be shown in the canvas for editing and optimization.
-            </Text>
-            <ToneSelector
-              value={writingTone}
-              onChange={setWritingTone}
-              label="Select your preferred writing style"
-              labelColor="white"
+            {/* Left Side - Logo and Text */}
+            <Box 
+              flex="1" 
+              display="flex" 
+              alignItems="center" 
+              justifyContent="center"
+              gap={6}
+            >
+              <img
+                src="/tailr-logo.png"
+                alt="Tailr logo"
+                style={{
+                  height: '240px',
+                  width: 'auto',
+                  objectFit: 'contain',
+                  display: 'block'
+                }}
+              />
+              <VStack align="start" spacing={2}>
+                <Heading as="h1" size="3xl" fontWeight="bold" color="white">Tailr</Heading>
+                <Text fontSize="lg" color="gray.400">
+                  Tailor any resume for any job application
+                </Text>
+              </VStack>
+            </Box>
+
+            {/* Vertical Divider */}
+            <Box 
+              w="1px" 
+              bg="purple.700" 
+              opacity={0.5}
+              my={8}
             />
-            <FileUpload
-              onFilesUploaded={handleExistingResumeUpload}
-              isLoading={isLoading}
-              conversationId={conversationId}
-              bg={chatInputBgColor}
-              color="white"
-            />
+
+            {/* Right Side - Upload UI */}
+            <Box 
+              flex="1" 
+              display="flex" 
+              flexDirection="column" 
+              justifyContent="center"
+              gap={8}
+              fontSize="lg"
+            >
+              <Box>
+                <Text 
+                  fontSize="xl" 
+                  fontWeight="medium" 
+                  color="white" 
+                  mb={4}
+                >
+                  Select your preferred writing style
+                </Text>
+                <ToneSelector
+                  value={writingTone}
+                  onChange={setWritingTone}
+                  label=""
+                  labelColor="white"
+                  fontSize="lg"
+                />
+              </Box>
+              <Box>
+                <Text 
+                  fontSize="xl" 
+                  fontWeight="medium" 
+                  color="white" 
+                  mb={4}
+                >
+                  Upload your resume
+                </Text>
+                <FileUpload
+                  onFilesUploaded={handleExistingResumeUpload}
+                  isLoading={isLoading}
+                  conversationId={conversationId}
+                  bg={chatInputBgColor}
+                  color="white"
+                  fontSize="lg"
+                  hideOptionalLabel={true}
+                />
+              </Box>
+            </Box>
           </Box>
         </Flex>
       </ChakraProvider>

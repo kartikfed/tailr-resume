@@ -12,7 +12,10 @@ import {
   useToast,
   Radio,
   RadioGroup,
-  Stack
+  Stack,
+  Spinner,
+  ScaleFade,
+  Center
 } from '@chakra-ui/react';
 import { AttachmentIcon, CheckCircleIcon } from '@chakra-ui/icons';
 import { uploadFiles } from '../services/apiService';
@@ -23,6 +26,7 @@ import { uploadFiles } from '../services/apiService';
 const FileUpload = ({ onFilesUploaded, isLoading, conversationId, bg, color }) => {
   const [files, setFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const toast = useToast();
 
   const handleFileChange = (e) => {
@@ -107,9 +111,16 @@ const FileUpload = ({ onFilesUploaded, isLoading, conversationId, bg, color }) =
       console.log('Frontend: Files in response:', response.files);
       console.log('Frontend: First file content:', response.files[0]?.content?.substring(0, 200) + '...');
       
-      // Update the UI with response
-      onFilesUploaded(response.files);
+      // Show success animation
+      setShowSuccess(true);
       
+      // Wait for animation to complete before proceeding
+      setTimeout(() => {
+        onFilesUploaded(response.files);
+        setShowSuccess(false);
+        setFiles([]);
+      }, 1500);
+
       toast({
         title: 'File uploaded successfully',
         status: 'success',
@@ -118,8 +129,6 @@ const FileUpload = ({ onFilesUploaded, isLoading, conversationId, bg, color }) =
         position: 'top-right'
       });
 
-      // Clear files after upload
-      setFiles([]);
     } catch (error) {
       console.error('Frontend: Upload error:', error);
       toast({
@@ -135,9 +144,44 @@ const FileUpload = ({ onFilesUploaded, isLoading, conversationId, bg, color }) =
     }
   };
 
+  if (showSuccess) {
+    return (
+      <ScaleFade initialScale={0.9} in={showSuccess}>
+        <Center h="200px">
+          <Flex direction="column" align="center" gap={4}>
+            <CheckCircleIcon w={16} h={16} color="green.400" />
+            <Text fontSize="xl" color="white" fontWeight="medium">
+              Resume Successfully Uploaded!
+            </Text>
+          </Flex>
+        </Center>
+      </ScaleFade>
+    );
+  }
+
   return (
-    <Box width="100%" mb={4}>
-      <Text mb={2} fontWeight="medium" color={color}>Upload supporting files (optional):</Text>
+    <Box 
+      width="100%" 
+      mb={4}
+      position="relative"
+      _before={{
+        content: '""',
+        position: 'absolute',
+        top: '-1px',
+        left: '-1px',
+        right: '-1px',
+        bottom: '-1px',
+        borderRadius: 'lg',
+        background: 'linear-gradient(45deg, rgba(128, 90, 213, 0.1), rgba(128, 90, 213, 0.05))',
+        zIndex: -1,
+        transition: 'all 0.3s ease'
+      }}
+      _hover={{
+        _before: {
+          background: 'linear-gradient(45deg, rgba(128, 90, 213, 0.15), rgba(128, 90, 213, 0.1))',
+        }
+      }}
+    >
       <Input
         type="file"
         multiple
@@ -157,9 +201,19 @@ const FileUpload = ({ onFilesUploaded, isLoading, conversationId, bg, color }) =
             size="md"
             cursor="pointer"
             isDisabled={isLoading || isUploading}
-            _hover={{ bg: 'purple.700' }}
+            _hover={{ 
+              bg: 'purple.700',
+              transform: 'translateY(-1px)',
+              boxShadow: '0 4px 12px rgba(128, 90, 213, 0.2)'
+            }}
+            _active={{
+              transform: 'translateY(0)',
+              boxShadow: '0 2px 6px rgba(128, 90, 213, 0.15)'
+            }}
             border="1px solid"
             borderColor="purple.700"
+            transition="all 0.2s ease"
+            boxShadow="0 2px 8px rgba(128, 90, 213, 0.1)"
           >
             Select Files
           </Button>
@@ -169,11 +223,34 @@ const FileUpload = ({ onFilesUploaded, isLoading, conversationId, bg, color }) =
           <>
             <List spacing={2} mt={2}>
               {files.map((file, index) => (
-                <ListItem key={index}>
+                <ListItem 
+                  key={index}
+                  bg="rgba(128, 90, 213, 0.05)"
+                  p={2}
+                  borderRadius="md"
+                  border="1px solid"
+                  borderColor="purple.700"
+                  opacity={0.8}
+                  transition="all 0.2s ease"
+                  _hover={{
+                    opacity: 1,
+                    bg: "rgba(128, 90, 213, 0.1)",
+                    transform: 'translateX(4px)'
+                  }}
+                >
                   <Flex alignItems="center">
-                    <ListIcon as={CheckCircleIcon} color="white" />
+                    <ListIcon as={CheckCircleIcon} color="purple.400" />
                     <Text fontSize="sm" color={color}>{file.name}</Text>
-                    <Badge ml={2} bg="purple.700" color="white" fontSize="xs">
+                    <Badge 
+                      ml={2} 
+                      bg="purple.700" 
+                      color="white" 
+                      fontSize="xs"
+                      px={2}
+                      py={0.5}
+                      borderRadius="full"
+                      boxShadow="0 2px 4px rgba(128, 90, 213, 0.2)"
+                    >
                       {(file.size / 1024).toFixed(1)} KB
                     </Badge>
                   </Flex>
@@ -183,17 +260,28 @@ const FileUpload = ({ onFilesUploaded, isLoading, conversationId, bg, color }) =
 
             <Button
               onClick={handleUpload}
-              bg={bg}
-              color={color}
+              bg={isUploading ? "green.500" : "purple.700"}
+              color="white"
               size="sm"
               isLoading={isUploading}
               loadingText="Uploading..."
               width="fit-content"
-              _hover={{ bg: 'purple.700' }}
+              spinner={<Spinner color="white" />}
+              _hover={{ 
+                bg: isUploading ? "green.600" : "purple.800",
+                transform: 'translateY(-1px)',
+                boxShadow: '0 4px 12px rgba(128, 90, 213, 0.2)'
+              }}
+              _active={{
+                transform: 'translateY(0)',
+                boxShadow: '0 2px 6px rgba(128, 90, 213, 0.15)'
+              }}
               border="1px solid"
-              borderColor="purple.700"
+              borderColor={isUploading ? "green.600" : "purple.700"}
+              transition="all 0.3s ease"
+              boxShadow="0 2px 8px rgba(128, 90, 213, 0.1)"
             >
-              Upload {files.length} {files.length === 1 ? 'File' : 'Files'}
+              {isUploading ? "Uploading..." : "Let's Go!"}
             </Button>
           </>
         )}
