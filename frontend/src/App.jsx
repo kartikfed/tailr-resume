@@ -65,7 +65,7 @@ function App() {
   const chatPaneBgColor = useColorModeValue('purple.900', 'purple.900');
   const chatInputBgColor = useColorModeValue('purple.800', 'purple.800');
   
-  const [startMode, setStartMode] = useState('choose'); // 'choose' | 'scratch' | 'existing'
+  const [startMode, setStartMode] = useState('existing'); // Always start with file upload
   // Track if user started with an existing resume
   const [existingResumeMode, setExistingResumeMode] = useState(false);
   
@@ -378,26 +378,6 @@ ${structuredData.sections.map(section => {
     setStartMode('scratch'); // Enter main UI after upload
   };
 
-  // Inline StartScreen component
-  const StartScreen = () => (
-    <Flex direction="column" align="center" justify="center" minH="100vh" bg={bgColor}>
-      <Box p={8} bg="white" borderRadius="lg" boxShadow="lg" minW="320px">
-        <Heading as="h2" size="lg" mb={4} textAlign="center">Welcome to Tailr</Heading>
-        <Text fontSize="md" mb={6} textAlign="center">
-          Tailor any resume for any job application
-        </Text>
-        <VStack spacing={4}>
-          <Button colorScheme="blue" size="lg" w="100%" onClick={() => { setStartMode('scratch'); setExistingResumeMode(false); }}>
-            Start from Scratch
-          </Button>
-          <Button colorScheme="teal" size="lg" w="100%" onClick={() => { setStartMode('existing'); setExistingResumeMode(true); }}>
-            Start with an Existing Resume
-          </Button>
-        </VStack>
-      </Box>
-    </Flex>
-  );
-
   // Accept a revision for selected text
   function acceptRevision(selectedText, revisedText) {
     if (resumeStructured) {
@@ -470,354 +450,103 @@ ${structuredData.sections.map(section => {
     setPromptPresets(newPrompts);
   };
 
-  // In the return, render StartScreen or main UI based on startMode
-  if (startMode === 'choose') {
-    return (
-      <ChakraProvider>
-        <StartScreen />
-      </ChakraProvider>
-    );
-  }
-  if (startMode === 'existing') {
-    // Show only file upload for resume, then proceed
-    return (
-      <ChakraProvider>
-        <Flex direction="column" align="center" justify="center" minH="100vh" bg={bgColor}>
-          <Box 
-            p={12} 
-            bg={chatPaneBgColor}
-            borderRadius="xl"
-            boxShadow="lg" 
-            minW="1000px"
-            minH="600px"
-            border="1px solid"
-            borderColor="purple.700"
-            display="flex"
-            gap={12}
-          >
-            {/* Left Side - Logo and Text */}
-            <Box 
-              flex="1" 
-              display="flex" 
-              alignItems="center" 
-              justifyContent="center"
-              gap={6}
-            >
-              <img
-                src="/tailr-logo.png"
-                alt="Tailr logo"
-                style={{
-                  height: '240px',
-                  width: 'auto',
-                  objectFit: 'contain',
-                  display: 'block'
-                }}
-              />
-              <VStack align="start" spacing={2}>
-                <Heading as="h1" size="3xl" fontWeight="bold" color="white">Tailr</Heading>
-                <Text fontSize="lg" color="gray.400">
-                  Tailor any resume for any job application
-                </Text>
-              </VStack>
-            </Box>
-
-            {/* Vertical Divider */}
-            <Box 
-              w="1px" 
-              bg="purple.700" 
-              opacity={0.5}
-              my={8}
-            />
-
-            {/* Right Side - Upload UI */}
-            <Box 
-              flex="1" 
-              display="flex" 
-              flexDirection="column" 
-              justifyContent="center"
-              gap={8}
-              fontSize="lg"
-            >
-              <Box>
-                <Text 
-                  fontSize="xl" 
-                  fontWeight="medium" 
-                  color="white" 
-                  mb={4}
-                >
-                  Select your preferred writing style
-                </Text>
-                <ToneSelector
-                  value={writingTone}
-                  onChange={setWritingTone}
-                  label=""
-                  labelColor="white"
-                  fontSize="lg"
-                />
-              </Box>
-              <Box>
-                <Text 
-                  fontSize="xl" 
-                  fontWeight="medium" 
-                  color="white" 
-                  mb={4}
-                >
-                  Upload your resume
-                </Text>
-                <FileUpload
-                  onFilesUploaded={handleExistingResumeUpload}
-                  isLoading={isLoading}
-                  conversationId={conversationId}
-                  bg={chatInputBgColor}
-                  color="white"
-                  fontSize="lg"
-                  hideOptionalLabel={true}
-                />
-              </Box>
-            </Box>
-          </Box>
-        </Flex>
-      </ChakraProvider>
-    );
-  }
-
   return (
     <ChakraProvider>
-      <Box minH="100vh" display="flex" flexDirection="column" bg={bgColor}>
-        {/* Header */}
-        <Box bg={bgColor} p={3}>
-          <Container maxW="container.xl" px={0}>
-            <Flex align="center">
-              <Box
-                display="flex"
-                alignItems="center"
-                mr={4}
-                height={logoHeight ? `${logoHeight}px` : 'auto'}
-              >
-                <img
-                  src="/tailr-logo.png"
-                  alt="Tailr logo"
-                  style={{
-                    height: logoHeight ? `${logoHeight}px` : 'auto',
-                    width: 'auto',
-                    objectFit: 'contain',
-                    display: 'block'
-                  }}
-                />
-              </Box>
-              <VStack align="start" spacing={0.5} ref={textBlockRef}>
-                <Heading as="h1" size="2xl" fontWeight="bold" color="white">Tailr</Heading>
-                <Text fontSize="md" color="gray.400">
-                  Tailor any resume for any job application
-                </Text>
-              </VStack>
-              <Spacer />
-            </Flex>
-          </Container>
-        </Box>
+      <Flex direction="column" align="center" justify="center" minH="100vh" bg={bgColor}>
+        <Box 
+          p={12} 
+          bg={chatPaneBgColor}
+          borderRadius="xl"
+          boxShadow="lg" 
+          minW="1000px"
+          minH="600px"
+          border="1px solid"
+          borderColor="purple.700"
+          display="flex"
+          gap={12}
+        >
+          {/* Left Side - Logo and Text */}
+          <Box 
+            flex="1" 
+            display="flex" 
+            alignItems="center" 
+            justifyContent="center"
+            gap={6}
+          >
+            <img
+              src="/tailr-logo.png"
+              alt="Tailr logo"
+              style={{
+                height: '240px',
+                width: 'auto',
+                objectFit: 'contain',
+                display: 'block'
+              }}
+            />
+            <VStack align="start" spacing={2}>
+              <Heading as="h1" size="3xl" fontWeight="bold" color="white">Tailr</Heading>
+              <Text fontSize="lg" color="gray.400">
+                Tailor any resume for any job application
+              </Text>
+            </VStack>
+          </Box>
 
-        {/* Job Description Input Section */}
-        <Box bg={bgColor} p={4}>
-          <Container maxW="container.xl" px={0}>
-            <Flex align="center" justify="space-between" mb={3}>
-              <Heading size="sm" minW="120px" color={textColor}>Job Description</Heading>
-            </Flex>
-            <Box position="relative" w={{ base: '100%', md: '70%' }}>
-              <TextInput
-                id="job-description"
-                value={jobDescription}
-                onChange={(e) => setJobDescription(e.target.value)}
-                rows={5}
-                mb={3}
-                h="120px"
+          {/* Vertical Divider */}
+          <Box 
+            w="1px" 
+            bg="purple.700" 
+            opacity={0.5}
+            my={8}
+          />
+
+          {/* Right Side - Upload UI */}
+          <Box 
+            flex="1" 
+            display="flex" 
+            flexDirection="column" 
+            justifyContent="center"
+            gap={8}
+            fontSize="lg"
+          >
+            <Box>
+              <Text 
+                fontSize="xl" 
+                fontWeight="medium" 
+                color="white" 
+                mb={4}
+              >
+                Select your preferred writing style
+              </Text>
+              <ToneSelector
+                value={writingTone}
+                onChange={setWritingTone}
+                label=""
+                labelColor="white"
+                fontSize="lg"
               />
-              <Flex gap={2} mb={2}>
-                <Button
-                  colorScheme="blue"
-                  size="sm"
-                  onClick={handleSaveJobDescription}
-                  isDisabled={!jobDescription.trim() || jobDescriptionSaved || isSavingJobDescription}
-                  isLoading={isSavingJobDescription}
-                  loadingText="Analyzing..."
-                  leftIcon={<CheckCircleIcon />}
-                  _hover={{ transform: 'translateY(-1px)', boxShadow: 'sm' }}
-                  transition="all 0.2s"
-                >
-                  {jobDescriptionSaved ? 'Analyzed' : 'Analyze'}
-                </Button>
-                {jobDescription.trim() && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleClearJobDescription}
-                    isDisabled={isSavingJobDescription}
-                    color={textColor}
-                    borderColor={borderColor}
-                    _hover={{ 
-                      bg: 'gray.50',
-                      borderColor: 'gray.400',
-                      transform: 'translateY(-1px)',
-                      boxShadow: 'sm'
-                    }}
-                    transition="all 0.2s"
-                  >
-                    Clear
-                  </Button>
-                )}
-              </Flex>
             </Box>
-          </Container>
-        </Box>
-
-        {/* Main Content - Responsive Flex Layout */}
-        <Box flex="1">
-          <Container maxW="container.xl" h="100%" p={0}>
-            <Flex
-              direction={{ base: 'column', md: 'row' }}
-              h="100%"
-              align="stretch"
-              gap={{ base: 3, md: 0 }}
-              position="relative"
-            >
-              {/* Canvas (Left) */}
-              <Box
-                w={{ base: '100%', md: '70%' }}
-                h={{ base: 'auto', md: '100%' }}
-                px={0}
-                pt={2}
-                pb={8}
-                pr={2}
-                display="flex"
-                flexDirection="column"
-                justifyContent="flex-start"
-                alignItems="stretch"
-                overflow="auto"
-                zIndex={0}
+            <Box>
+              <Text 
+                fontSize="xl" 
+                fontWeight="medium" 
+                color="white" 
+                mb={4}
               >
-                <SpecCanvas
-                  resumeStructured={resumeStructured}
-                  resumeMarkdown={canvasContent}
-                  resumeHtml={null}
-                  resumeSections={null}
-                  onAcceptRevision={acceptRevision}
-                  onRejectRevision={rejectRevision}
-                  jobDescriptionProvided={!!jobDescription.trim()}
-                  jobDescription={jobDescription}
-                  highlightedText={highlightedText}
-                  promptPresets={promptPresets}
-                  onRegeneratePrompts={handleRegeneratePrompts}
-                  writingTone={writingTone}
-                  conversationId={conversationId}
-                  onUpdateMessages={setMessages}
-                />
-              </Box>
-
-              {/* Chat Pane (Right) */}
-              <Box
-                position={{ md: 'fixed' }}
-                right={{ md: '20px' }}
-                top={{ md: '80px' }}
-                w={{ base: '100%', md: isChatExpanded ? '400px' : '60px' }}
-                minW={{ md: isChatExpanded ? '400px' : '60px' }}
-                maxW={{ md: isChatExpanded ? '600px' : '60px' }}
-                h={{ base: 'auto', md: 'calc(100vh - 80px)' }}
-                bg={chatPaneBgColor}
-                display="flex"
-                flexDirection="column"
-                mb={{ base: 2, md: 0 }}
-                zIndex={1}
-                borderRadius="xl"
-                overflow="hidden"
-                border="1px solid"
-                borderColor={borderColor}
-                transition="all 0.3s ease-in-out"
-              >
-                {/* Chat Header */}
-                <Collapse in={isChatExpanded} animateOpacity>
-                  <Box p={3} borderBottom="1px solid" borderColor={borderColor}>
-                    <Flex align="center" justify="space-between">
-                      <Heading size="sm" color={textColor}>Ask me anything</Heading>
-                      <IconButton
-                        icon={isChatExpanded ? <ChevronRightIcon /> : <ChevronLeftIcon />}
-                        onClick={() => setIsChatExpanded(!isChatExpanded)}
-                        bg="transparent"
-                        color="white"
-                        _hover={{ bg: 'purple.800' }}
-                        size="sm"
-                        aria-label={isChatExpanded ? "Collapse chat" : "Expand chat"}
-                      />
-                    </Flex>
-                  </Box>
-                </Collapse>
-
-                {/* Toggle Button (Always Visible) */}
-                {!isChatExpanded && (
-                  <Box 
-                    position="absolute" 
-                    top="50%" 
-                    left="50%" 
-                    transform="translate(-50%, -50%)"
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="center"
-                  >
-                    <IconButton
-                      icon={<ChevronLeftIcon boxSize="24px" />}
-                      onClick={() => setIsChatExpanded(!isChatExpanded)}
-                      bg="transparent"
-                      color="white"
-                      _hover={{ 
-                        bg: 'purple.800',
-                        transform: 'scale(1.1)',
-                        opacity: 1
-                      }}
-                      size="lg"
-                      aria-label="Expand chat"
-                      transition="all 0.2s ease-in-out"
-                      opacity={0.8}
-                    />
-                  </Box>
-                )}
-
-                {/* Chat Content */}
-                <Collapse in={isChatExpanded} animateOpacity>
-                  <Box 
-                    flex="1" 
-                    overflow="auto" 
-                    p={3}
-                    sx={{
-                      '&::-webkit-scrollbar': {
-                        width: '8px',
-                        backgroundColor: 'transparent',
-                      },
-                      '&::-webkit-scrollbar-thumb': {
-                        backgroundColor: 'gray.600',
-                        borderRadius: '4px',
-                        '&:hover': {
-                          backgroundColor: 'gray.500',
-                        },
-                      },
-                      '&::-webkit-scrollbar-track': {
-                        backgroundColor: 'transparent',
-                      },
-                    }}
-                  >
-                    <MessageHistory messages={messages} />
-                  </Box>
-                  <Box p={3} borderTop="1px solid" borderColor={borderColor}>
-                    <ChatInput
-                      onSendMessage={handleSendMessage}
-                      isLoading={isLoading}
-                      bg={chatInputBgColor}
-                      color={textColor}
-                    />
-                  </Box>
-                </Collapse>
-              </Box>
-            </Flex>
-          </Container>
+                Upload your resume
+              </Text>
+              <FileUpload
+                onFilesUploaded={handleExistingResumeUpload}
+                isLoading={isLoading}
+                conversationId={conversationId}
+                bg={chatInputBgColor}
+                color="white"
+                fontSize="lg"
+                hideOptionalLabel={true}
+              />
+            </Box>
+          </Box>
         </Box>
-      </Box>
+      </Flex>
     </ChakraProvider>
   );
 }
