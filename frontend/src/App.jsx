@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import {
   ChakraProvider,
   Box,
@@ -65,6 +65,15 @@ function App() {
   const [highlightTimeout, setHighlightTimeout] = useState(null);
   const [promptPresets, setPromptPresets] = useState([]);
   const [writingTone, setWritingTone] = useState('concise');
+
+  const textBlockRef = useRef(null);
+  const [logoHeight, setLogoHeight] = useState(0);
+
+  useLayoutEffect(() => {
+    if (textBlockRef.current) {
+      setLogoHeight(textBlockRef.current.offsetHeight);
+    }
+  }, [startMode]);
 
   // Load existing conversation if available
   useEffect(() => {
@@ -346,9 +355,9 @@ ${structuredData.sections.map(section => {
   const StartScreen = () => (
     <Flex direction="column" align="center" justify="center" minH="100vh" bg={bgColor}>
       <Box p={8} bg="white" borderRadius="lg" boxShadow="lg" minW="320px">
-        <Heading as="h2" size="lg" mb={4} textAlign="center">Welcome to AI Resume Assistant</Heading>
+        <Heading as="h2" size="lg" mb={4} textAlign="center">Welcome to Tailr</Heading>
         <Text fontSize="md" mb={6} textAlign="center">
-          How would you like to get started?
+          Tailor any resume for any job application
         </Text>
         <VStack spacing={4}>
           <Button colorScheme="blue" size="lg" w="100%" onClick={() => { setStartMode('scratch'); setExistingResumeMode(false); }}>
@@ -448,7 +457,7 @@ ${structuredData.sections.map(section => {
       <ChakraProvider>
         <Flex direction="column" align="center" justify="center" minH="100vh" bg={bgColor}>
           <Box p={8} bg="white" borderRadius="lg" boxShadow="lg" minW="320px">
-            <Heading as="h2" size="md" mb={4} textAlign="center">Upload Your Resume</Heading>
+            <Heading as="h2" size="md" mb={4} textAlign="center">Tailr Your Resume</Heading>
             <Text fontSize="sm" mb={4} textAlign="center">
               Upload your existing resume (PDF, DOCX, or TXT). The extracted text will be shown in the canvas for editing and optimization.
             </Text>
@@ -475,18 +484,30 @@ ${structuredData.sections.map(section => {
         <Box bg="white" borderBottom="1px solid" borderColor={borderColor} p={3}>
           <Container maxW="container.xl">
             <Flex align="center">
-              <VStack align="start" spacing={0.5}>
-                <Heading as="h1" size="lg">AI Resume Assistant</Heading>
-                <Text fontSize="sm" color="gray.600">
-                  Create tailored, ATS-friendly resumes for specific job applications
+              <Box
+                display="flex"
+                alignItems="center"
+                mr={4}
+                height={logoHeight ? `${logoHeight}px` : 'auto'}
+              >
+                <img
+                  src="/tailr-logo.png"
+                  alt="Tailr logo"
+                  style={{
+                    height: logoHeight ? `${logoHeight}px` : 'auto',
+                    width: 'auto',
+                    objectFit: 'contain',
+                    display: 'block'
+                  }}
+                />
+              </Box>
+              <VStack align="start" spacing={0.5} ref={textBlockRef}>
+                <Heading as="h1" size="2xl" fontWeight="bold" color="#000003">Tailr</Heading>
+                <Text fontSize="md" color="gray.600">
+                  Tailor any resume for any job application
                 </Text>
               </VStack>
               <Spacer />
-              {uploadedFiles.length > 0 && (
-                <Text fontSize="sm" color="blue.600" fontWeight="medium">
-                  {uploadedFiles.length} file(s) uploaded
-                </Text>
-              )}
             </Flex>
           </Container>
         </Box>
@@ -565,38 +586,7 @@ ${structuredData.sections.map(section => {
               align="stretch"
               gap={{ base: 3, md: 0 }}
             >
-              {/* Chat Pane (Left, 30% on desktop) */}
-              <Box
-                w={{ base: '100%', md: '30%' }}
-                minW={{ md: '280px' }}
-                maxW={{ md: '380px' }}
-                h={{ base: 'auto', md: '100%' }}
-                bg="white"
-                borderRight={{ md: '1px solid' }}
-                borderColor={borderColor}
-                display="flex"
-                flexDirection="column"
-                mb={{ base: 2, md: 0 }}
-                zIndex={1}
-              >
-                {/* Chat history */}
-                <Box p={3} borderBottom="1px solid" borderColor="gray.100">
-                  <Heading size="sm" mb={2}>Ask me anything</Heading>
-                </Box>
-                <VStack flex="1" spacing={0} align="stretch" overflow="hidden">
-                  <Box flex="1" overflow="auto" p={3}>
-                    <MessageHistory messages={messages} />
-                  </Box>
-                  <Box p={3} borderTop="1px solid" borderColor="gray.100">
-                    <ChatInput
-                      onSendMessage={handleSendMessage}
-                      isLoading={isLoading}
-                    />
-                  </Box>
-                </VStack>
-              </Box>
-
-              {/* Canvas (Right, 70% on desktop) */}
+              {/* Canvas (Left, 70% on desktop) */}
               <Box
                 w={{ base: '100%', md: '70%' }}
                 h={{ base: 'auto', md: '100%' }}
@@ -635,6 +625,37 @@ ${structuredData.sections.map(section => {
                     onUpdateMessages={setMessages}
                   />
                 </Box>
+              </Box>
+
+              {/* Chat Pane (Right, 30% on desktop) */}
+              <Box
+                w={{ base: '100%', md: '30%' }}
+                minW={{ md: '340px' }}
+                maxW={{ md: '480px' }}
+                h={{ base: 'auto', md: '100%' }}
+                bg="white"
+                borderRight={{ md: '1px solid' }}
+                borderColor={borderColor}
+                display="flex"
+                flexDirection="column"
+                mb={{ base: 2, md: 0 }}
+                zIndex={1}
+              >
+                {/* Chat history */}
+                <Box p={3} borderBottom="1px solid" borderColor="gray.100">
+                  <Heading size="sm" mb={2}>Ask me anything</Heading>
+                </Box>
+                <VStack flex="1" spacing={0} align="stretch" overflow="hidden">
+                  <Box flex="1" overflow="auto" p={3}>
+                    <MessageHistory messages={messages} />
+                  </Box>
+                  <Box p={3} borderTop="1px solid" borderColor="gray.100">
+                    <ChatInput
+                      onSendMessage={handleSendMessage}
+                      isLoading={isLoading}
+                    />
+                  </Box>
+                </VStack>
               </Box>
             </Flex>
           </Container>

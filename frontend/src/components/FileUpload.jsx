@@ -23,7 +23,6 @@ import { uploadFiles } from '../services/apiService';
 const FileUpload = ({ onFilesUploaded, isLoading, conversationId }) => {
   const [files, setFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadEngine, setUploadEngine] = useState('affinda');
   const toast = useToast();
 
   const handleFileChange = (e) => {
@@ -85,7 +84,7 @@ const FileUpload = ({ onFilesUploaded, isLoading, conversationId }) => {
             size: file.size,
             content: content,
             isPdf: file.type === 'application/pdf' || file.name.endsWith('.pdf'),
-            useClaude: uploadEngine === 'claude',
+            useClaude: true, // Always use Claude now
           };
         } catch (error) {
           console.error(`Frontend: Failed to read file ${file.name}:`, error);
@@ -140,12 +139,6 @@ const FileUpload = ({ onFilesUploaded, isLoading, conversationId }) => {
   return (
     <Box width="100%" mb={4}>
       <Text mb={2} fontWeight="medium">Upload supporting files (optional):</Text>
-      <RadioGroup onChange={setUploadEngine} value={uploadEngine} mb={2}>
-        <Stack direction="row" spacing={4}>
-          <Radio value="affinda">Use Affinda</Radio>
-          <Radio value="claude">Use Claude</Radio>
-        </Stack>
-      </RadioGroup>
       <Input
         type="file"
         multiple

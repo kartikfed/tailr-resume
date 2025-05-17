@@ -43,7 +43,7 @@ const MessageHistory = ({ messages }) => {
               borderRadius="md"
             >
               {message.role === 'user' ? 'You' : 
-               message.role === 'system' ? 'System' : 'AI Spec Assistant'}
+               message.role === 'system' ? "Tailr's Thoughts" : 'Tailr'}
             </Badge>
             {message.timestamp && (
               <Text fontSize="xs" color="gray.500" ml={2}>

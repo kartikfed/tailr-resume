@@ -1,5 +1,5 @@
 /**
- * MCP Tool Definitions for AI Resume Assistant
+ * MCP Tool Definitions for Tailr
  * 
  * This file defines the tools that Claude can use through Model Context Protocol
  * for resume creation and optimization.

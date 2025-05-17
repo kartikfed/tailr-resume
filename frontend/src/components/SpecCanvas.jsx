@@ -562,7 +562,7 @@ const SpecCanvas = ({
   return (
     <Box
       ref={canvasRef}
-      p={6}
+        p={6}
       bg="white"
       borderRadius="lg"
       boxShadow="sm"

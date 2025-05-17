@@ -9,7 +9,6 @@ const express = require('express');
 const router = express.Router();
 const { sendMessageToClaudeWithMCP } = require('../../mcp/claudeService');
 const { extractPdfText, extractPdfMarkdown, extractPdfHtml } = require('../../../utils/pdfExtract');
-const { parseResumeWithAffinda, affindaResumeToMarkdown } = require('../../../utils/affindaResume');
 const sectionExtractorTool = require('../../mcp/tools/sectionExtractor');
 const AFFINDA_API_KEY = process.env.AFFINDA_API_KEY;
 
@@ -35,7 +34,7 @@ function unescapeMarkdown(text) {
 }
 
 /**
- * Start or continue a conversation with AI Resume Assistant
+ * Start or continue a conversation with Tailr
  */
 router.post('/chat', async (req, res) => {
     try {
