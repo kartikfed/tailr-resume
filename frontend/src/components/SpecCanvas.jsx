@@ -26,9 +26,6 @@ const SpecCanvas = ({
   onAcceptRevision,
   onRejectRevision
 }) => {
-  const [selectedText, setSelectedText] = useState(null);
-  const toast = useToast();
-
   // Debug logging
   console.log('SpecCanvas received props:', {
     resumeStructured,
@@ -43,33 +40,6 @@ const SpecCanvas = ({
     });
     
     return !!resumeStructured || !!resumeMarkdown;
-  };
-
-  const handleTextSelection = () => {
-    const selection = window.getSelection();
-    if (selection.toString().trim()) {
-      setSelectedText(selection.toString().trim());
-      toast({
-        title: 'Text selected',
-        description: 'You can now request a revision for this text',
-        status: 'info',
-        duration: 2000,
-        isClosable: true,
-      });
-    }
-  };
-
-  const handleRequestRevision = () => {
-    if (selectedText) {
-      toast({
-        title: 'Revision requested',
-        description: 'The AI will analyze your selection and suggest improvements',
-        status: 'info',
-        duration: 2000,
-        isClosable: true,
-      });
-      // TODO: Implement revision request logic
-    }
   };
 
   // Helper function to render content with proper line breaks
@@ -89,6 +59,13 @@ const SpecCanvas = ({
       </VStack>
     );
   };
+
+  // Helper function to unescape Markdown special characters
+  function unescapeMarkdown(text) {
+    if (!text) return text;
+    // Unescape common Markdown characters: \\* \\# \\_ \\` \\~ \\> \\- \\! \\[ \\] \\( \\) \\{ \\} \\< \\> \\| \\.
+    return text.replace(/\\([#*_[\]()`~>\-!{}<>|.])/g, '$1');
+  }
 
   if (!hasContent()) {
     return (
@@ -115,14 +92,13 @@ const SpecCanvas = ({
       bg="white"
       borderRadius="lg"
       boxShadow="sm"
-      onMouseUp={handleTextSelection}
     >
       <VStack align="stretch" spacing={6}>
         {/* Render Markdown if present (Claude flow) */}
         {resumeMarkdown && (
           <Box>
             <ReactMarkdown
-              children={resumeMarkdown}
+              children={unescapeMarkdown(resumeMarkdown)}
               remarkPlugins={[remarkGfm]}
               components={{
                 h1: ({node, ...props}) => <Heading as="h1" size="lg" my={4} {...props} />,
@@ -207,31 +183,6 @@ const SpecCanvas = ({
               </Box>
             ))}
           </>
-        )}
-        {/* Revision UI */}
-        {selectedText && (
-          <Box
-            position="fixed"
-            bottom={4}
-            right={4}
-            bg="white"
-            p={4}
-            borderRadius="md"
-            boxShadow="lg"
-            zIndex={10}
-          >
-            <VStack align="stretch" spacing={2}>
-              <Text fontSize="sm" fontWeight="medium">Selected Text:</Text>
-              <Text fontSize="sm" color="gray.600">{selectedText}</Text>
-              <Button
-                size="sm"
-                colorScheme="blue"
-                onClick={handleRequestRevision}
-              >
-                Request Revision
-              </Button>
-            </VStack>
-          </Box>
         )}
       </VStack>
     </Box>
