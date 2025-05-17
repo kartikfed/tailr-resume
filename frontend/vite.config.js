@@ -6,5 +6,13 @@ export default defineConfig({
   server: {
     port: 5173,
     open: true
+  },
+  build: {
+    rollupOptions: {
+      external: ['remark-gfm'],
+    },
+  },
+  optimizeDeps: {
+    include: ['remark-gfm']
   }
 });
