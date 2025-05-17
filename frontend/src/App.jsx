@@ -362,20 +362,31 @@ ${structuredData.sections.map(section => {
   };
 
   const handleExistingResumeUpload = (files) => {
+    console.log('handleExistingResumeUpload called with files:', files);
+    
+    // First update the files
     setUploadedFiles(prev => [...prev, ...files]);
+    
+    // Then process the content
     if (files && files.length > 0 && files[0].content) {
       try {
         const structured = JSON.parse(files[0].content);
+        console.log('Setting resumeStructured:', structured);
         setResumeStructured(structured);
         setCanvasContent(null);
       } catch (error) {
         // If not JSON, treat as Markdown (Claude flow)
-        console.log('App: Treating file content as Markdown');
+        console.log('Treating file content as Markdown');
         setResumeStructured(null);
         setCanvasContent(files[0].content);
       }
     }
-    setStartMode('scratch'); // Enter main UI after upload
+    
+    // Finally, update the mode after a short delay to ensure other states are updated
+    setTimeout(() => {
+      console.log('Setting startMode to scratch');
+      setStartMode('scratch');
+    }, 100);
   };
 
   // Accept a revision for selected text
