@@ -100,7 +100,9 @@ const SpecCanvas = ({
     // Otherwise just render the content normally
     return (
       <Box whiteSpace="pre-wrap" userSelect="text">
-        {content}
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+          {content}
+        </ReactMarkdown>
       </Box>
     );
   };

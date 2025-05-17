@@ -7,12 +7,12 @@ export default defineConfig({
     port: 5173,
     open: true
   },
-  build: {
-    rollupOptions: {
-      external: ['remark-gfm'],
-    },
-  },
   optimizeDeps: {
-    include: ['remark-gfm']
+    include: ['remark-gfm', 'react-markdown']
+  },
+  build: {
+    commonjsOptions: {
+      include: [/remark-gfm/, /react-markdown/]
+    }
   }
 });
