@@ -17,10 +17,12 @@ import {
   Badge,
   List,
   ListItem,
-  ListIcon
+  ListIcon,
+  IconButton,
+  Collapse
 } from '@chakra-ui/react';
 import { sendMessage, uploadFiles, getConversation } from './services/apiService';
-import { CheckCircleIcon } from '@chakra-ui/icons';
+import { CheckCircleIcon, ChevronLeftIcon, ChevronRightIcon } from '@chakra-ui/icons';
 
 import ChatInput from './components/ChatInput';
 import FileUpload from './components/FileUpload';
@@ -75,6 +77,7 @@ function App() {
 
   const textBlockRef = useRef(null);
   const [logoHeight, setLogoHeight] = useState(0);
+  const [isChatExpanded, setIsChatExpanded] = useState(true);
 
   useLayoutEffect(() => {
     if (textBlockRef.current) {
@@ -516,8 +519,8 @@ ${structuredData.sections.map(section => {
     <ChakraProvider>
       <Box minH="100vh" display="flex" flexDirection="column" bg={bgColor}>
         {/* Header */}
-        <Box bg={cardBgColor} borderBottom="1px solid" borderColor={borderColor} p={3}>
-          <Container maxW="container.xl">
+        <Box bg={bgColor} p={3}>
+          <Container maxW="container.xl" px={0}>
             <Flex align="center">
               <Box
                 display="flex"
@@ -548,11 +551,10 @@ ${structuredData.sections.map(section => {
         </Box>
 
         {/* Job Description Input Section */}
-        <Box bg={bgColor} borderBottom="1px solid" borderColor={borderColor} p={4}>
+        <Box bg={bgColor} p={4}>
           <Container maxW="container.xl" px={0}>
             <Flex align="center" justify="space-between" mb={3}>
               <Heading size="sm" minW="120px" color={textColor}>Job Description</Heading>
-              <Text fontSize="xs" color="gray.500">Paste the job description to tailor your resume</Text>
             </Flex>
             <Box position="relative" w={{ base: '100%', md: '70%' }}>
               <TextInput
@@ -609,8 +611,9 @@ ${structuredData.sections.map(section => {
               h="100%"
               align="stretch"
               gap={{ base: 3, md: 0 }}
+              position="relative"
             >
-              {/* Canvas (Left, 70% on desktop) */}
+              {/* Canvas (Left) */}
               <Box
                 w={{ base: '100%', md: '70%' }}
                 h={{ base: 'auto', md: '100%' }}
@@ -643,15 +646,16 @@ ${structuredData.sections.map(section => {
                 />
               </Box>
 
-              {/* Chat Pane (Right, 30% on desktop) */}
+              {/* Chat Pane (Right) */}
               <Box
-                w={{ base: '100%', md: '30%' }}
-                minW={{ md: '340px' }}
-                maxW={{ md: '480px' }}
-                h={{ base: 'auto', md: '100%' }}
+                position={{ md: 'fixed' }}
+                right={{ md: '20px' }}
+                top={{ md: '80px' }}
+                w={{ base: '100%', md: isChatExpanded ? '400px' : '60px' }}
+                minW={{ md: isChatExpanded ? '400px' : '60px' }}
+                maxW={{ md: isChatExpanded ? '600px' : '60px' }}
+                h={{ base: 'auto', md: 'calc(100vh - 80px)' }}
                 bg={chatPaneBgColor}
-                borderRight={{ md: '1px solid' }}
-                borderColor={borderColor}
                 display="flex"
                 flexDirection="column"
                 mb={{ base: 2, md: 0 }}
@@ -659,13 +663,79 @@ ${structuredData.sections.map(section => {
                 borderRadius="xl"
                 overflow="hidden"
                 border="1px solid"
+                borderColor={borderColor}
+                transition="all 0.3s ease-in-out"
               >
-                {/* Chat history */}
-                <Box p={3} borderBottom="1px solid" borderColor={borderColor}>
-                  <Heading size="sm" mb={2} color={textColor}>Ask me anything</Heading>
-                </Box>
-                <VStack flex="1" spacing={0} align="stretch" overflow="hidden">
-                  <Box flex="1" overflow="auto" p={3}>
+                {/* Chat Header */}
+                <Collapse in={isChatExpanded} animateOpacity>
+                  <Box p={3} borderBottom="1px solid" borderColor={borderColor}>
+                    <Flex align="center" justify="space-between">
+                      <Heading size="sm" color={textColor}>Ask me anything</Heading>
+                      <IconButton
+                        icon={isChatExpanded ? <ChevronRightIcon /> : <ChevronLeftIcon />}
+                        onClick={() => setIsChatExpanded(!isChatExpanded)}
+                        bg="transparent"
+                        color="white"
+                        _hover={{ bg: 'purple.800' }}
+                        size="sm"
+                        aria-label={isChatExpanded ? "Collapse chat" : "Expand chat"}
+                      />
+                    </Flex>
+                  </Box>
+                </Collapse>
+
+                {/* Toggle Button (Always Visible) */}
+                {!isChatExpanded && (
+                  <Box 
+                    position="absolute" 
+                    top="50%" 
+                    left="50%" 
+                    transform="translate(-50%, -50%)"
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                  >
+                    <IconButton
+                      icon={<ChevronLeftIcon boxSize="24px" />}
+                      onClick={() => setIsChatExpanded(!isChatExpanded)}
+                      bg="transparent"
+                      color="white"
+                      _hover={{ 
+                        bg: 'purple.800',
+                        transform: 'scale(1.1)',
+                        opacity: 1
+                      }}
+                      size="lg"
+                      aria-label="Expand chat"
+                      transition="all 0.2s ease-in-out"
+                      opacity={0.8}
+                    />
+                  </Box>
+                )}
+
+                {/* Chat Content */}
+                <Collapse in={isChatExpanded} animateOpacity>
+                  <Box 
+                    flex="1" 
+                    overflow="auto" 
+                    p={3}
+                    sx={{
+                      '&::-webkit-scrollbar': {
+                        width: '8px',
+                        backgroundColor: 'transparent',
+                      },
+                      '&::-webkit-scrollbar-thumb': {
+                        backgroundColor: 'gray.600',
+                        borderRadius: '4px',
+                        '&:hover': {
+                          backgroundColor: 'gray.500',
+                        },
+                      },
+                      '&::-webkit-scrollbar-track': {
+                        backgroundColor: 'transparent',
+                      },
+                    }}
+                  >
                     <MessageHistory messages={messages} />
                   </Box>
                   <Box p={3} borderTop="1px solid" borderColor={borderColor}>
@@ -676,7 +746,7 @@ ${structuredData.sections.map(section => {
                       color={textColor}
                     />
                   </Box>
-                </VStack>
+                </Collapse>
               </Box>
             </Flex>
           </Container>
