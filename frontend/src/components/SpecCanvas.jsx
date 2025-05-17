@@ -206,7 +206,7 @@ const SpecCanvas = ({
         writingTone
       });
 
-      const response = await fetch('http://localhost:3000/api/spec/revise', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/spec/revise`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -231,8 +231,6 @@ const SpecCanvas = ({
       setRevisedText(data.revisedText);
       setRevisedTextMarkdown(data.revisedText);
       setHasSubmittedRevision(true);
-      
-      // If there's an explanation in the response, it will be added to the chat history by the backend
       
       toast({
         title: 'Revision Ready',
@@ -279,7 +277,7 @@ const SpecCanvas = ({
     if (conversationId) {
       setIsAddingExplanation(true);
       try {
-        const response = await fetch('http://localhost:3000/api/spec/revise', {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/spec/revise`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
