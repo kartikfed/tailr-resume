@@ -13,9 +13,12 @@ import {
   Badge,
   Divider,
   Textarea,
-  HStack
+  HStack,
+  SimpleGrid,
+  IconButton,
+  PopoverBody
 } from '@chakra-ui/react';
-import { CheckCircleIcon } from '@chakra-ui/icons';
+import { CheckCircleIcon, RepeatIcon, CloseIcon } from '@chakra-ui/icons';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import ReactDOM from 'react-dom';
@@ -26,11 +29,18 @@ import ReactDOM from 'react-dom';
 const SpecCanvas = ({
   resumeStructured = null,
   resumeMarkdown = null,
+  resumeHtml = null,
+  resumeSections = null,
   onAcceptRevision,
   onRejectRevision,
   jobDescriptionProvided = false,
   jobDescription = '',
-  highlightedText = null
+  highlightedText = null,
+  promptPresets = [],
+  onRegeneratePrompts = null,
+  writingTone = 'concise',
+  conversationId,
+  onUpdateMessages
 }) => {
   // Debug logging
   console.log('SpecCanvas received props:', {
@@ -116,6 +126,9 @@ const SpecCanvas = ({
   const [hasSubmittedRevision, setHasSubmittedRevision] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRegeneratingPrompts, setIsRegeneratingPrompts] = useState(false);
+  const [isAddingExplanation, setIsAddingExplanation] = useState(false);
+  const toast = useToast();
 
   // Add useEffect to monitor prop changes
   React.useEffect(() => {
@@ -168,21 +181,27 @@ const SpecCanvas = ({
     setUserInstructions('');
   };
 
-  // Update handleSubmitRevision to handle multiple revision attempts
-  const handleSubmitRevision = async () => {
-    if (!selectedText) return;
-    if (!jobDescription) {
-      console.error('Job description is required for revision');
+  // Update handleSubmitRevision to include writing tone
+  const handleSubmitRevision = async (prompt) => {
+    if (!selectedText || !jobDescription) {
+      toast({
+        title: 'Error',
+        description: 'Please select text to revise and ensure a job description is provided.',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+        position: 'bottom-right'
+      });
       return;
     }
 
-    setIsSubmitting(true);
-    setError('');
     try {
-      console.log('Sending revision request with:', {
+      setIsSubmitting(true);
+      console.log('Submitting revision request with:', {
         selectedText,
-        jobDescriptionLength: jobDescription.length,
-        userInstructions
+        jobDescription: jobDescription.substring(0, 100) + '...',
+        userInstructions: prompt,
+        writingTone
       });
 
       const response = await fetch('http://localhost:3000/api/spec/revise', {
@@ -193,48 +212,118 @@ const SpecCanvas = ({
         body: JSON.stringify({
           selectedText,
           jobDescription,
-          userInstructions: userInstructions,
-          resumeContent: resumeMarkdown // Include the full resume content
+          userInstructions: prompt,
+          resumeContent: resumeMarkdown,
+          writingTone,
+          conversationId
         }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to revise text');
+        throw new Error('Failed to get revision');
       }
 
       const data = await response.json();
       console.log('Revision response:', data);
-      // Store the markdown version for when it's accepted
+      
+      setRevisedText(data.revisedText);
       setRevisedTextMarkdown(data.revisedText);
-      // Store the plaintext version for display
-      setRevisedText(unescapeMarkdown(data.revisedText));
       setHasSubmittedRevision(true);
+      
+      // If there's an explanation in the response, it will be added to the chat history by the backend
+      
+      toast({
+        title: 'Revision Ready',
+        description: 'The text has been revised according to your instructions.',
+        status: 'success',
+        duration: 2000,
+        isClosable: true,
+        position: 'bottom-right'
+      });
     } catch (error) {
-      console.error('Error revising text:', error);
-      setError(error.message);
+      console.error('Error getting revision:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to get revision',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+        position: 'bottom-right'
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
 
   // Modify handleAcceptRevision
-  const handleAcceptRevision = (selectedText, revisedTextMarkdown) => {
+  const handleAcceptRevision = async (selectedText, revisedTextMarkdown) => {
     console.log('handleAcceptRevision called with:', {
       selectedText,
       revisedTextMarkdown
     });
 
-    // Update the content
-    onAcceptRevision(selectedText, revisedTextMarkdown);
-    
-    // Close the popover
+    // Close the popover immediately
     setShowRevisionPopover(false);
     setHasSubmittedRevision(false);
     setRevisedText('');
     setRevisedTextMarkdown('');
     setUserInstructions('');
     setSelectedText('');
+
+    // Update the content
+    onAcceptRevision(selectedText, revisedTextMarkdown);
+    
+    // Add the explanation to the chat history
+    if (conversationId) {
+      setIsAddingExplanation(true);
+      try {
+        const response = await fetch('http://localhost:3000/api/spec/revise', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            selectedText,
+            jobDescription,
+            userInstructions: userInstructions || 'Revise this text',
+            resumeContent: resumeMarkdown,
+            writingTone,
+            conversationId,
+            addToChat: true // Signal to add explanation to chat
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to add explanation to chat');
+        }
+
+        const data = await response.json();
+        
+        // Add the explanation directly to the messages state
+        const systemMessage = {
+          role: 'system',
+          content: data.explanation,
+          timestamp: new Date().toISOString()
+        };
+        
+        // Update the messages state through the parent component
+        if (onUpdateMessages) {
+          onUpdateMessages(prevMessages => [...prevMessages, systemMessage]);
+        }
+      } catch (error) {
+        console.error('Error adding explanation to chat:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to add explanation to chat',
+          status: 'error',
+          duration: 3000,
+          isClosable: true,
+          position: 'bottom-right'
+        });
+      } finally {
+        setIsAddingExplanation(false);
+      }
+    }
   };
 
   // Handle reject - just close the popover
@@ -244,6 +333,55 @@ const SpecCanvas = ({
     setRevisedText('');
     setRevisedTextMarkdown('');
     setUserInstructions('');
+  };
+
+  // Add handler for regenerating prompts
+  const handleRegeneratePrompts = async () => {
+    if (!selectedText || !jobDescription) return;
+    
+    setIsRegeneratingPrompts(true);
+    try {
+      const response = await fetch('http://localhost:3000/api/spec/analyze-job-description', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: jobDescription,
+          analysisType: 'full_analysis',
+          selectedText,
+          writingTone
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to regenerate prompts');
+      }
+
+      const data = await response.json();
+      if (data.results?.prompt_presets) {
+        onRegeneratePrompts(data.results.prompt_presets);
+        toast({
+          title: 'Prompts regenerated',
+          status: 'success',
+          duration: 2000,
+          isClosable: true,
+          position: 'bottom-right'
+        });
+      }
+    } catch (error) {
+      console.error('Error regenerating prompts:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to regenerate prompts',
+        status: 'error',
+        duration: 2000,
+        isClosable: true,
+        position: 'bottom-right'
+      });
+    } finally {
+      setIsRegeneratingPrompts(false);
+    }
   };
 
   if (!hasContent()) {
@@ -304,10 +442,55 @@ const SpecCanvas = ({
       pointerEvents="auto"
     >
       <VStack align="stretch" spacing={3}>
+        {/* Add X button in top right */}
+        <Flex justify="flex-end">
+          <IconButton
+            icon={<CloseIcon />}
+            size="sm"
+            variant="ghost"
+            onClick={handleClosePopover}
+            aria-label="Close popover"
+          />
+        </Flex>
+
         <Text fontWeight="bold" fontSize="sm">Original Text:</Text>
         <Box p={2} bg="gray.50" borderRadius="md" fontSize="sm" fontFamily="mono" whiteSpace="pre-wrap">
           {selectedText}
         </Box>
+
+        {/* Prompt Presets with Regenerate Button */}
+        {promptPresets.length > 0 && (
+          <Box>
+            <Flex justify="space-between" align="center" mb={2}>
+              <Text fontWeight="bold" fontSize="sm">Quick Revisions</Text>
+              <IconButton
+                icon={<RepeatIcon />}
+                size="sm"
+                variant="ghost"
+                onClick={handleRegeneratePrompts}
+                isLoading={isRegeneratingPrompts}
+                aria-label="Regenerate prompts"
+              />
+            </Flex>
+            <SimpleGrid columns={1} spacing={2}>
+              {promptPresets.map((preset, index) => (
+                <Button
+                  key={index}
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setUserInstructions(preset.prompt)}
+                  textAlign="left"
+                  justifyContent="flex-start"
+                  whiteSpace="normal"
+                  height="auto"
+                  py={2}
+                >
+                  {preset.title}
+                </Button>
+              ))}
+            </SimpleGrid>
+          </Box>
+        )}
 
         {/* Revised Text Section */}
         {hasSubmittedRevision && (
@@ -334,32 +517,39 @@ const SpecCanvas = ({
           rows={2}
         />
 
-        <HStack justify="end" spacing={2} pt={2}>
-          {hasSubmittedRevision ? (
-            <>
-              <Button size="sm" onClick={handleReject}>Reject</Button>
-              <Button 
-                size="sm" 
-                colorScheme="blue" 
-                onClick={() => {
-                  console.log('Accept button clicked');
-                  handleAcceptRevision(selectedText, revisedTextMarkdown);
-                }}
-              >
-                Accept
-              </Button>
-            </>
-          ) : (
-            <Button
-              size="sm"
-              colorScheme="blue"
-              onClick={handleSubmitRevision}
-              isLoading={isSubmitting}
-              loadingText="Revising..."
-            >
-              Submit
-            </Button>
-          )}
+        <HStack justify="space-between" spacing={2} pt={2}>
+          <HStack spacing={2}>
+            {hasSubmittedRevision && (
+              <>
+                <Button 
+                  size="sm" 
+                  colorScheme="red" 
+                  onClick={handleReject}
+                >
+                  Reject
+                </Button>
+                <Button 
+                  size="sm" 
+                  colorScheme="green" 
+                  onClick={() => {
+                    console.log('Accept button clicked');
+                    handleAcceptRevision(selectedText, revisedTextMarkdown);
+                  }}
+                >
+                  Accept
+                </Button>
+              </>
+            )}
+          </HStack>
+          <Button
+            size="sm"
+            colorScheme="blue"
+            onClick={() => handleSubmitRevision(userInstructions)}
+            isLoading={isSubmitting}
+            loadingText="Revising..."
+          >
+            Submit
+          </Button>
         </HStack>
       </VStack>
     </Box>,
@@ -383,14 +573,29 @@ const SpecCanvas = ({
       {reviseButtonPortal}
       {/* Revision Popover (via portal, fixed position for debug) */}
       {revisionPopoverPortal}
+      {/* Loading indicator for explanation */}
+      {isAddingExplanation && (
+        <Box
+          position="fixed"
+          bottom="20px"
+          right="20px"
+          bg="white"
+          p={3}
+          borderRadius="md"
+          boxShadow="md"
+          zIndex={1002}
+        >
+          <Text fontSize="sm" color="gray.600">Adding explanation to chat...</Text>
+        </Box>
+      )}
       <VStack align="stretch" spacing={6}>
         {/* Render Markdown if present (Claude flow) */}
         {resumeMarkdown && (
           <Box key={resumeMarkdown.length}>
-            <ReactMarkdown
+          <ReactMarkdown
               children={unescapeMarkdown(resumeMarkdown)}
               remarkPlugins={[remarkGfm]}
-              components={{
+            components={{
                 h1: ({node, ...props}) => <Heading as="h1" size="lg" my={4} {...props} />,
                 h2: ({node, ...props}) => <Heading as="h2" size="md" my={3} {...props} />,
                 h3: ({node, ...props}) => <Heading as="h3" size="sm" my={2} {...props} />,
@@ -407,8 +612,8 @@ const SpecCanvas = ({
                 em: ({node, ...props}) => (
                   <Text as="span" fontStyle="italic">
                     {props.children}
-                  </Text>
-                ),
+                </Text>
+              ),
                 hr: ({node, ...props}) => <Divider my={4} {...props} />,
                 text: ({node, ...props}) => (
                   <Text as="span">
@@ -417,7 +622,7 @@ const SpecCanvas = ({
                 )
               }}
             />
-          </Box>
+                </Box>
         )}
         {/* Fallback: Render structured data (Affinda flow) */}
         {!resumeMarkdown && resumeStructured && (

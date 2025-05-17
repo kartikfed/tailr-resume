@@ -28,26 +28,6 @@ const toolDefinitions = [
       }
     },
     {
-      // Tool for analyzing job descriptions
-      name: "analyzeJobDescription",
-      description: "Analyze a job description to extract key requirements, skills, qualifications, and keywords. Use this when you need to understand what a job posting is looking for.",
-      input_schema: {
-        type: "object",
-        properties: {
-          fileId: {
-            type: "string",
-            description: "ID of the job description file to analyze (optional - will analyze all uploaded files if not specified)"
-          },
-          analysisType: {
-            type: "string",
-            description: "Type of analysis to perform on the job description",
-            enum: ["full_analysis", "required_skills", "preferred_qualifications", "keywords", "experience_level", "responsibilities"]
-          }
-        },
-        required: ["analysisType"]
-      }
-    },
-    {
       // Tool for generating specific resume sections
       name: "generateResumeSection",
       description: "Generate specific sections of a resume based on user experience and job requirements. Use this to create tailored resume content.",

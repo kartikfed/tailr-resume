@@ -7,6 +7,7 @@ import {
   Badge,
   Flex
 } from '@chakra-ui/react';
+import ReactMarkdown from 'react-markdown';
 
 /**
  * Component for displaying message history between user and AI
@@ -22,7 +23,7 @@ const MessageHistory = ({ messages }) => {
         borderColor="gray.200" 
         borderRadius="md"
       >
-        <Text>No messages yet. Start by entering a product specification request.</Text>
+        <Text>No messages yet</Text>
       </Box>
     );
   }
@@ -33,12 +34,16 @@ const MessageHistory = ({ messages }) => {
         <Box key={index}>
           <Flex align="center" mb={2}>
             <Badge 
-              colorScheme={message.role === 'user' ? 'blue' : 'green'}
+              colorScheme={
+                message.role === 'user' ? 'blue' : 
+                message.role === 'system' ? 'purple' : 'green'
+              }
               px={2}
               py={1}
               borderRadius="md"
             >
-              {message.role === 'user' ? 'You' : 'AI Spec Assistant'}
+              {message.role === 'user' ? 'You' : 
+               message.role === 'system' ? 'System' : 'AI Spec Assistant'}
             </Badge>
             {message.timestamp && (
               <Text fontSize="xs" color="gray.500" ml={2}>
@@ -48,15 +53,87 @@ const MessageHistory = ({ messages }) => {
           </Flex>
           
           <Box 
-            bg={message.role === 'user' ? 'blue.50' : 'green.50'}
+            bg={
+              message.role === 'user' ? 'blue.50' : 
+              message.role === 'system' ? 'purple.50' : 'green.50'
+            }
             p={3}
             borderRadius="md"
             borderLeftWidth="4px"
-            borderLeftColor={message.role === 'user' ? 'blue.200' : 'green.200'}
+            borderLeftColor={
+              message.role === 'user' ? 'blue.200' : 
+              message.role === 'system' ? 'purple.200' : 'green.200'
+            }
           >
             {typeof message.content === 'string' ? (
-              // Display regular text message
-              <Text whiteSpace="pre-wrap">{message.content}</Text>
+              // Use ReactMarkdown to render markdown content
+              <Box className="markdown-content" sx={{
+                '& p': {
+                  mb: 2,
+                  '&:last-child': {
+                    mb: 0
+                  }
+                },
+                '& ul, & ol': {
+                  pl: 4,
+                  mb: 2
+                },
+                '& li': {
+                  mb: 1
+                },
+                '& code': {
+                  bg: 'gray.100',
+                  px: 1,
+                  py: 0.5,
+                  borderRadius: 'sm',
+                  fontFamily: 'monospace',
+                  fontSize: '0.9em'
+                },
+                '& pre': {
+                  bg: 'gray.100',
+                  p: 2,
+                  borderRadius: 'md',
+                  overflowX: 'auto',
+                  mb: 2,
+                  '& code': {
+                    bg: 'transparent',
+                    p: 0
+                  }
+                },
+                '& blockquote': {
+                  borderLeft: '4px solid',
+                  borderColor: 'gray.300',
+                  pl: 4,
+                  py: 1,
+                  my: 2,
+                  fontStyle: 'italic'
+                },
+                '& h1, & h2, & h3, & h4, & h5, & h6': {
+                  fontWeight: 'bold',
+                  mb: 2,
+                  mt: 4
+                },
+                '& h1': { fontSize: '1.5em' },
+                '& h2': { fontSize: '1.3em' },
+                '& h3': { fontSize: '1.1em' },
+                '& table': {
+                  borderCollapse: 'collapse',
+                  width: '100%',
+                  mb: 2
+                },
+                '& th, & td': {
+                  border: '1px solid',
+                  borderColor: 'gray.300',
+                  p: 2
+                },
+                '& th': {
+                  bg: 'gray.100'
+                }
+              }}>
+                <ReactMarkdown>
+                  {message.content}
+                </ReactMarkdown>
+              </Box>
             ) : (
               // For structured content (like tool results)
               <Text whiteSpace="pre-wrap">

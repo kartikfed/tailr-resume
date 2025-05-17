@@ -3,8 +3,7 @@ import {
   Box, 
   Textarea, 
   Button, 
-  Flex,
-  Text
+  Flex
 } from '@chakra-ui/react';
 
 /**
@@ -23,11 +22,10 @@ const ChatInput = ({ onSendMessage, isLoading }) => {
 
   return (
     <Box as="form" onSubmit={handleSubmit} width="100%">
-      <Text mb={2} fontWeight="medium">Enter your product specification request:</Text>
       <Textarea
         value={message}
         onChange={(e) => setMessage(e.target.value)}
-        placeholder="E.g., 'Create a spec for adding PDF export to our reporting feature'"
+        placeholder="Ask me anything about your resume"
         size="md"
         rows={4}
         mb={3}

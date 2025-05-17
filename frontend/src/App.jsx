@@ -14,15 +14,20 @@ import {
   Textarea,
   Button,
   useColorModeValue,
-  Badge
+  Badge,
+  List,
+  ListItem,
+  ListIcon
 } from '@chakra-ui/react';
 import { sendMessage, uploadFiles, getConversation } from './services/apiService';
+import { CheckCircleIcon } from '@chakra-ui/icons';
 
 import ChatInput from './components/ChatInput';
 import FileUpload from './components/FileUpload';
 import MessageHistory from './components/MessageHistory';
 import SpecDisplay from './components/SpecDisplay';
 import SpecCanvas from './components/SpecCanvas';
+import ToneSelector from './components/ToneSelector';
 
 function App() {
   const [messages, setMessages] = useState([]);
@@ -36,6 +41,8 @@ function App() {
   const [jobDescription, setJobDescription] = useState('');
   const [jobDescriptionSaved, setJobDescriptionSaved] = useState(false);
   const [jobDescriptionProvided, setJobDescriptionProvided] = useState(false);
+  const [isSavingJobDescription, setIsSavingJobDescription] = useState(false);
+  const [resumeEmphasis, setResumeEmphasis] = useState(null);
   const [showRevisionDialog, setShowRevisionDialog] = useState(false);
   const [selectedText, setSelectedText] = useState('');
   const [userInstructions, setUserInstructions] = useState('');
@@ -56,6 +63,8 @@ function App() {
   // State for structured resume data from Affinda
   const [highlightedText, setHighlightedText] = useState(null);
   const [highlightTimeout, setHighlightTimeout] = useState(null);
+  const [promptPresets, setPromptPresets] = useState([]);
+  const [writingTone, setWritingTone] = useState('concise');
 
   // Load existing conversation if available
   useEffect(() => {
@@ -72,7 +81,12 @@ function App() {
           const conversationData = await getConversation(savedConvId);
           
           if (conversationData.messages) {
-            setMessages(conversationData.messages);
+            // Add timestamps to messages that don't have them
+            const messagesWithTimestamps = conversationData.messages.map(msg => ({
+              ...msg,
+              timestamp: msg.timestamp || new Date().toISOString()
+            }));
+            setMessages(messagesWithTimestamps);
           }
           
           if (conversationData.files) {
@@ -106,17 +120,62 @@ function App() {
   }, [toast]);
 
   // Function to save job description
-  const handleSaveJobDescription = () => {
+  const handleSaveJobDescription = async () => {
     if (jobDescription.trim()) {
-      setJobDescriptionSaved(true);
-      toast({
-        title: 'Job description saved',
-        description: 'This job description will be used as context for all resume generation.',
-        status: 'success',
-        duration: 2000,
-        isClosable: true,
-        position: 'bottom-right'
-      });
+      try {
+        setIsSavingJobDescription(true);
+        // First save the job description
+        setJobDescriptionSaved(true);
+        
+        // Then analyze it
+        const response = await fetch('http://localhost:3000/api/spec/analyze-job-description', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            content: jobDescription,
+            analysisType: 'full_analysis',
+            writingTone
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to analyze job description');
+        }
+
+        const analysis = await response.json();
+        console.log('Job description analysis:', analysis);
+
+        // Store the prompt presets and resume emphasis
+        if (analysis.results.prompt_presets) {
+          setPromptPresets(analysis.results.prompt_presets);
+        }
+        if (analysis.results.resume_emphasis) {
+          setResumeEmphasis(analysis.results.resume_emphasis);
+        }
+
+        toast({
+          title: 'Job description saved and analyzed',
+          description: 'The job description has been analyzed and will be used as context for resume generation.',
+          status: 'success',
+          duration: 2000,
+          isClosable: true,
+          position: 'bottom-right'
+        });
+      } catch (error) {
+        console.error('Error analyzing job description:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to analyze job description. It has been saved but may not be fully optimized.',
+          status: 'warning',
+          duration: 3000,
+          isClosable: true,
+          position: 'bottom-right'
+        });
+      } finally {
+        setIsSavingJobDescription(false);
+      }
     }
   };
 
@@ -124,6 +183,8 @@ function App() {
   const handleClearJobDescription = () => {
     setJobDescription('');
     setJobDescriptionSaved(false);
+    setPromptPresets([]); // Clear prompt presets
+    setResumeEmphasis(null); // Clear resume emphasis
     toast({
       title: 'Job description cleared',
       status: 'info',
@@ -180,15 +241,41 @@ Do not make any changes until the user explicitly says yes.`;
     };
     setMessages(prev => [...prev, userMessage]);
     let enhancedMessage = message;
-    // If user started with an existing resume, prepend the detailed plan
-    if (existingResumeMode && resumeStructured) {
-      enhancedMessage = `${resumeOptimizationPlan}\n\nEXISTING RESUME:\n${JSON.stringify(resumeStructured, null, 2)}\n\nUSER REQUEST:\n${message}`;
-      if (jobDescriptionSaved && jobDescription.trim()) {
-        enhancedMessage += `\n\nJOB DESCRIPTION CONTEXT:\n${jobDescription}`;
+
+    // Always include the current resume content
+    if (resumeStructured) {
+      // If we have structured data, convert it to markdown
+      const structuredData = resumeStructured;
+      const resumeContent = `RESUME CONTENT:
+${structuredData.metadata.name}
+${structuredData.metadata.email}
+${structuredData.metadata.phone}
+${structuredData.metadata.location}
+
+${structuredData.sections.map(section => {
+  if (section.type === 'list') {
+    return `${section.title}\n${section.items.map(item => {
+      if (item.type === 'experience') {
+        return `${item.title} at ${item.company}\n${item.location}\n${item.dates}\n${item.bullets.map(bullet => `• ${bullet}`).join('\n')}`;
+      } else if (item.type === 'education') {
+        return `${item.degree} at ${item.institution}\n${item.dates}\n${item.content}`;
       }
-    } else if (jobDescriptionSaved && jobDescription.trim()) {
-      enhancedMessage = `${message}\n\nWhen responding, always:\n1. Suggest what to do and how to edit the resume content.\n2. End your response with: 'Would you like me to update the view with these changes?'\nDo not make any changes until the user explicitly says yes.\n\nJOB DESCRIPTION CONTEXT:\n${jobDescription}\n\nPlease use this job description to tailor the resume content accordingly, ensuring it includes relevant keywords and matches the job requirements.`;
+      return item.content;
+    }).join('\n\n')}`;
+  }
+  return `${section.title}\n${section.content}`;
+}).join('\n\n')}`;
+      enhancedMessage = `${message}\n\n${resumeContent}`;
+    } else if (canvasContent) {
+      // If we have markdown content, use it directly
+      enhancedMessage = `${message}\n\nRESUME CONTENT:\n${canvasContent}`;
     }
+
+    // Add job description context if available
+    if (jobDescriptionSaved && jobDescription.trim()) {
+      enhancedMessage += `\n\nJOB DESCRIPTION CONTEXT:\n${jobDescription}`;
+    }
+
     try {
       const response = await sendMessage(
         conversationId, 
@@ -203,6 +290,7 @@ Do not make any changes until the user explicitly says yes.`;
       setMessages(prev => [...prev, assistantMessage]);
       setIsLoading(false);
     } catch (error) {
+      console.error('Error sending message:', error);
       toast({
         title: 'Error',
         description: error.message || 'Failed to get response from AI',
@@ -341,6 +429,11 @@ Do not make any changes until the user explicitly says yes.`;
     }));
   }
 
+  // Add handler for regenerating prompts
+  const handleRegeneratePrompts = (newPrompts) => {
+    setPromptPresets(newPrompts);
+  };
+
   // In the return, render StartScreen or main UI based on startMode
   if (startMode === 'choose') {
     return (
@@ -359,6 +452,11 @@ Do not make any changes until the user explicitly says yes.`;
             <Text fontSize="sm" mb={4} textAlign="center">
               Upload your existing resume (PDF, DOCX, or TXT). The extracted text will be shown in the canvas for editing and optimization.
             </Text>
+            <ToneSelector
+              value={writingTone}
+              onChange={setWritingTone}
+              label="Select your preferred writing style"
+            />
             <FileUpload
               onFilesUploaded={handleExistingResumeUpload}
               isLoading={isLoading}
@@ -374,10 +472,10 @@ Do not make any changes until the user explicitly says yes.`;
     <ChakraProvider>
       <Box h="100vh" display="flex" flexDirection="column">
         {/* Header */}
-        <Box bg="white" borderBottom="1px solid" borderColor={borderColor} p={4}>
+        <Box bg="white" borderBottom="1px solid" borderColor={borderColor} p={3}>
           <Container maxW="container.xl">
             <Flex align="center">
-              <VStack align="start" spacing={1}>
+              <VStack align="start" spacing={0.5}>
                 <Heading as="h1" size="lg">AI Resume Assistant</Heading>
                 <Text fontSize="sm" color="gray.600">
                   Create tailored, ATS-friendly resumes for specific job applications
@@ -393,16 +491,11 @@ Do not make any changes until the user explicitly says yes.`;
           </Container>
         </Box>
 
-        {/* Job Description Input Section (now compact) */}
-        <Box bg={bgColor} borderBottom="1px solid" borderColor={borderColor} p={2}>
-          <Container maxW="container.xl" py={1} px={0}>
-            <Flex align="center" justify="space-between">
+        {/* Job Description Input Section */}
+        <Box bg={bgColor} borderBottom="1px solid" borderColor={borderColor} p={3}>
+          <Container maxW="container.xl" px={0}>
+            <Flex align="center" justify="space-between" mb={2}>
               <Heading size="xs" minW="120px">Job Description</Heading>
-              {jobDescriptionSaved && (
-                <Badge colorScheme="green" px={2} py={0.5} fontSize="xs">
-                  ✓ Saved as Context
-                </Badge>
-              )}
             </Flex>
             <Textarea
               placeholder="Paste job description..."
@@ -412,17 +505,18 @@ Do not make any changes until the user explicitly says yes.`;
               fontSize="sm"
               bg="white"
               resize="vertical"
-              mt={1}
-              mb={1}
+              mb={2}
               p={2}
               _focus={{ borderColor: "blue.400", boxShadow: "0 0 0 1px #3182ce" }}
             />
-            <Flex gap={2} mb={1}>
+            <Flex gap={2} mb={2}>
               <Button
                 colorScheme="blue"
                 size="xs"
                 onClick={handleSaveJobDescription}
-                isDisabled={!jobDescription.trim() || jobDescriptionSaved}
+                isDisabled={!jobDescription.trim() || jobDescriptionSaved || isSavingJobDescription}
+                isLoading={isSavingJobDescription}
+                loadingText="Saving..."
               >
                 {jobDescriptionSaved ? 'Saved' : 'Save'}
               </Button>
@@ -431,11 +525,34 @@ Do not make any changes until the user explicitly says yes.`;
                   variant="outline"
                   size="xs"
                   onClick={handleClearJobDescription}
+                  isDisabled={isSavingJobDescription}
                 >
                   Clear
                 </Button>
               )}
             </Flex>
+            {resumeEmphasis && (
+              <Box mb={2} p={3} bg="blue.50" borderRadius="md" fontSize="sm">
+                <Text fontWeight="medium" color="blue.700" mb={2}>
+                  Resume Focus Points:
+                </Text>
+                <Text color="gray.700" mb={2}>
+                  {resumeEmphasis.summary}
+                </Text>
+                <List spacing={2}>
+                  {resumeEmphasis.key_points.map((point, index) => (
+                    <ListItem key={index} display="flex" alignItems="center">
+                      <ListIcon as={CheckCircleIcon} color="blue.500" />
+                      <Text>{point}</Text>
+                    </ListItem>
+                  ))}
+                </List>
+              </Box>
+            )}
+            <ToneSelector
+              value={writingTone}
+              onChange={setWritingTone}
+            />
           </Container>
         </Box>
 
@@ -446,13 +563,13 @@ Do not make any changes until the user explicitly says yes.`;
               direction={{ base: 'column', md: 'row' }}
               h="100%"
               align="stretch"
-              gap={{ base: 4, md: 0 }}
+              gap={{ base: 3, md: 0 }}
             >
-              {/* Chat Pane (Left, 35% on desktop) */}
+              {/* Chat Pane (Left, 30% on desktop) */}
               <Box
-                w={{ base: '100%', md: '35%' }}
-                minW={{ md: '320px' }}
-                maxW={{ md: '420px' }}
+                w={{ base: '100%', md: '30%' }}
+                minW={{ md: '280px' }}
+                maxW={{ md: '380px' }}
                 h={{ base: 'auto', md: '100%' }}
                 bg="white"
                 borderRight={{ md: '1px solid' }}
@@ -462,14 +579,9 @@ Do not make any changes until the user explicitly says yes.`;
                 mb={{ base: 2, md: 0 }}
                 zIndex={1}
               >
-                {/* File upload and chat history */}
+                {/* Chat history */}
                 <Box p={3} borderBottom="1px solid" borderColor="gray.100">
-                  <Heading size="sm" mb={2}>Conversation</Heading>
-                  <FileUpload
-                    onFilesUploaded={handleFilesUploaded}
-                    isLoading={isLoading}
-                    conversationId={conversationId}
-                  />
+                  <Heading size="sm" mb={2}>Ask me anything</Heading>
                 </Box>
                 <VStack flex="1" spacing={0} align="stretch" overflow="hidden">
                   <Box flex="1" overflow="auto" p={3}>
@@ -484,12 +596,12 @@ Do not make any changes until the user explicitly says yes.`;
                 </VStack>
               </Box>
 
-              {/* Canvas (Right, 65% on desktop, prominent) */}
+              {/* Canvas (Right, 70% on desktop) */}
               <Box
-                w={{ base: '100%', md: '65%' }}
+                w={{ base: '100%', md: '70%' }}
                 h={{ base: 'auto', md: '100%' }}
                 bg="gray.50"
-                p={{ base: 2, md: 6 }}
+                p={6}
                 display="flex"
                 flexDirection="column"
                 justifyContent="flex-start"
@@ -497,27 +609,32 @@ Do not make any changes until the user explicitly says yes.`;
                 overflow="auto"
                 zIndex={0}
               >
-                {/* Debug logging */}
-                {console.log('App.jsx passing to SpecCanvas:', {
-                  resumeStructured,
-                  resumeMarkdown: canvasContent,
-                  resumeHtml: null,
-                  resumeSections: null
-                })}
-                {/* Label above canvas */}
-                <Heading as="h2" size="md" mb={4} color="gray.600" userSelect="none">Revise Here</Heading>
-                {/* Resume Canvas is now visually dominant */}
-                <SpecCanvas
-                  resumeStructured={resumeStructured}
-                  resumeMarkdown={canvasContent}
-                  resumeHtml={null}
-                  resumeSections={null}
-                  onAcceptRevision={acceptRevision}
-                  onRejectRevision={rejectRevision}
-                  jobDescriptionProvided={!!jobDescription.trim()}
-                  jobDescription={jobDescription}
-                  highlightedText={highlightedText}
-                />
+                <Box
+                  maxW="850px"
+                  mx="auto"
+                  w="100%"
+                  bg="white"
+                  p={8}
+                  borderRadius="md"
+                  boxShadow="sm"
+                >
+                  <SpecCanvas
+                    resumeStructured={resumeStructured}
+                    resumeMarkdown={canvasContent}
+                    resumeHtml={null}
+                    resumeSections={null}
+                    onAcceptRevision={acceptRevision}
+                    onRejectRevision={rejectRevision}
+                    jobDescriptionProvided={!!jobDescription.trim()}
+                    jobDescription={jobDescription}
+                    highlightedText={highlightedText}
+                    promptPresets={promptPresets}
+                    onRegeneratePrompts={handleRegeneratePrompts}
+                    writingTone={writingTone}
+                    conversationId={conversationId}
+                    onUpdateMessages={setMessages}
+                  />
+                </Box>
               </Box>
             </Flex>
           </Container>

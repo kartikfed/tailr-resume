@@ -5,6 +5,8 @@
  * that Claude can call through MCP.
  */
 
+const { sendMessageToClaudeWithMCP } = require('../mcp/claudeService');
+
 /**
  * Search through uploaded context documents for resume-related content
  * @param {Object} input - Tool input parameters
@@ -110,44 +112,6 @@ async function searchContext(input, context) {
       message: results.length > 0 
         ? `Found ${results.length} relevant passages for resume content` 
         : "No relevant information found for this query"
-    };
-  }
-  
-  /**
-   * Analyze job description to extract requirements and keywords
-   * @param {Object} input - Tool input parameters
-   * @param {Object} context - Additional context including files
-   * @returns {Object} - Analysis results
-   */
-  async function analyzeJobDescription(input, context) {
-    const { fileId, analysisType } = input;
-    const { files = [] } = context;
-    
-    console.log(`Analyzing job description with type: ${analysisType}`);
-    
-    // Find the job description file
-    let targetFiles = files;
-    if (fileId) {
-      targetFiles = files.filter(f => f.id === fileId);
-    }
-    
-    if (targetFiles.length === 0) {
-      return {
-        error: `No job description files found${fileId ? ` with ID ${fileId}` : ''}`
-      };
-    }
-    
-    const jobFile = targetFiles[0];
-    const content = jobFile.content || '';
-    
-    // Analyze based on type
-    const analysis = performJobAnalysis(content, analysisType);
-    
-    return {
-      fileName: jobFile.name,
-      analysisType,
-      results: analysis,
-      message: `Completed ${analysisType} analysis of job description`
     };
   }
   
@@ -385,7 +349,6 @@ async function searchContext(input, context) {
   // Export all tool handlers
   module.exports = {
     searchContext,
-    analyzeJobDescription,
     generateResumeSection,
     optimizeForATS
   };

@@ -122,7 +122,6 @@ const FileUpload = ({ onFilesUploaded, isLoading, conversationId }) => {
 
       // Clear files after upload
       setFiles([]);
-      setIsUploading(false);
     } catch (error) {
       console.error('Frontend: Upload error:', error);
       toast({
@@ -133,6 +132,7 @@ const FileUpload = ({ onFilesUploaded, isLoading, conversationId }) => {
         isClosable: true,
         position: 'bottom-right'
       });
+    } finally {
       setIsUploading(false);
     }
   };
