@@ -24,8 +24,8 @@
     "langchain": "^0.0.200",
     "@langchain/anthropic": "^0.0.10",
     "morgan": "^1.10.0",
-    "pdf2md": "^0.1.0",
-    "pdf-parse": "^1.1.1"
+    "pdf-parse": "^1.1.1",
+    "pdf2json": "^3.0.5"
   },
   "devDependencies": {
     "eslint": "^8.55.0",

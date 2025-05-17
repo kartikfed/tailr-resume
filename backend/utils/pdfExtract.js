@@ -1,4 +1,4 @@
-const pdf2md = require('pdf2md');
+const PDFParser = require('pdf2json');
 const pdf = require('pdf-parse');
 
 /**
@@ -8,8 +8,38 @@ const pdf = require('pdf-parse');
  */
 async function extractPdfMarkdown(base64String) {
   const buffer = Buffer.from(base64String, 'base64');
-  const markdown = await pdf2md.default(buffer);
-  return markdown;
+  return new Promise((resolve, reject) => {
+    const pdfParser = new PDFParser();
+    
+    pdfParser.on('pdfParser_dataReady', (pdfData) => {
+      try {
+        // Convert PDF data to text
+        const text = pdfParser.getRawTextContent();
+        
+        // Convert text to markdown-like format
+        let markdown = text
+          // Convert headings (lines in ALL CAPS)
+          .replace(/^([A-Z][A-Z\s]+)$/gm, '# $1\n')
+          // Convert bullet points
+          .replace(/^[-*•]\s+(.*)$/gm, '- $1\n')
+          // Convert numbered lists
+          .replace(/^\d+\.\s+(.*)$/gm, '1. $1\n')
+          // Clean up multiple newlines
+          .replace(/\n{3,}/g, '\n\n')
+          .trim();
+        
+        resolve(markdown);
+      } catch (error) {
+        reject(error);
+      }
+    });
+
+    pdfParser.on('pdfParser_dataError', (error) => {
+      reject(error);
+    });
+
+    pdfParser.parseBuffer(buffer);
+  });
 }
 
 function textToHtml(text) {
