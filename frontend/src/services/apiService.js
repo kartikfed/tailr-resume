@@ -7,7 +7,7 @@
 import axios from 'axios';
 
 // Base URL for API requests - should match backend server
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 // Create axios instance with default config
 const apiClient = axios.create({
@@ -27,7 +27,7 @@ const apiClient = axios.create({
  */
 export const sendMessage = async (conversationId, message, files = []) => {
   try {
-    const response = await apiClient.post('/spec/chat', {
+    const response = await apiClient.post('/api/spec/chat', {
       conversationId,
       message,
       files,
@@ -67,7 +67,7 @@ export const uploadFiles = async (conversationId, files) => {
       fileTypes: files.map(f => f.type)
     });
 
-    const response = await apiClient.post('/spec/upload', payload);
+    const response = await apiClient.post('/api/spec/upload', payload);
     
     console.log('ApiService: Received response:', response.data);
     console.log('ApiService: Response files:', response.data.files);
@@ -98,7 +98,7 @@ export const uploadFiles = async (conversationId, files) => {
  */
 export const getConversation = async (conversationId) => {
   try {
-    const response = await apiClient.get(`/spec/conversation/${conversationId}`);
+    const response = await apiClient.get(`/api/spec/conversation/${conversationId}`);
     return response.data;
   } catch (error) {
     console.error('Error getting conversation:', error);
