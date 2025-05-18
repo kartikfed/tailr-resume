@@ -65,7 +65,9 @@ function App() {
   const chatPaneBgColor = useColorModeValue('purple.900', 'purple.900');
   const chatInputBgColor = useColorModeValue('purple.800', 'purple.800');
   
-  const [startMode, setStartMode] = useState('existing'); // Always start with file upload
+  const [startMode, setStartMode] = useState('upload'); // Changed from 'existing' to 'upload'
+  const [appMode, setAppMode] = useState('upload'); // New state for tracking app flow: 'upload' -> 'jobDescription' -> 'main'
+  
   // Track if user started with an existing resume
   const [existingResumeMode, setExistingResumeMode] = useState(false);
   
@@ -360,10 +362,8 @@ ${structuredData.sections.map(section => {
       }
     }
     
-    // Finally, update the mode after a short delay to ensure other states are updated
-    setTimeout(() => {
-      setStartMode('scratch');
-    }, 100);
+    // Move to job description screen
+    setAppMode('jobDescription');
   };
 
   // Accept a revision for selected text
@@ -440,7 +440,171 @@ ${structuredData.sections.map(section => {
 
   return (
     <ChakraProvider>
-      {startMode === 'scratch' ? (
+      {appMode === 'upload' ? (
+        <Flex direction="column" align="center" justify="center" minH="100vh" bg={bgColor}>
+          <Box 
+            p={12} 
+            bg={chatPaneBgColor}
+            borderRadius="xl"
+            boxShadow="lg" 
+            minW="1000px"
+            minH="600px"
+            border="1px solid"
+            borderColor="purple.700"
+            display="flex"
+            gap={12}
+          >
+            {/* Left Side - Logo and Text */}
+            <Box 
+              flex="1" 
+              display="flex" 
+              alignItems="center" 
+              justifyContent="center"
+              gap={6}
+            >
+              <img
+                src="/tailr-logo.png"
+                alt="Tailr logo"
+                style={{
+                  height: '240px',
+                  width: 'auto',
+                  objectFit: 'contain',
+                  display: 'block'
+                }}
+              />
+              <VStack align="start" spacing={2}>
+                <Heading as="h1" size="3xl" fontWeight="bold" color="white">Tailr</Heading>
+                <Text fontSize="lg" color="gray.400">
+                  Tailor any resume for any job application
+                </Text>
+              </VStack>
+            </Box>
+
+            {/* Vertical Divider */}
+            <Box 
+              w="1px" 
+              bg="purple.700" 
+              opacity={0.5}
+              my={8}
+            />
+
+            {/* Right Side - Upload UI */}
+            <Box 
+              flex="1" 
+              display="flex" 
+              flexDirection="column" 
+              justifyContent="center"
+              gap={8}
+              fontSize="lg"
+            >
+              <Box>
+                <Text 
+                  fontSize="xl" 
+                  fontWeight="medium" 
+                  color="white" 
+                  mb={4}
+                >
+                  Upload your resume
+                </Text>
+                <FileUpload
+                  onFilesUploaded={handleExistingResumeUpload}
+                  isLoading={isLoading}
+                  conversationId={conversationId}
+                  bg={chatInputBgColor}
+                  color="white"
+                  fontSize="lg"
+                  hideOptionalLabel={true}
+                />
+              </Box>
+            </Box>
+          </Box>
+        </Flex>
+      ) : appMode === 'jobDescription' ? (
+        <Flex direction="column" align="center" justify="center" minH="100vh" bg={bgColor}>
+          <Box 
+            p={12} 
+            bg={chatPaneBgColor}
+            borderRadius="xl"
+            boxShadow="lg" 
+            minW="1000px"
+            minH="600px"
+            border="1px solid"
+            borderColor="purple.700"
+            display="flex"
+            flexDirection="column"
+            gap={8}
+          >
+            {/* Writing Style Selector */}
+            <Box>
+              <Text 
+                fontSize="xl" 
+                fontWeight="medium" 
+                color="white" 
+                mb={4}
+              >
+                Select your preferred writing style
+              </Text>
+              <ToneSelector
+                value={writingTone}
+                onChange={setWritingTone}
+                label=""
+                labelColor="white"
+                fontSize="lg"
+              />
+            </Box>
+
+            {/* Header */}
+            <Box>
+              <Text fontSize="lg" color="gray.400">
+                Paste the job description you want to tailor your resume for
+              </Text>
+            </Box>
+
+            {/* Job Description Input */}
+            <Box flex="1">
+              <TextInput
+                id="job-description"
+                value={jobDescription}
+                onChange={(e) => setJobDescription(e.target.value)}
+                rows={12}
+                h="400px"
+                placeholder=""
+              />
+            </Box>
+
+            {/* Action Buttons */}
+            <Flex gap={4} justify="flex-end">
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => setAppMode('upload')}
+                color={textColor}
+                borderColor={borderColor}
+                _hover={{ 
+                  bg: 'purple.800',
+                  borderColor: 'purple.600',
+                }}
+              >
+                Back
+              </Button>
+              <Button
+                colorScheme="purple"
+                size="lg"
+                onClick={async () => {
+                  await handleSaveJobDescription();
+                  setAppMode('main');
+                }}
+                isDisabled={!jobDescription.trim() || jobDescriptionSaved || isSavingJobDescription}
+                isLoading={isSavingJobDescription}
+                loadingText="Analyzing..."
+                leftIcon={<CheckCircleIcon />}
+              >
+                Analyze & Continue
+              </Button>
+            </Flex>
+          </Box>
+        </Flex>
+      ) : (
         <Box minH="100vh" display="flex" flexDirection="column" bg={bgColor}>
           {/* Header */}
           <Box bg={bgColor} p={3}>
@@ -450,13 +614,12 @@ ${structuredData.sections.map(section => {
                   display="flex"
                   alignItems="center"
                   mr={4}
-                  height={logoHeight ? `${logoHeight}px` : 'auto'}
                 >
                   <img
                     src="/tailr-logo.png"
                     alt="Tailr logo"
                     style={{
-                      height: logoHeight ? `${logoHeight}px` : 'auto',
+                      height: '56px',
                       width: 'auto',
                       objectFit: 'contain',
                       display: 'block'
@@ -471,59 +634,6 @@ ${structuredData.sections.map(section => {
                 </VStack>
                 <Spacer />
               </Flex>
-            </Container>
-          </Box>
-
-          {/* Job Description Input Section */}
-          <Box bg={bgColor} p={4}>
-            <Container maxW="container.xl" px={0}>
-              <Flex align="center" justify="space-between" mb={3}>
-                <Heading size="sm" minW="120px" color={textColor}>Job Description</Heading>
-              </Flex>
-              <Box position="relative" w={{ base: '100%', md: '70%' }}>
-                <TextInput
-                  id="job-description"
-                  value={jobDescription}
-                  onChange={(e) => setJobDescription(e.target.value)}
-                  rows={5}
-                  mb={3}
-                  h="120px"
-                />
-                <Flex gap={2} mb={2}>
-                  <Button
-                    colorScheme="blue"
-                    size="sm"
-                    onClick={handleSaveJobDescription}
-                    isDisabled={!jobDescription.trim() || jobDescriptionSaved || isSavingJobDescription}
-                    isLoading={isSavingJobDescription}
-                    loadingText="Analyzing..."
-                    leftIcon={<CheckCircleIcon />}
-                    _hover={{ transform: 'translateY(-1px)', boxShadow: 'sm' }}
-                    transition="all 0.2s"
-                  >
-                    {jobDescriptionSaved ? 'Analyzed' : 'Analyze'}
-                  </Button>
-                  {jobDescription.trim() && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleClearJobDescription}
-                      isDisabled={isSavingJobDescription}
-                      color={textColor}
-                      borderColor={borderColor}
-                      _hover={{ 
-                        bg: 'gray.50',
-                        borderColor: 'gray.400',
-                        transform: 'translateY(-1px)',
-                        boxShadow: 'sm'
-                      }}
-                      transition="all 0.2s"
-                    >
-                      Clear
-                    </Button>
-                  )}
-                </Flex>
-              </Box>
             </Container>
           </Box>
 
@@ -678,102 +788,6 @@ ${structuredData.sections.map(section => {
             </Container>
           </Box>
         </Box>
-      ) : (
-        <Flex direction="column" align="center" justify="center" minH="100vh" bg={bgColor}>
-          <Box 
-            p={12} 
-            bg={chatPaneBgColor}
-            borderRadius="xl"
-            boxShadow="lg" 
-            minW="1000px"
-            minH="600px"
-            border="1px solid"
-            borderColor="purple.700"
-            display="flex"
-            gap={12}
-          >
-            {/* Left Side - Logo and Text */}
-            <Box 
-              flex="1" 
-              display="flex" 
-              alignItems="center" 
-              justifyContent="center"
-              gap={6}
-            >
-              <img
-                src="/tailr-logo.png"
-                alt="Tailr logo"
-                style={{
-                  height: '240px',
-                  width: 'auto',
-                  objectFit: 'contain',
-                  display: 'block'
-                }}
-              />
-              <VStack align="start" spacing={2}>
-                <Heading as="h1" size="3xl" fontWeight="bold" color="white">Tailr</Heading>
-                <Text fontSize="lg" color="gray.400">
-                  Tailor any resume for any job application
-                </Text>
-              </VStack>
-            </Box>
-
-            {/* Vertical Divider */}
-            <Box 
-              w="1px" 
-              bg="purple.700" 
-              opacity={0.5}
-              my={8}
-            />
-
-            {/* Right Side - Upload UI */}
-            <Box 
-              flex="1" 
-              display="flex" 
-              flexDirection="column" 
-              justifyContent="center"
-              gap={8}
-              fontSize="lg"
-            >
-              <Box>
-                <Text 
-                  fontSize="xl" 
-                  fontWeight="medium" 
-                  color="white" 
-                  mb={4}
-                >
-                  Select your preferred writing style
-                </Text>
-                <ToneSelector
-                  value={writingTone}
-                  onChange={setWritingTone}
-                  label=""
-                  labelColor="white"
-                  fontSize="lg"
-                />
-              </Box>
-              <Box>
-                <Text 
-                  fontSize="xl" 
-                  fontWeight="medium" 
-                  color="white" 
-                  mb={4}
-                >
-                  Upload your resume
-                </Text>
-                <FileUpload
-                  onFilesUploaded={handleExistingResumeUpload}
-                  isLoading={isLoading}
-                  conversationId={conversationId}
-                  bg={chatInputBgColor}
-                  color="white"
-                  fontSize="lg"
-                  hideOptionalLabel={true}
-                />
-              </Box>
-            </Box>
-          </Box>
-        </Flex>
       )}
     </ChakraProvider>
   );

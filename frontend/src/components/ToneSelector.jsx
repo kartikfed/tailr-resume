@@ -88,12 +88,8 @@ const ToneSelector = ({ value, onChange, label = 'Writing Style', labelColor }) 
         </Flex>
       </Box>
 
-      <Collapse in={isOpen} animateOpacity>
+      <Collapse in={isOpen} animateOpacity style={{ position: 'absolute', width: '100%', zIndex: 10 }}>
         <Box
-          position="absolute"
-          top="100%"
-          left={0}
-          right={0}
           mt={-1}
           bg={bgColor}
           borderRadius="0 0 lg lg"
@@ -101,10 +97,7 @@ const ToneSelector = ({ value, onChange, label = 'Writing Style', labelColor }) 
           borderColor={borderColor}
           borderTop="none"
           boxShadow="0 4px 12px rgba(0, 0, 0, 0.15)"
-          zIndex={10}
           overflow="hidden"
-          transformOrigin="top"
-          transition="all 0.2s ease"
         >
           <VStack spacing={0} align="stretch">
             {TONE_OPTIONS.map((option) => (

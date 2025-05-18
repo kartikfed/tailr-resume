@@ -591,20 +591,23 @@ const SpecCanvas = ({
           <Box>
             <Flex 
               align="center" 
-              mb={2} 
-              p={2}
-              borderRadius="md"
+              mb={2}
+              gap={1}
             >
-              <Text fontWeight="medium" fontSize="xs" color="gray.400" flex="1">Quick Revisions</Text>
-              <IconButton
-                icon={isQuickRevisionsOpen ? <ChevronUpIcon /> : <ChevronDownIcon />}
-                variant="ghost"
-                colorScheme="purple"
-                aria-label={isQuickRevisionsOpen ? "Collapse" : "Expand"}
-                size="md"
-                onClick={() => setIsQuickRevisionsOpen(!isQuickRevisionsOpen)}
-                _hover={{ bg: 'gray.600' }}
-              />
+              <HStack spacing={1}>
+                <Text fontSize="sm" fontWeight="medium" color="gray.300">Quick Revisions</Text>
+                <IconButton
+                  icon={<ChevronDownIcon />}
+                  size="md"
+                  variant="ghost"
+                  color="gray.400"
+                  _hover={{ bg: 'gray.700', color: 'gray.200' }}
+                  onClick={() => setIsQuickRevisionsOpen(!isQuickRevisionsOpen)}
+                  aria-label={isQuickRevisionsOpen ? "Collapse quick revisions" : "Expand quick revisions"}
+                  transform={isQuickRevisionsOpen ? "rotate(180deg)" : "none"}
+                  transition="all 0.2s"
+                />
+              </HStack>
             </Flex>
             <Collapse in={isQuickRevisionsOpen}>
               <Box mb={2}>
