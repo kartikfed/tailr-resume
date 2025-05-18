@@ -555,7 +555,12 @@ ${structuredData.sections.map(section => {
 
             {/* Header */}
             <Box>
-              <Text fontSize="lg" color="gray.400">
+              <Text 
+                fontSize="xl" 
+                fontWeight="medium" 
+                color="white" 
+                mb={4}
+              >
                 Paste the job description you want to tailor your resume for
               </Text>
             </Box>
