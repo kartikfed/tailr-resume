@@ -147,11 +147,6 @@ function App() {
         setJobDescriptionSaved(true);
         setJobDescriptionProvided(true);
 
-        console.log('Sending job description for analysis:', {
-          url: `${import.meta.env.VITE_API_URL}/api/spec/analyze-job-description`,
-          contentLength: jobDescription.length
-        });
-
         const response = await fetch(`${import.meta.env.VITE_API_URL}/api/spec/analyze-job-description`, {
           method: 'POST',
           headers: {
@@ -165,16 +160,10 @@ function App() {
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => null);
-          console.error('Analysis failed:', {
-            status: response.status,
-            statusText: response.statusText,
-            error: errorData
-          });
           throw new Error(errorData?.message || `Failed to analyze job description: ${response.status} ${response.statusText}`);
         }
 
         const analysis = await response.json();
-        console.log('Job description analysis:', analysis);
 
         // Store the analysis results
         if (analysis.results) {
@@ -196,8 +185,6 @@ function App() {
           position: 'top-right'
         });
       } catch (error) {
-        console.error('Error analyzing job description:', error);
-        // Show error toast with more detailed message
         toast({
           title: 'Analysis failed',
           description: error.message || 'Failed to analyze job description. Please try again.',
@@ -341,29 +328,22 @@ ${structuredData.sections.map(section => {
 
   // Update file upload handlers to use structured data from Affinda
   const handleFilesUploaded = async (files) => {
-    console.log('App: Received uploaded files:', files);
     setUploadedFiles(prev => [...prev, ...files]);
     if (files && files.length > 0 && files[0].content) {
       try {
         // Try to parse as JSON (Affinda flow)
         const structured = JSON.parse(files[0].content);
-        console.log('App: Parsed structured resume:', structured);
         setResumeStructured(structured);
         setCanvasContent(null);
       } catch (error) {
         // If not JSON, treat as Markdown (Claude flow)
-        console.log('App: Treating file content as Markdown');
         setResumeStructured(null);
         setCanvasContent(files[0].content);
       }
-    } else {
-      console.log('App: No content found in uploaded file');
     }
   };
 
   const handleExistingResumeUpload = (files) => {
-    console.log('handleExistingResumeUpload called with files:', files);
-    
     // First update the files
     setUploadedFiles(prev => [...prev, ...files]);
     
@@ -371,12 +351,10 @@ ${structuredData.sections.map(section => {
     if (files && files.length > 0 && files[0].content) {
       try {
         const structured = JSON.parse(files[0].content);
-        console.log('Setting resumeStructured:', structured);
         setResumeStructured(structured);
         setCanvasContent(null);
       } catch (error) {
         // If not JSON, treat as Markdown (Claude flow)
-        console.log('Treating file content as Markdown');
         setResumeStructured(null);
         setCanvasContent(files[0].content);
       }
@@ -384,7 +362,6 @@ ${structuredData.sections.map(section => {
     
     // Finally, update the mode after a short delay to ensure other states are updated
     setTimeout(() => {
-      console.log('Setting startMode to scratch');
       setStartMode('scratch');
     }, 100);
   };
@@ -590,6 +567,7 @@ ${structuredData.sections.map(section => {
                     writingTone={writingTone}
                     conversationId={conversationId}
                     onUpdateMessages={setMessages}
+                    resumeEmphasis={resumeEmphasis}
                   />
                 </Box>
 
@@ -664,8 +642,9 @@ ${structuredData.sections.map(section => {
                   <Collapse in={isChatExpanded} animateOpacity>
                     <Box 
                       flex="1" 
-                      overflow="auto" 
+                      overflowY="auto" 
                       p={3}
+                      maxH="calc(100vh - 200px)"
                       sx={{
                         '&::-webkit-scrollbar': {
                           width: '8px',

@@ -33,7 +33,6 @@ const FileUpload = ({ onFilesUploaded, isLoading, conversationId, bg, color }) =
     if (e.target.files) {
       // Convert FileList to Array
       const fileArray = Array.from(e.target.files);
-      console.log('Frontend: Files selected:', fileArray.map(f => ({ name: f.name, type: f.type, size: f.size })));
       setFiles(fileArray);
     }
   };
@@ -43,7 +42,6 @@ const FileUpload = ({ onFilesUploaded, isLoading, conversationId, bg, color }) =
       const reader = new FileReader();
       
       reader.onerror = function(error) {
-        console.error(`Frontend: Error reading file ${file.name}:`, error);
         reject(error);
       };
 
@@ -74,11 +72,8 @@ const FileUpload = ({ onFilesUploaded, isLoading, conversationId, bg, color }) =
     if (files.length === 0) return;
 
     setIsUploading(true);
-    console.log('FileUpload: Starting upload process');
 
     try {
-      console.log('FileUpload: Starting file upload process...');
-      
       // Read all files with content
       const filePromises = files.map(async (file) => {
         try {
@@ -92,32 +87,20 @@ const FileUpload = ({ onFilesUploaded, isLoading, conversationId, bg, color }) =
             useClaude: true, // Always use Claude now
           };
         } catch (error) {
-          console.error(`FileUpload: Failed to read file ${file.name}:`, error);
           throw error;
         }
       });
 
       const fileMetadata = await Promise.all(filePromises);
       
-      console.log('FileUpload: All files read successfully:', fileMetadata.map(f => ({
-        name: f.name,
-        hasContent: Boolean(f.content),
-        contentLength: f.content ? f.content.length : 0
-      })));
-
       // Send to backend
       const response = await uploadFiles(conversationId, fileMetadata);
-      
-      console.log('FileUpload: Received response from backend:', response);
-      console.log('FileUpload: Files in response:', response.files);
-      console.log('FileUpload: First file content:', response.files[0]?.content?.substring(0, 200) + '...');
       
       // Show success animation
       setShowSuccess(true);
       
       // Wait for animation to complete before proceeding
       setTimeout(() => {
-        console.log('FileUpload: Calling onFilesUploaded with files:', response.files);
         onFilesUploaded(response.files);
         setShowSuccess(false);
         setFiles([]);
@@ -131,7 +114,6 @@ const FileUpload = ({ onFilesUploaded, isLoading, conversationId, bg, color }) =
         position: 'top-right'
       });
     } catch (error) {
-      console.error('FileUpload: Upload error:', error);
       toast({
         title: 'Error uploading file',
         description: error.message || 'Failed to upload file',

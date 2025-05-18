@@ -17,9 +17,11 @@ import {
   SimpleGrid,
   IconButton,
   PopoverBody,
-  useColorModeValue
+  useColorModeValue,
+  Collapse,
+  useDisclosure
 } from '@chakra-ui/react';
-import { CheckCircleIcon, RepeatIcon, CloseIcon } from '@chakra-ui/icons';
+import { CheckCircleIcon, RepeatIcon, CloseIcon, ChevronDownIcon, ChevronUpIcon } from '@chakra-ui/icons';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import ReactDOM from 'react-dom';
@@ -41,7 +43,8 @@ const SpecCanvas = ({
   onRegeneratePrompts = null,
   writingTone = 'concise',
   conversationId,
-  onUpdateMessages
+  onUpdateMessages,
+  resumeEmphasis = null
 }) => {
   // Debug logging
   console.log('SpecCanvas received props:', {
@@ -112,6 +115,8 @@ const SpecCanvas = ({
   const [highlightTimeout, setHighlightTimeout] = useState(null);
   const [localHighlightedText, setLocalHighlightedText] = useState(null);
   const [highlightPosition, setHighlightPosition] = useState(null);
+  const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: true });
+  const [isQuickRevisionsOpen, setIsQuickRevisionsOpen] = useState(false);
 
   // Add useEffect to monitor prop changes
   React.useEffect(() => {
@@ -164,16 +169,20 @@ const SpecCanvas = ({
     setUserInstructions('');
   };
 
-  // Update handleSubmitRevision to include writing tone
+  // Update handleSubmitRevision toast
   const handleSubmitRevision = async (prompt) => {
     if (!selectedText || !jobDescription) {
       toast({
-        title: 'Error',
-        description: 'Please select text to revise and ensure a job description is provided.',
+        title: 'Missing Information',
+        description: 'Please select text and provide a job description',
         status: 'error',
         duration: 3000,
         isClosable: true,
-        position: 'top-right'
+        position: 'top-right',
+        containerStyle: {
+          width: '320px',
+          maxWidth: '100%',
+        }
       });
       return;
     }
@@ -215,21 +224,28 @@ const SpecCanvas = ({
       
       toast({
         title: 'Revision Ready',
-        description: 'The text has been revised according to your instructions.',
+        description: 'Text has been revised based on your instructions',
         status: 'success',
-        duration: 2000,
+        duration: 3000,
         isClosable: true,
-        position: 'top-right'
+        position: 'top-right',
+        containerStyle: {
+          width: '320px',
+          maxWidth: '100%',
+        }
       });
     } catch (error) {
-      console.error('Error getting revision:', error);
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to get revision',
+        title: 'Revision Failed',
+        description: 'Unable to process your revision request',
         status: 'error',
         duration: 3000,
         isClosable: true,
-        position: 'top-right'
+        position: 'top-right',
+        containerStyle: {
+          width: '320px',
+          maxWidth: '100%',
+        }
       });
     } finally {
       setIsSubmitting(false);
@@ -290,14 +306,17 @@ const SpecCanvas = ({
           onUpdateMessages(prevMessages => [...prevMessages, systemMessage]);
         }
       } catch (error) {
-        console.error('Error adding explanation to chat:', error);
         toast({
-          title: 'Error',
-          description: 'Failed to add explanation to chat',
+          title: 'Chat Update Failed',
+          description: 'Unable to add explanation to chat',
           status: 'error',
           duration: 3000,
           isClosable: true,
-          position: 'top-right'
+          position: 'top-right',
+          containerStyle: {
+            width: '320px',
+            maxWidth: '100%',
+          }
         });
       } finally {
         setIsAddingExplanation(false);
@@ -314,7 +333,7 @@ const SpecCanvas = ({
     setUserInstructions('');
   };
 
-  // Add handler for regenerating prompts
+  // Update handleRegeneratePrompts toast
   const handleRegeneratePrompts = async () => {
     if (!selectedText || !jobDescription) return;
     
@@ -347,22 +366,30 @@ const SpecCanvas = ({
       if (data.results?.prompt_presets) {
         onRegeneratePrompts(data.results.prompt_presets);
         toast({
-          title: 'Prompts regenerated',
+          title: 'Prompts Updated',
+          description: 'New revision suggestions are ready',
           status: 'success',
-          duration: 2000,
+          duration: 3000,
           isClosable: true,
-          position: 'top-right'
+          position: 'top-right',
+          containerStyle: {
+            width: '320px',
+            maxWidth: '100%',
+          }
         });
       }
     } catch (error) {
-      console.error('Error regenerating prompts:', error);
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to regenerate prompts',
+        title: 'Update Failed',
+        description: 'Unable to generate new suggestions',
         status: 'error',
-        duration: 5000,
+        duration: 3000,
         isClosable: true,
-        position: 'top-right'
+        position: 'top-right',
+        containerStyle: {
+          width: '320px',
+          maxWidth: '100%',
+        }
       });
     } finally {
       setIsRegeneratingPrompts(false);
@@ -399,24 +426,32 @@ const SpecCanvas = ({
         onRegeneratePrompts(analysis.results.prompt_presets);
       }
 
-      // Show success toast
       toast({
-        title: 'Analysis complete',
-        description: 'The job description has been analyzed successfully.',
+        title: 'Analysis Complete',
+        description: 'Job description has been analyzed',
         status: 'success',
-        duration: 5000,
+        duration: 3000,
         isClosable: true,
+        position: 'top-right',
+        containerStyle: {
+          width: '320px',
+          maxWidth: '100%',
+        }
       });
 
       return analysis;
     } catch (error) {
-      console.error('Error analyzing job description:', error);
       toast({
-        title: 'Analysis failed',
-        description: 'Failed to analyze job description. Please try again.',
+        title: 'Analysis Failed',
+        description: 'Unable to analyze job description',
         status: 'error',
-        duration: 5000,
+        duration: 3000,
         isClosable: true,
+        position: 'top-right',
+        containerStyle: {
+          width: '320px',
+          maxWidth: '100%',
+        }
       });
       throw error;
     } finally {
@@ -460,12 +495,14 @@ const SpecCanvas = ({
     >
       <Button
         size="sm"
-        colorScheme="blue"
+        colorScheme="purple"
+        variant="solid"
         pointerEvents="auto"
         onClick={handleReviseClick}
         isDisabled={!jobDescriptionProvided}
         opacity={jobDescriptionProvided ? 1 : 0.5}
-        _hover={jobDescriptionProvided ? {} : { cursor: "not-allowed" }}
+        _hover={jobDescriptionProvided ? { bg: 'purple.600' } : { cursor: "not-allowed" }}
+        transition="all 0.2s"
       >
         Revise
       </Button>
@@ -479,19 +516,19 @@ const SpecCanvas = ({
       position="absolute"
       top={reviseButtonPosition.top + 36}
       left={reviseButtonPosition.left}
-      bg={bgColor}
+      bg="gray.800"
       boxShadow="lg"
-      borderRadius="md"
-      p={3}
-      minW="360px"
-      maxW="480px"
+      borderRadius="xl"
+      p={4}
+      minW="480px"
+      maxW="600px"
       zIndex={1001}
       pointerEvents="auto"
-      color={textColor}
+      color="gray.100"
       border="1px solid"
-      borderColor={borderColor}
+      borderColor="gray.700"
     >
-      <VStack align="stretch" spacing={2}>
+      <VStack align="stretch" spacing={3}>
         {/* Add X button in top right */}
         <Flex justify="flex-end">
           <IconButton
@@ -500,112 +537,179 @@ const SpecCanvas = ({
             variant="ghost"
             onClick={handleClosePopover}
             aria-label="Close popover"
-            color={textColor}
-            _hover={{ bg: 'gray.700' }}
+            color="gray.400"
+            _hover={{ bg: 'gray.700', color: 'gray.200' }}
           />
         </Flex>
 
-        <Text fontWeight="bold" fontSize="xs" color={textColor}>Original Text:</Text>
-        <Box p={2} bg={inputBgColor} borderRadius="md" fontSize="xs" fontFamily="mono" whiteSpace="pre-wrap" color={textColor} maxH="100px" overflowY="auto">
-          {selectedText}
-        </Box>
-
-        {/* Prompt Presets with Regenerate Button */}
-        {promptPresets.length > 0 && (
-          <Box>
-            <Flex justify="space-between" align="center" mb={1}>
-              <Text fontWeight="bold" fontSize="xs" color={textColor}>Quick Revisions</Text>
-              <Button
-                size="xs"
-                variant="outline"
-                onClick={handleRegeneratePrompts}
-                isLoading={isRegeneratingPrompts}
-                color="gray.600"
-                borderColor="gray.300"
-                _hover={{ bg: 'gray.50', borderColor: 'gray.400' }}
-                fontSize="xs"
-                fontWeight="medium"
-                px={3}
-              >
-                Regenerate
-              </Button>
-            </Flex>
-            <SimpleGrid columns={1} spacing={1}>
-              {promptPresets.map((preset, index) => (
-                <Button
-                  key={index}
-                  size="xs"
-                  variant="outline"
-                  onClick={() => setUserInstructions(preset.prompt)}
-                  textAlign="left"
-                  justifyContent="flex-start"
-                  whiteSpace="normal"
-                  height="auto"
-                  py={1}
-                  px={2}
-                  color={textColor}
-                  borderColor={borderColor}
-                  _hover={{ bg: 'gray.700' }}
-                  fontSize="xs"
-                >
-                  {preset.title}
-                </Button>
-              ))}
-            </SimpleGrid>
+        {/* Original Text Section */}
+        <Box>
+          <Flex align="center" mb={2}>
+            <Text fontWeight="medium" fontSize="xs" color="gray.400" mr={2}>Original</Text>
+            <Box h="1px" flex="1" bg="gray.700" />
+          </Flex>
+          <Box 
+            p={3} 
+            bg="gray.700" 
+            borderRadius="md" 
+            fontSize="sm" 
+            fontFamily="mono" 
+            whiteSpace="pre-wrap" 
+            color="gray.100" 
+            border="1px solid"
+            borderColor="gray.600"
+          >
+            {selectedText}
           </Box>
-        )}
+        </Box>
 
         {/* Revised Text Section */}
         {hasSubmittedRevision && (
           <Box>
-            <Text fontWeight="bold" mb={1} fontSize="xs" color={textColor}>Revised Text:</Text>
+            <Flex align="center" mb={2}>
+              <Text fontWeight="medium" fontSize="xs" color="green.400" mr={2}>Revised</Text>
+              <Box h="1px" flex="1" bg="gray.700" />
+            </Flex>
             <Box
-              p={2}
-              bg={inputBgColor}
+              p={3}
+              bg="gray.700"
               borderRadius="md"
+              fontSize="sm"
+              fontFamily="mono"
+              whiteSpace="pre-wrap"
+              color="gray.100"
               border="1px solid"
-              borderColor={borderColor}
-              fontSize="xs"
-              maxH="100px"
-              overflowY="auto"
+              borderColor="gray.600"
             >
-              <Text color={textColor}>{unescapeMarkdown(revisedText)}</Text>
+              <Text color="gray.100">{unescapeMarkdown(revisedText)}</Text>
             </Box>
           </Box>
         )}
-        
-        <Text fontWeight="bold" fontSize="xs" color={textColor}>Instructions (optional):</Text>
-        <Textarea
-          value={userInstructions}
-          onChange={e => setUserInstructions(e.target.value)}
-          placeholder="E.g., Make this more results-oriented"
-          size="xs"
-          rows={2}
-          bg={inputBgColor}
-          color={textColor}
-          _placeholder={{ color: 'gray.400' }}
-          borderColor={borderColor}
-          fontSize="xs"
-        />
 
-        <HStack justify="space-between" spacing={2} pt={1}>
+        {/* Quick Revisions Section */}
+        {promptPresets.length > 0 && (
+          <Box>
+            <Flex 
+              align="center" 
+              mb={2} 
+              p={2}
+              borderRadius="md"
+            >
+              <Text fontWeight="medium" fontSize="xs" color="gray.400" flex="1">Quick Revisions</Text>
+              <IconButton
+                icon={isQuickRevisionsOpen ? <ChevronUpIcon /> : <ChevronDownIcon />}
+                variant="ghost"
+                colorScheme="purple"
+                aria-label={isQuickRevisionsOpen ? "Collapse" : "Expand"}
+                size="md"
+                onClick={() => setIsQuickRevisionsOpen(!isQuickRevisionsOpen)}
+                _hover={{ bg: 'gray.600' }}
+              />
+            </Flex>
+            <Collapse in={isQuickRevisionsOpen}>
+              <Box mb={2}>
+                <Button
+                  size="xs"
+                  variant="solid"
+                  onClick={handleRegeneratePrompts}
+                  isLoading={isRegeneratingPrompts}
+                  colorScheme="purple"
+                  _hover={{ bg: 'purple.600' }}
+                  fontSize="xs"
+                  fontWeight="medium"
+                  px={3}
+                  mb={2}
+                  leftIcon={<RepeatIcon />}
+                >
+                  Regenerate
+                </Button>
+                <SimpleGrid columns={1} spacing={2}>
+                  {promptPresets.map((preset, index) => (
+                    <Button
+                      key={index}
+                      size="xs"
+                      variant="outline"
+                      onClick={() => setUserInstructions(preset.prompt)}
+                      textAlign="left"
+                      justifyContent="flex-start"
+                      whiteSpace="normal"
+                      height="auto"
+                      py={2}
+                      px={3}
+                      color="gray.300"
+                      borderColor="gray.600"
+                      _hover={{ bg: 'gray.700', borderColor: 'gray.500', color: 'gray.100' }}
+                      fontSize="sm"
+                      maxW="400px"
+                      alignSelf="flex-start"
+                    >
+                      {preset.title}
+                    </Button>
+                  ))}
+                </SimpleGrid>
+              </Box>
+            </Collapse>
+          </Box>
+        )}
+        
+        {/* Instructions Input */}
+        <Box>
+          <Text fontWeight="medium" fontSize="xs" color="gray.400" mb={2}>Instructions</Text>
+          <Textarea
+            value={userInstructions}
+            onChange={e => setUserInstructions(e.target.value)}
+            placeholder="E.g., Make this more results-oriented"
+            size="sm"
+            rows={4}
+            bg="gray.700"
+            color="gray.100"
+            _placeholder={{ color: 'gray.500' }}
+            borderColor="gray.600"
+            borderRadius="md"
+            fontSize="sm"
+            _hover={{ borderColor: 'gray.500' }}
+            _focus={{ borderColor: 'blue.400', boxShadow: 'none' }}
+            sx={{
+              '&::-webkit-scrollbar': {
+                width: '8px',
+                backgroundColor: 'transparent',
+              },
+              '&::-webkit-scrollbar-thumb': {
+                backgroundColor: 'gray.600',
+                borderRadius: '4px',
+                '&:hover': {
+                  backgroundColor: 'gray.500',
+                },
+              },
+              '&::-webkit-scrollbar-track': {
+                backgroundColor: 'transparent',
+              },
+            }}
+          />
+        </Box>
+
+        <HStack justify="space-between" spacing={3} pt={1}>
           <HStack spacing={2}>
             {hasSubmittedRevision && (
               <>
                 <Button 
-                  size="xs" 
+                  size="sm" 
                   colorScheme="red" 
+                  variant="outline"
                   onClick={handleReject}
+                  _hover={{ bg: 'red.900', borderColor: 'red.400' }}
                 >
                   Reject
                 </Button>
                 <Button 
-                  size="xs" 
+                  size="sm" 
                   colorScheme="green" 
+                  variant="outline"
                   onClick={() => {
                     console.log('Accept button clicked');
                     handleAcceptRevision(selectedText, revisedTextMarkdown);
                   }}
+                  _hover={{ bg: 'green.900', borderColor: 'green.400' }}
                 >
                   Accept
                 </Button>
@@ -613,11 +717,13 @@ const SpecCanvas = ({
             )}
           </HStack>
           <Button
-            size="xs"
+            size="sm"
             colorScheme="blue"
+            variant="outline"
             onClick={() => handleSubmitRevision(userInstructions)}
             isLoading={isSubmitting}
             loadingText="Revising..."
+            _hover={{ bg: 'blue.900', borderColor: 'blue.400' }}
           >
             Submit
           </Button>
@@ -630,146 +736,232 @@ const SpecCanvas = ({
   // Debug: log showRevisionPopover before render
   console.log('showRevisionPopover (before render):', showRevisionPopover);
 
-  return (
-    <Box
-      ref={canvasRef}
-      p={6}
-      bg={bgColor}
-      borderRadius="xl"
-      boxShadow="sm"
-      position="relative"
-      style={{ overflow: 'visible', zIndex: 9999 }}
-      color={textColor}
-      border="1px solid"
-      borderColor={borderColor}
-    >
-      {/* Floating Revise Button (via portal) */}
-      {reviseButtonPortal}
-      {/* Revision Popover (via portal, fixed position for debug) */}
-      {revisionPopoverPortal}
-      {/* Loading indicator for explanation */}
-      {isAddingExplanation && (
-        <Box
-          position="fixed"
-          bottom="20px"
-          right="20px"
-          bg={bgColor}
-          p={3}
-          borderRadius="md"
-          boxShadow="md"
-          zIndex={1002}
-          color={textColor}
+  // Add resume focus points section
+  const renderResumeFocusPoints = () => {
+    if (!resumeEmphasis) return null;
+
+    return (
+      <Box 
+        mb={4} 
+        bg="white"
+        borderRadius="xl"
+        border="1px solid"
+        borderColor="purple.100"
+        overflow="hidden"
+        boxShadow="sm"
+        transition="all 0.2s ease-in-out"
+        _hover={{ boxShadow: 'md' }}
+      >
+        <Flex
+          p={4}
+          justify="space-between"
+          align="center"
+          cursor="pointer"
+          onClick={onToggle}
+          bg="purple.50"
+          _hover={{ bg: 'purple.100' }}
+          transition="all 0.2s ease-in-out"
         >
-          <Text fontSize="sm" color="gray.600">Adding explanation to chat...</Text>
-        </Box>
-      )}
-      <VStack align="stretch" spacing={6}>
-        {/* Render Markdown if present (Claude flow) */}
-        {resumeMarkdown && (
-          <Box key={resumeMarkdown.length}>
-            <ReactMarkdown
-              children={unescapeMarkdown(resumeMarkdown)}
-              rehypePlugins={[rehypeRaw]}
-              components={{
-                h1: ({node, ...props}) => <Heading as="h1" size="lg" my={4} color={textColor} {...props} />,
-                h2: ({node, ...props}) => <Heading as="h2" size="md" my={3} color={textColor} {...props} />,
-                h3: ({node, ...props}) => <Heading as="h3" size="sm" my={2} color={textColor} {...props} />,
-                p: ({node, ...props}) => (
-                  <Text my={2} color={textColor}>
-                    {props.children}
-                  </Text>
-                ),
-                strong: ({node, ...props}) => (
-                  <Text as="span" fontWeight="bold" color={textColor}>
-                    {props.children}
-                  </Text>
-                ),
-                em: ({node, ...props}) => (
-                  <Text as="span" fontStyle="italic" color={textColor}>
-                    {props.children}
-                  </Text>
-                ),
-                hr: ({node, ...props}) => <Divider my={4} borderColor={borderColor} {...props} />,
-                text: ({node, ...props}) => (
-                  <Text as="span" color={textColor}>
-                    {props.children}
-                  </Text>
-                )
-              }}
-            />
+          <Heading size="sm" color="purple.700" fontWeight="600">Emphasis Areas</Heading>
+          <IconButton
+            icon={isOpen ? <ChevronUpIcon /> : <ChevronDownIcon />}
+            variant="ghost"
+            colorScheme="purple"
+            aria-label={isOpen ? "Collapse" : "Expand"}
+            size="sm"
+            _hover={{ bg: 'purple.200' }}
+            transition="all 0.2s ease-in-out"
+          />
+        </Flex>
+        <Collapse in={isOpen}>
+          <Box p={4} pt={3}>
+            <Text mb={4} color="purple.800" fontSize="sm" lineHeight="tall">
+              {resumeEmphasis.summary}
+            </Text>
+            <List spacing={3}>
+              {resumeEmphasis.key_points.map((point, index) => (
+                <ListItem 
+                  key={index} 
+                  display="flex" 
+                  alignItems="flex-start"
+                  bg="purple.50"
+                  p={2}
+                  borderRadius="md"
+                  transition="all 0.2s ease-in-out"
+                  _hover={{ bg: 'purple.100' }}
+                >
+                  <ListIcon as={CheckCircleIcon} color="purple.500" mt={1} />
+                  <Text color="purple.800" fontSize="sm">{point}</Text>
+                </ListItem>
+              ))}
+            </List>
+          </Box>
+        </Collapse>
+      </Box>
+    );
+  };
+
+  return (
+    <Box>
+      {renderResumeFocusPoints()}
+      <Box
+        ref={canvasRef}
+        p={6}
+        bg={bgColor}
+        borderRadius="xl"
+        boxShadow="sm"
+        position="relative"
+        style={{ overflow: 'visible', zIndex: 9999 }}
+        color={textColor}
+        border="1px solid"
+        borderColor={borderColor}
+      >
+        {/* Floating Revise Button (via portal) */}
+        {reviseButtonPortal}
+        {/* Revision Popover (via portal, fixed position for debug) */}
+        {revisionPopoverPortal}
+        {/* Loading indicator for explanation */}
+        {isAddingExplanation && (
+          <Box
+            position="fixed"
+            bottom="20px"
+            right="20px"
+            bg={bgColor}
+            p={3}
+            borderRadius="md"
+            boxShadow="md"
+            zIndex={1002}
+            color={textColor}
+            maxH="calc(100vh - 40px)"
+            overflowY="auto"
+            sx={{
+              '&::-webkit-scrollbar': {
+                width: '8px',
+                backgroundColor: 'transparent',
+              },
+              '&::-webkit-scrollbar-thumb': {
+                backgroundColor: 'gray.600',
+                borderRadius: '4px',
+                '&:hover': {
+                  backgroundColor: 'gray.500',
+                },
+              },
+              '&::-webkit-scrollbar-track': {
+                backgroundColor: 'transparent',
+              },
+            }}
+          >
+            <Text fontSize="sm" color="gray.600">Adding explanation to chat...</Text>
           </Box>
         )}
-        {/* Fallback: Render structured data (Affinda flow) */}
-        {!resumeMarkdown && resumeStructured && (
-          <>
-            {/* Metadata */}
-            {resumeStructured.metadata && (
-              <Box mb={6}>
-                <Heading as="h3" size="md" mb={2} color={textColor}>Contact Information</Heading>
-                <VStack align="start" spacing={1}>
-                  {resumeStructured.metadata.name && (
-                    <Text fontWeight="bold" color={textColor}>{resumeStructured.metadata.name}</Text>
-                  )}
-                  {resumeStructured.metadata.email && (
-                    <Text color="gray.600">{resumeStructured.metadata.email}</Text>
-                  )}
-                  {resumeStructured.metadata.phone && (
-                    <Text color="gray.600">{resumeStructured.metadata.phone}</Text>
-                  )}
-                  {resumeStructured.metadata.location && (
-                    <Text color="gray.600">{resumeStructured.metadata.location}</Text>
-                  )}
-                </VStack>
-              </Box>
-            )}
+        <VStack align="stretch" spacing={6}>
+          {/* Render Markdown if present (Claude flow) */}
+          {resumeMarkdown && (
+            <Box key={resumeMarkdown.length}>
+              <ReactMarkdown
+                children={unescapeMarkdown(resumeMarkdown)}
+                rehypePlugins={[rehypeRaw]}
+                components={{
+                  h1: ({node, ...props}) => <Heading as="h1" size="lg" my={4} color={textColor} {...props} />,
+                  h2: ({node, ...props}) => <Heading as="h2" size="md" my={3} color={textColor} {...props} />,
+                  h3: ({node, ...props}) => <Heading as="h3" size="sm" my={2} color={textColor} {...props} />,
+                  p: ({node, ...props}) => (
+                    <Text my={2} color={textColor}>
+                      {props.children}
+                    </Text>
+                  ),
+                  strong: ({node, ...props}) => (
+                    <Text as="span" fontWeight="bold" color={textColor}>
+                      {props.children}
+                    </Text>
+                  ),
+                  em: ({node, ...props}) => (
+                    <Text as="span" fontStyle="italic" color={textColor}>
+                      {props.children}
+                    </Text>
+                  ),
+                  hr: ({node, ...props}) => <Divider my={4} borderColor={borderColor} {...props} />,
+                  text: ({node, ...props}) => (
+                    <Text as="span" color={textColor}>
+                      {props.children}
+                    </Text>
+                  )
+                }}
+              />
+            </Box>
+          )}
+          {/* Fallback: Render structured data (Affinda flow) */}
+          {!resumeMarkdown && resumeStructured && (
+            <>
+              {/* Metadata */}
+              {resumeStructured.metadata && (
+                <Box mb={6}>
+                  <Heading as="h3" size="md" mb={2} color={textColor}>Contact Information</Heading>
+                  <VStack align="start" spacing={1}>
+                    {resumeStructured.metadata.name && (
+                      <Text fontWeight="bold" color={textColor}>{resumeStructured.metadata.name}</Text>
+                    )}
+                    {resumeStructured.metadata.email && (
+                      <Text color="gray.600">{resumeStructured.metadata.email}</Text>
+                    )}
+                    {resumeStructured.metadata.phone && (
+                      <Text color="gray.600">{resumeStructured.metadata.phone}</Text>
+                    )}
+                    {resumeStructured.metadata.location && (
+                      <Text color="gray.600">{resumeStructured.metadata.location}</Text>
+                    )}
+                  </VStack>
+                </Box>
+              )}
 
-            {/* Sections */}
-            {resumeStructured.sections?.map((section) => (
-              <Box key={section.id} mb={6}>
-                <Heading as="h3" size="md" mb={3} color={textColor}>{section.title}</Heading>
-                {section.type === 'text' && (
-                  renderContent(section.content)
-                )}
-                {section.type === 'list' && section.items && (
-                  <List spacing={4}>
-                    {section.items.map((item) => (
-                      <ListItem key={item.id}>
-                        <Flex direction="column" gap={1}>
-                          {item.title && (
-                            <Text fontWeight="bold" color={textColor}>{item.title}</Text>
-                          )}
-                          {item.company && (
-                            <Text color="gray.600">{item.company}</Text>
-                          )}
-                          {item.location && (
-                            <Text color="gray.600" fontSize="sm">{item.location}</Text>
-                          )}
-                          {item.dates && (
-                            <Text fontSize="sm" color="gray.500">{item.dates}</Text>
-                          )}
-                          {/* Render only bullets */}
-                          {item.bullets && item.bullets.length > 0 && (
-                            <List spacing={2} styleType="disc" pl={4}>
-                              {item.bullets.map((bullet, bIdx) => (
-                                <ListItem key={bIdx} color="gray.700">{bullet}</ListItem>
-                              ))}
-                            </List>
-                          )}
-                          {item.name && (
-                            <Badge colorScheme="blue" width="fit-content">
-                              {item.name}
-                            </Badge>
-                          )}
-                        </Flex>
-                      </ListItem>
-                    ))}
-                  </List>
-                )}
-              </Box>
-            ))}
-          </>
-        )}
-      </VStack>
+              {/* Sections */}
+              {resumeStructured.sections?.map((section) => (
+                <Box key={section.id} mb={6}>
+                  <Heading as="h3" size="md" mb={3} color={textColor}>{section.title}</Heading>
+                  {section.type === 'text' && (
+                    renderContent(section.content)
+                  )}
+                  {section.type === 'list' && section.items && (
+                    <List spacing={4}>
+                      {section.items.map((item) => (
+                        <ListItem key={item.id}>
+                          <Flex direction="column" gap={1}>
+                            {item.title && (
+                              <Text fontWeight="bold" color={textColor}>{item.title}</Text>
+                            )}
+                            {item.company && (
+                              <Text color="gray.600">{item.company}</Text>
+                            )}
+                            {item.location && (
+                              <Text color="gray.600" fontSize="sm">{item.location}</Text>
+                            )}
+                            {item.dates && (
+                              <Text fontSize="sm" color="gray.500">{item.dates}</Text>
+                            )}
+                            {/* Render only bullets */}
+                            {item.bullets && item.bullets.length > 0 && (
+                              <List spacing={2} styleType="disc" pl={4}>
+                                {item.bullets.map((bullet, bIdx) => (
+                                  <ListItem key={bIdx} color="gray.700">{bullet}</ListItem>
+                                ))}
+                              </List>
+                            )}
+                            {item.name && (
+                              <Badge colorScheme="blue" width="fit-content">
+                                {item.name}
+                              </Badge>
+                            )}
+                          </Flex>
+                        </ListItem>
+                      ))}
+                    </List>
+                  )}
+                </Box>
+              ))}
+            </>
+          )}
+        </VStack>
+      </Box>
     </Box>
   );
 };
