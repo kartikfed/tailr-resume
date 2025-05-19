@@ -19,7 +19,8 @@ import {
   ListItem,
   ListIcon,
   IconButton,
-  Collapse
+  Collapse,
+  Progress
 } from '@chakra-ui/react';
 import { sendMessage, uploadFiles, getConversation } from './services/apiService';
 import { CheckCircleIcon, ChevronLeftIcon, ChevronRightIcon } from '@chakra-ui/icons';
@@ -80,6 +81,9 @@ function App() {
   const textBlockRef = useRef(null);
   const [logoHeight, setLogoHeight] = useState(0);
   const [isChatExpanded, setIsChatExpanded] = useState(true);
+  const [progressValue, setProgressValue] = useState(0);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisStage, setAnalysisStage] = useState('');
 
   useLayoutEffect(() => {
     if (textBlockRef.current) {
@@ -145,9 +149,31 @@ function App() {
     if (jobDescription.trim()) {
       try {
         setIsSavingJobDescription(true);
+        setIsAnalyzing(true);
+        setProgressValue(0);
+        setAnalysisStage('Initializing analysis...');
+        
+        // Start smooth progress animation
+        const progressInterval = setInterval(() => {
+          setProgressValue((prevValue) => {
+            if (prevValue >= 90) {
+              clearInterval(progressInterval);
+              return 90;
+            }
+            return prevValue + 1;
+          });
+        }, 50);
+
         // First save the job description
         setJobDescriptionSaved(true);
         setJobDescriptionProvided(true);
+
+        // Update stage
+        setAnalysisStage('Extracting key requirements...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        setAnalysisStage('Analyzing skills and qualifications...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
         const response = await fetch(`${import.meta.env.VITE_API_URL}/api/spec/analyze-job-description`, {
           method: 'POST',
@@ -165,6 +191,7 @@ function App() {
           throw new Error(errorData?.message || `Failed to analyze job description: ${response.status} ${response.statusText}`);
         }
 
+        setAnalysisStage('Processing analysis results...');
         const analysis = await response.json();
 
         // Store the analysis results
@@ -176,6 +203,11 @@ function App() {
             setPromptPresets(analysis.results.prompt_presets);
           }
         }
+
+        // Complete the progress animation
+        clearInterval(progressInterval);
+        setProgressValue(100);
+        setAnalysisStage('Analysis complete!');
 
         // Show success toast
         toast({
@@ -200,6 +232,9 @@ function App() {
         setJobDescriptionProvided(true);
       } finally {
         setIsSavingJobDescription(false);
+        setIsAnalyzing(false);
+        setProgressValue(0);
+        setAnalysisStage('');
       }
     }
   };
@@ -576,6 +611,30 @@ ${structuredData.sections.map(section => {
                 placeholder=""
               />
             </Box>
+
+            {/* Progress Bar */}
+            {isAnalyzing && (
+              <Box w="100%" mb={4}>
+                <Text 
+                  color="white" 
+                  fontSize="sm" 
+                  mb={2}
+                  textAlign="center"
+                >
+                  {analysisStage}
+                </Text>
+                <Progress
+                  value={progressValue}
+                  size="sm"
+                  colorScheme="green"
+                  bg="gray.700"
+                  borderRadius="full"
+                  hasStripe
+                  isAnimated
+                  transition="all 0.3s ease-in-out"
+                />
+              </Box>
+            )}
 
             {/* Action Buttons */}
             <Flex gap={4} justify="flex-end">
