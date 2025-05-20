@@ -95,6 +95,51 @@ const SpecCanvas = ({
     return text.replace(/\\([#*_[\]()`~>\-!{}<>|.])/g, '$1');
   }
 
+  // Function to find all bullet points in the markdown content
+  const findBulletPoints = (content) => {
+    if (!content) return [];
+    const lines = content.split('\n');
+    return lines
+      .map((line, index) => {
+        // Match bullet points with various markers
+        const match = line.trim().match(/^[-*•]\s+(.+)$/);
+        if (match) {
+          return {
+            index,
+            text: match[1].trim(),
+            line: line.trim(),
+            id: `bullet-${index}` // Add unique ID for each bullet point
+          };
+        }
+        return null;
+      })
+      .filter(Boolean);
+  };
+
+  // Function to highlight a bullet point
+  const highlightBulletPoint = (index) => {
+    if (index >= 0 && index < bulletPointsRef.current.length) {
+      setCurrentBulletIndex(index);
+      const bullet = bulletPointsRef.current[index];
+      setSelectedText(bullet.text);
+      
+      // Find the element and scroll it into view
+      const elements = document.querySelectorAll('li');
+      if (elements[index]) {
+        elements[index].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // Update popover position if it's open
+        if (showRevisionPopover) {
+          const rect = elements[index].getBoundingClientRect();
+          setReviseButtonPosition({
+            top: rect.top + window.scrollY - 40,
+            left: rect.left + window.scrollX
+          });
+        }
+      }
+    }
+  };
+
   const [showReviseButton, setShowReviseButton] = useState(false);
   const [reviseButtonPosition, setReviseButtonPosition] = useState({ top: 0, left: 0 });
   const [selectedText, setSelectedText] = useState('');
@@ -117,6 +162,9 @@ const SpecCanvas = ({
   const [highlightPosition, setHighlightPosition] = useState(null);
   const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: true });
   const [isQuickRevisionsOpen, setIsQuickRevisionsOpen] = useState(false);
+  const [currentBulletIndex, setCurrentBulletIndex] = useState(-1);
+  const bulletPointsRef = useRef([]);
+  const [recentlyRevisedText, setRecentlyRevisedText] = useState(null);
 
   // Add useEffect to monitor prop changes
   React.useEffect(() => {
@@ -127,6 +175,114 @@ const SpecCanvas = ({
       timestamp: new Date().toISOString()
     });
   }, [highlightedText, resumeMarkdown, resumeStructured]);
+
+  // Update bullet points when markdown content changes
+  React.useEffect(() => {
+    if (resumeMarkdown) {
+      const bullets = findBulletPoints(resumeMarkdown);
+      bulletPointsRef.current = bullets;
+      console.log('Updated bullet points:', bullets);
+    }
+  }, [resumeMarkdown]);
+
+  // Handle keyboard events
+  const handleKeyDown = (event) => {
+    // Handle space bar for bullet point navigation
+    if (event.code === 'Space' && !event.repeat) {
+      event.preventDefault();
+      
+      // Only handle space if we're not in an input or textarea
+      if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      if (currentBulletIndex === -1) {
+        // If no bullet is selected, select the first one
+        highlightBulletPoint(0);
+      } else {
+        // Move to the next bullet point
+        const nextIndex = (currentBulletIndex + 1) % bulletPointsRef.current.length;
+        highlightBulletPoint(nextIndex);
+      }
+
+      // Show a toast to indicate navigation
+      toast({
+        title: "Navigating bullet points",
+        description: `Bullet point ${currentBulletIndex + 1} of ${bulletPointsRef.current.length}`,
+        status: "info",
+        duration: 1000,
+        isClosable: true,
+        position: "top-right"
+      });
+    }
+    
+    // Handle R key for revision
+    if (event.code === 'KeyR' && !event.repeat) {
+      // Only handle R if we're not in an input or textarea
+      if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      // If a bullet point is selected, show the revision popover
+      if (currentBulletIndex !== -1) {
+        const bullet = bulletPointsRef.current[currentBulletIndex];
+        setSelectedText(bullet.text);
+        
+        // Get the position of the selected bullet point
+        const elements = document.querySelectorAll('li');
+        if (elements[currentBulletIndex]) {
+          const rect = elements[currentBulletIndex].getBoundingClientRect();
+          setReviseButtonPosition({
+            top: rect.top + window.scrollY - 40,
+            left: rect.left + window.scrollX
+          });
+          setShowRevisionPopover(true);
+          
+          // Show a toast to indicate revision mode
+          toast({
+            title: "Revision Mode",
+            description: "Press R again to cancel",
+            status: "info",
+            duration: 2000,
+            isClosable: true,
+            position: "top-right"
+          });
+        }
+      }
+    }
+
+    // Handle Down Arrow for next bullet
+    if (event.code === 'ArrowDown' && !event.repeat) {
+      if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
+      event.preventDefault();
+      if (currentBulletIndex === -1) {
+        highlightBulletPoint(0);
+      } else {
+        const nextIndex = (currentBulletIndex + 1) % bulletPointsRef.current.length;
+        highlightBulletPoint(nextIndex);
+      }
+    }
+
+    // Handle Up Arrow for previous bullet
+    if (event.code === 'ArrowUp' && !event.repeat) {
+      if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
+      event.preventDefault();
+      if (currentBulletIndex === -1) {
+        highlightBulletPoint(bulletPointsRef.current.length - 1);
+      } else {
+        const prevIndex = (currentBulletIndex - 1 + bulletPointsRef.current.length) % bulletPointsRef.current.length;
+        highlightBulletPoint(prevIndex);
+      }
+    }
+  };
+
+  // Add keyboard event listener
+  React.useEffect(() => {
+    if (bulletPointsRef.current.length > 0) {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [currentBulletIndex, bulletPointsRef.current.length]);
 
   // Remove onMouseUp from the canvas and use selectionchange event
   React.useEffect(() => {
@@ -252,12 +408,31 @@ const SpecCanvas = ({
     }
   };
 
-  // Modify handleAcceptRevision to remove highlight logic
+  // Modify handleAcceptRevision to add highlight effect
   const handleAcceptRevision = async (selectedText, revisedTextMarkdown) => {
     console.log('handleAcceptRevision called with:', {
       selectedText,
       revisedTextMarkdown
     });
+
+    // Clear any text selection
+    window.getSelection().removeAllRanges();
+    setShowReviseButton(false);
+
+    // Set the recently revised text to trigger highlight
+    setRecentlyRevisedText(revisedTextMarkdown);
+    
+    // Clear any existing timeout
+    if (highlightTimeout) {
+      clearTimeout(highlightTimeout);
+    }
+    
+    // Set timeout to clear highlight after 1 second
+    const timeout = setTimeout(() => {
+      setRecentlyRevisedText(null);
+      setCurrentBulletIndex(-1); // Reset the current bullet index to remove purple highlight
+    }, 1000);
+    setHighlightTimeout(timeout);
 
     // Close the popover immediately
     setShowRevisionPopover(false);
@@ -323,6 +498,15 @@ const SpecCanvas = ({
       }
     }
   };
+
+  // Clean up timeout on unmount
+  React.useEffect(() => {
+    return () => {
+      if (highlightTimeout) {
+        clearTimeout(highlightTimeout);
+      }
+    };
+  }, [highlightTimeout]);
 
   // Handle reject - just close the popover
   const handleReject = () => {
@@ -860,37 +1044,53 @@ const SpecCanvas = ({
         <VStack align="stretch" spacing={6}>
           {/* Render Markdown if present (Claude flow) */}
           {resumeMarkdown && (
-            <Box key={resumeMarkdown.length}>
+            <Box 
+              whiteSpace="pre-wrap" 
+              userSelect="text"
+              position="relative"
+            >
               <ReactMarkdown
-                children={unescapeMarkdown(resumeMarkdown)}
                 rehypePlugins={[rehypeRaw]}
                 components={{
-                  h1: ({node, ...props}) => <Heading as="h1" size="lg" my={4} color={textColor} {...props} />,
-                  h2: ({node, ...props}) => <Heading as="h2" size="md" my={3} color={textColor} {...props} />,
-                  h3: ({node, ...props}) => <Heading as="h3" size="sm" my={2} color={textColor} {...props} />,
-                  p: ({node, ...props}) => (
-                    <Text my={2} color={textColor}>
-                      {props.children}
-                    </Text>
-                  ),
-                  strong: ({node, ...props}) => (
-                    <Text as="span" fontWeight="bold" color={textColor}>
-                      {props.children}
-                    </Text>
-                  ),
-                  em: ({node, ...props}) => (
-                    <Text as="span" fontStyle="italic" color={textColor}>
-                      {props.children}
-                    </Text>
-                  ),
-                  hr: ({node, ...props}) => <Divider my={4} borderColor={borderColor} {...props} />,
-                  text: ({node, ...props}) => (
-                    <Text as="span" color={textColor}>
-                      {props.children}
-                    </Text>
-                  )
+                  li: ({ node, children, ...props }) => {
+                    // Get the text content of the list item
+                    const textContent = React.Children.toArray(children)
+                      .filter(child => typeof child === 'string')
+                      .join('')
+                      .trim();
+                    
+                    // Find the matching bullet point
+                    const bulletIndex = bulletPointsRef.current.findIndex(
+                      bullet => bullet.text === textContent
+                    );
+                    
+                    // Check if this is the recently revised text
+                    const isRecentlyRevised = recentlyRevisedText === textContent;
+                    
+                    return (
+                      <Box
+                        as="li"
+                        bg={
+                          isRecentlyRevised 
+                            ? 'green.100' 
+                            : bulletIndex === currentBulletIndex 
+                              ? 'purple.100' 
+                              : 'transparent'
+                        }
+                        p={isRecentlyRevised || bulletIndex === currentBulletIndex ? 2 : 0}
+                        borderRadius="md"
+                        transition="all 0.2s"
+                        id={`bullet-${bulletIndex}`}
+                        {...props}
+                      >
+                        {children}
+                      </Box>
+                    );
+                  }
                 }}
-              />
+              >
+                {resumeMarkdown}
+              </ReactMarkdown>
             </Box>
           )}
           {/* Fallback: Render structured data (Affinda flow) */}

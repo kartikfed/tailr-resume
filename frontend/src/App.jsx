@@ -11,13 +11,8 @@ import {
   useToast,
   Flex,
   Spacer,
-  Textarea,
   Button,
   useColorModeValue,
-  Badge,
-  List,
-  ListItem,
-  ListIcon,
   IconButton,
   Collapse,
   Progress
@@ -28,26 +23,22 @@ import { CheckCircleIcon, ChevronLeftIcon, ChevronRightIcon } from '@chakra-ui/i
 import ChatInput from './components/ChatInput';
 import FileUpload from './components/FileUpload';
 import MessageHistory from './components/MessageHistory';
-import SpecDisplay from './components/SpecDisplay';
 import SpecCanvas from './components/SpecCanvas';
 import ToneSelector from './components/ToneSelector';
 import TextInput from './components/TextInput';
+import KeyboardInstructions from './components/KeyboardInstructions';
 
 function App() {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState([]);
-  const [generatedSpec, setGeneratedSpec] = useState(null);
   const [conversationId, setConversationId] = useState(`conv-${Date.now()}`);
   const [canvasContent, setCanvasContent] = useState('');
-  const [resumeStructured, setResumeStructured] = useState(null);
-  const [resumeMarkdown, setResumeMarkdown] = useState('');
   const [jobDescription, setJobDescription] = useState('');
   const [jobDescriptionSaved, setJobDescriptionSaved] = useState(false);
   const [jobDescriptionProvided, setJobDescriptionProvided] = useState(false);
   const [isSavingJobDescription, setIsSavingJobDescription] = useState(false);
   const [resumeEmphasis, setResumeEmphasis] = useState(null);
-  const [showRevisionDialog, setShowRevisionDialog] = useState(false);
   const [selectedText, setSelectedText] = useState('');
   const [userInstructions, setUserInstructions] = useState('');
   const [revisedText, setRevisedText] = useState('');
@@ -60,21 +51,11 @@ function App() {
   const bgColor = useColorModeValue('gray.900', 'gray.900');
   const borderColor = useColorModeValue('gray.700', 'gray.700');
   const textColor = useColorModeValue('gray.100', 'gray.100');
-  const cardBgColor = useColorModeValue('gray.800', 'gray.800');
-  const inputBgColor = useColorModeValue('gray.700', 'gray.700');
-  const canvasBgColor = useColorModeValue('white', 'white');
   const chatPaneBgColor = useColorModeValue('purple.900', 'purple.900');
   const chatInputBgColor = useColorModeValue('purple.800', 'purple.800');
   
-  const [startMode, setStartMode] = useState('upload'); // Changed from 'existing' to 'upload'
-  const [appMode, setAppMode] = useState('upload'); // New state for tracking app flow: 'upload' -> 'jobDescription' -> 'main'
-  
-  // Track if user started with an existing resume
-  const [existingResumeMode, setExistingResumeMode] = useState(false);
-  
-  // State for structured resume data from Affinda
+  const [appMode, setAppMode] = useState('upload');
   const [highlightedText, setHighlightedText] = useState(null);
-  const [highlightTimeout, setHighlightTimeout] = useState(null);
   const [promptPresets, setPromptPresets] = useState([]);
   const [writingTone, setWritingTone] = useState('concise');
 
@@ -89,24 +70,21 @@ function App() {
     if (textBlockRef.current) {
       setLogoHeight(textBlockRef.current.offsetHeight);
     }
-  }, [startMode]);
+  }, [appMode]);
 
   // Load existing conversation if available
   useEffect(() => {
     const loadConversation = async () => {
       try {
-        // Get conversation from URL or local storage
         const urlParams = new URLSearchParams(window.location.search);
         const savedConvId = urlParams.get('conversationId') || localStorage.getItem('lastConversationId');
         
         if (savedConvId) {
           setConversationId(savedConvId);
           
-          // Fetch conversation history
           const conversationData = await getConversation(savedConvId);
           
           if (conversationData.messages) {
-            // Add timestamps to messages that don't have them
             const messagesWithTimestamps = conversationData.messages.map(msg => ({
               ...msg,
               timestamp: msg.timestamp || new Date().toISOString()
@@ -116,14 +94,8 @@ function App() {
           
           if (conversationData.files) {
             setUploadedFiles(conversationData.files);
-            // If we have files, try to parse the structured data
             if (conversationData.files[0]?.content) {
-              try {
-                const structured = JSON.parse(conversationData.files[0].content);
-                setResumeStructured(structured);
-              } catch (error) {
-                console.error('Error parsing saved file content:', error);
-              }
+              setCanvasContent(conversationData.files[0].content);
             }
           }
           
@@ -137,7 +109,6 @@ function App() {
         }
       } catch (error) {
         console.error('Error loading conversation:', error);
-        // If there's an error, just start a new conversation
       }
     };
     
@@ -153,27 +124,55 @@ function App() {
         setProgressValue(0);
         setAnalysisStage('Initializing analysis...');
         
-        // Start smooth progress animation
+        // Start smooth progress animation with easing
+        let startTime = Date.now();
+        const duration = 2000; // 2 seconds for initial progress
+        const targetProgress = 30; // First target is 30%
+        
         const progressInterval = setInterval(() => {
-          setProgressValue((prevValue) => {
-            if (prevValue >= 90) {
-              clearInterval(progressInterval);
-              return 90;
-            }
-            return prevValue + 1;
-          });
-        }, 50);
+          const elapsed = Date.now() - startTime;
+          const progress = Math.min((elapsed / duration) * targetProgress, targetProgress);
+          
+          // Easing function for smoother animation
+          const easeOutQuad = (t) => t * (2 - t);
+          const easedProgress = easeOutQuad(progress / targetProgress) * targetProgress;
+          
+          setProgressValue(easedProgress);
+          
+          if (progress >= targetProgress) {
+            clearInterval(progressInterval);
+          }
+        }, 16); // 60fps for smooth animation
 
-        // First save the job description
         setJobDescriptionSaved(true);
         setJobDescriptionProvided(true);
 
-        // Update stage
+        // Update stage with smooth progress
         setAnalysisStage('Extracting key requirements...');
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        // Second phase of progress
+        startTime = Date.now();
+        const secondDuration = 2500; // 2.5 seconds
+        const secondTarget = 60; // Second target is 60%
+        
+        const secondInterval = setInterval(() => {
+          const elapsed = Date.now() - startTime;
+          const progress = Math.min((elapsed / secondDuration) * (secondTarget - targetProgress) + targetProgress, secondTarget);
+          
+          // Easing function for smoother animation
+          const easeOutQuad = (t) => t * (2 - t);
+          const easedProgress = easeOutQuad((progress - targetProgress) / (secondTarget - targetProgress)) * (secondTarget - targetProgress) + targetProgress;
+          
+          setProgressValue(easedProgress);
+          
+          if (progress >= secondTarget) {
+            clearInterval(secondInterval);
+          }
+        }, 16);
 
         setAnalysisStage('Analyzing skills and qualifications...');
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 2000));
 
         const response = await fetch(`${import.meta.env.VITE_API_URL}/api/spec/analyze-job-description`, {
           method: 'POST',
@@ -191,10 +190,29 @@ function App() {
           throw new Error(errorData?.message || `Failed to analyze job description: ${response.status} ${response.statusText}`);
         }
 
+        // Third phase of progress
+        startTime = Date.now();
+        const thirdDuration = 2000; // 2 seconds
+        const thirdTarget = 90; // Third target is 90%
+        
+        const thirdInterval = setInterval(() => {
+          const elapsed = Date.now() - startTime;
+          const progress = Math.min((elapsed / thirdDuration) * (thirdTarget - secondTarget) + secondTarget, thirdTarget);
+          
+          // Easing function for smoother animation
+          const easeOutQuad = (t) => t * (2 - t);
+          const easedProgress = easeOutQuad((progress - secondTarget) / (thirdTarget - secondTarget)) * (thirdTarget - secondTarget) + secondTarget;
+          
+          setProgressValue(easedProgress);
+          
+          if (progress >= thirdTarget) {
+            clearInterval(thirdInterval);
+          }
+        }, 16);
+
         setAnalysisStage('Processing analysis results...');
         const analysis = await response.json();
 
-        // Store the analysis results
         if (analysis.results) {
           if (analysis.results.resume_emphasis) {
             setResumeEmphasis(analysis.results.resume_emphasis);
@@ -204,12 +222,27 @@ function App() {
           }
         }
 
-        // Complete the progress animation
-        clearInterval(progressInterval);
-        setProgressValue(100);
+        // Final phase - complete to 100%
+        startTime = Date.now();
+        const finalDuration = 1000; // 1 second for final completion
+        
+        const finalInterval = setInterval(() => {
+          const elapsed = Date.now() - startTime;
+          const progress = Math.min((elapsed / finalDuration) * (100 - thirdTarget) + thirdTarget, 100);
+          
+          // Easing function for smoother animation
+          const easeOutQuad = (t) => t * (2 - t);
+          const easedProgress = easeOutQuad((progress - thirdTarget) / (100 - thirdTarget)) * (100 - thirdTarget) + thirdTarget;
+          
+          setProgressValue(easedProgress);
+          
+          if (progress >= 100) {
+            clearInterval(finalInterval);
+          }
+        }, 16);
+
         setAnalysisStage('Analysis complete!');
 
-        // Show success toast
         toast({
           title: 'Job description saved and analyzed',
           description: 'The job description has been analyzed and will be used as context for resume generation.',
@@ -227,7 +260,6 @@ function App() {
           isClosable: true,
           position: 'top-right'
         });
-        // Don't clear the saved state since the job description was saved
         setJobDescriptionSaved(true);
         setJobDescriptionProvided(true);
       } finally {
@@ -239,61 +271,11 @@ function App() {
     }
   };
 
-  // Function to clear job description
-  const handleClearJobDescription = () => {
-    setJobDescription('');
-    setJobDescriptionSaved(false);
-    setPromptPresets([]); // Clear prompt presets
-    setResumeEmphasis(null); // Clear resume emphasis
-    toast({
-      title: 'Job description cleared',
-      status: 'info',
-      duration: 2000,
-      isClosable: true,
-      position: 'top-right'
-    });
-  };
-
-  // Detailed resume optimization plan for system prompt
-  const resumeOptimizationPlan = `You are an expert resume coach. When optimizing a resume for a specific job description, always follow this repeatable plan:
-
-Step 1: Job Description Analysis
-- Extract all role-specific keywords, hard/soft skills, and candidate traits.
-- Categorize the content into buckets: core competencies, tools/technologies, collaboration, domain focus, cultural traits.
-
-Step 2: Resume Assessment
-- Map the resume content against the categories from Step 1.
-- Identify what is covered, partially represented, or missing.
-- Evaluate for impact, clarity, quantified results, and outcome-oriented phrasing.
-
-Step 3: Strategic Repositioning
-- Rewrite the professional summary to align with the job's themes and tone.
-- Revise each experience bullet: start with action verbs, show ownership, quantify impact, and mirror JD language.
-- Consolidate repetitive points.
-
-Step 4: Fill Gaps and Tailor Further
-- Add missing competencies or traits in the most relevant section.
-- Adjust tone and language to match the JD.
-
-Step 5: Skills Section Optimization
-- Include relevant tools, frameworks, and methodologies from the JD.
-- Group skills thematically and add domain-specific tags if relevant.
-
-Step 6: Final QA and Formatting
-- Ensure ATS compatibility, consistent formatting, and conciseness.
-
-Always inform your suggestions and edits by the specific resume and job description provided.
-
-When responding:
-1. Suggest what to do and how to edit the resume content, referencing the plan above.
-2. End your response with: 'Would you like me to update the view with these changes?'
-Do not make any changes until the user explicitly says yes.`;
-
   // Handle sending messages to the backend
   const handleSendMessage = async (message) => {
     if (!message.trim()) return;
     setIsLoading(true);
-    // Add user message to conversation
+    
     const userMessage = {
       role: 'user',
       content: message,
@@ -302,36 +284,10 @@ Do not make any changes until the user explicitly says yes.`;
     setMessages(prev => [...prev, userMessage]);
     let enhancedMessage = message;
 
-    // Always include the current resume content
-    if (resumeStructured) {
-      // If we have structured data, convert it to markdown
-      const structuredData = resumeStructured;
-      const resumeContent = `RESUME CONTENT:
-${structuredData.metadata.name}
-${structuredData.metadata.email}
-${structuredData.metadata.phone}
-${structuredData.metadata.location}
-
-${structuredData.sections.map(section => {
-  if (section.type === 'list') {
-    return `${section.title}\n${section.items.map(item => {
-      if (item.type === 'experience') {
-        return `${item.title} at ${item.company}\n${item.location}\n${item.dates}\n${item.bullets.map(bullet => `• ${bullet}`).join('\n')}`;
-      } else if (item.type === 'education') {
-        return `${item.degree} at ${item.institution}\n${item.dates}\n${item.content}`;
-      }
-      return item.content;
-    }).join('\n\n')}`;
-  }
-  return `${section.title}\n${section.content}`;
-}).join('\n\n')}`;
-      enhancedMessage = `${message}\n\n${resumeContent}`;
-    } else if (canvasContent) {
-      // If we have markdown content, use it directly
+    if (canvasContent) {
       enhancedMessage = `${message}\n\nRESUME CONTENT:\n${canvasContent}`;
     }
 
-    // Add job description context if available
     if (jobDescriptionSaved && jobDescription.trim()) {
       enhancedMessage += `\n\nJOB DESCRIPTION CONTEXT:\n${jobDescription}`;
     }
@@ -363,59 +319,25 @@ ${structuredData.sections.map(section => {
     }
   };
 
-  // Update file upload handlers to use structured data from Affinda
+  // Update file upload handlers
   const handleFilesUploaded = async (files) => {
     setUploadedFiles(prev => [...prev, ...files]);
     if (files && files.length > 0 && files[0].content) {
-      try {
-        // Try to parse as JSON (Affinda flow)
-        const structured = JSON.parse(files[0].content);
-        setResumeStructured(structured);
-        setCanvasContent(null);
-      } catch (error) {
-        // If not JSON, treat as Markdown (Claude flow)
-        setResumeStructured(null);
-        setCanvasContent(files[0].content);
-      }
+      setCanvasContent(files[0].content);
     }
   };
 
   const handleExistingResumeUpload = (files) => {
-    // First update the files
     setUploadedFiles(prev => [...prev, ...files]);
-    
-    // Then process the content
     if (files && files.length > 0 && files[0].content) {
-      try {
-        const structured = JSON.parse(files[0].content);
-        setResumeStructured(structured);
-        setCanvasContent(null);
-      } catch (error) {
-        // If not JSON, treat as Markdown (Claude flow)
-        setResumeStructured(null);
-        setCanvasContent(files[0].content);
-      }
+      setCanvasContent(files[0].content);
     }
-    
-    // Move to job description screen
     setAppMode('jobDescription');
   };
 
   // Accept a revision for selected text
   function acceptRevision(selectedText, revisedText) {
-    if (resumeStructured) {
-      setResumeStructured(prev => ({
-        ...prev,
-        sections: prev.sections.map(section => ({
-          ...section,
-          content: section.content === selectedText ? revisedText : section.content,
-          items: section.items?.map(item => ({
-            ...item,
-            bullets: item.bullets?.map(bullet => bullet === selectedText ? revisedText : bullet)
-          }))
-        }))
-      }));
-    } else if (canvasContent) {
+    if (canvasContent) {
       const unescapeMarkdown = (text) => text.replace(/\\([#*_[\]()`~>\-!{}<>|.])/g, '$1');
       const original = canvasContent;
       const unescapedOriginal = unescapeMarkdown(original);
@@ -455,17 +377,6 @@ ${structuredData.sections.map(section => {
         position: "top-right"
       });
     }
-  }
-
-  // Reject a pending revision for a section
-  function rejectRevision(sectionKey) {
-    setResumeSections(prev => ({
-      ...prev,
-      [sectionKey]: {
-        ...prev[sectionKey],
-        pendingRevision: null
-      }
-    }));
   }
 
   // Add handler for regenerating prompts
@@ -727,12 +638,8 @@ ${structuredData.sections.map(section => {
                   zIndex={0}
                 >
                   <SpecCanvas
-                    resumeStructured={resumeStructured}
                     resumeMarkdown={canvasContent}
-                    resumeHtml={null}
-                    resumeSections={null}
                     onAcceptRevision={acceptRevision}
-                    onRejectRevision={rejectRevision}
                     jobDescriptionProvided={!!jobDescription.trim()}
                     jobDescription={jobDescription}
                     highlightedText={highlightedText}
@@ -745,15 +652,31 @@ ${structuredData.sections.map(section => {
                   />
                 </Box>
 
+                {/* Keyboard Navigation Instructions (Top Right, above chat pane) */}
+                <Box
+                  display={{ base: 'none', md: 'block' }}
+                  position="fixed"
+                  top="80px"
+                  right="150px"
+                  zIndex={0}
+                  width="auto"
+                  maxW="340px"
+                  bg="transparent"
+                  boxShadow="none"
+                  borderRadius="none"
+                >
+                  <KeyboardInstructions />
+                </Box>
+
                 {/* Chat Pane (Right) */}
                 <Box
                   position={{ md: 'fixed' }}
                   right={{ md: '20px' }}
-                  top={{ md: '80px' }}
+                  top={{ md: '210px' }}
                   w={{ base: '100%', md: isChatExpanded ? '400px' : '60px' }}
                   minW={{ md: isChatExpanded ? '400px' : '60px' }}
                   maxW={{ md: isChatExpanded ? '600px' : '60px' }}
-                  h={{ base: 'auto', md: 'calc(100vh - 80px)' }}
+                  h={{ base: 'auto', md: 'calc(100vh - 210px)' }}
                   bg={chatPaneBgColor}
                   display="flex"
                   flexDirection="column"
