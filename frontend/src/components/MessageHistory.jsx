@@ -5,7 +5,8 @@ import {
   Text,
   Divider,
   Badge,
-  Flex
+  Flex,
+  useColorModeValue
 } from '@chakra-ui/react';
 import ReactMarkdown from 'react-markdown';
 
@@ -13,15 +14,31 @@ import ReactMarkdown from 'react-markdown';
  * Component for displaying message history between user and AI
  */
 const MessageHistory = ({ messages }) => {
+  // Dark theme colors
+  const userBg = useColorModeValue('purple.900', 'purple.900');
+  const userBorder = useColorModeValue('purple.700', 'purple.700');
+  const aiBg = useColorModeValue('gray.800', 'gray.800');
+  const aiBorder = useColorModeValue('gray.700', 'gray.700');
+  const textColor = useColorModeValue('gray.100', 'gray.100');
+  const timestampColor = useColorModeValue('gray.400', 'gray.400');
+  const codeBg = useColorModeValue('gray.900', 'gray.900');
+  const codeBorder = useColorModeValue('gray.700', 'gray.700');
+  const blockquoteBg = useColorModeValue('gray.800', 'gray.800');
+  const blockquoteBorder = useColorModeValue('purple.700', 'purple.700');
+  const tableBorder = useColorModeValue('gray.700', 'gray.700');
+  const tableHeaderBg = useColorModeValue('gray.800', 'gray.800');
+
   if (messages.length === 0) {
     return (
       <Box 
         p={6} 
         textAlign="center" 
-        color="gray.500" 
+        color={textColor}
         border="1px dashed" 
-        borderColor="gray.200" 
+        borderColor={aiBorder}
         borderRadius="md"
+        bg={aiBg}
+        fontFamily="mono"
       >
         <Text>No messages yet</Text>
       </Box>
@@ -34,35 +51,35 @@ const MessageHistory = ({ messages }) => {
         <Box key={index}>
           <Flex align="center" mb={2}>
             <Badge 
-              colorScheme={
-                message.role === 'user' ? 'blue' : 'green'
-              }
+              colorScheme={message.role === 'user' ? 'purple' : 'blue'}
               px={2}
               py={1}
               borderRadius="md"
+              fontFamily="mono"
+              fontSize="xs"
+              letterSpacing="0.5px"
             >
               {message.role === 'user' ? 'You' : 'Tailr'}
             </Badge>
             {message.timestamp && (
-              <Text fontSize="xs" color="gray.500" ml={2}>
+              <Text fontSize="xs" color={timestampColor} ml={2} fontFamily="mono">
                 {new Date(message.timestamp).toLocaleTimeString()}
               </Text>
             )}
           </Flex>
           
           <Box 
-            bg={
-              message.role === 'user' ? 'blue.50' : 'green.50'
-            }
+            bg={message.role === 'user' ? userBg : aiBg}
             p={3}
             borderRadius="md"
             borderLeftWidth="4px"
-            borderLeftColor={
-              message.role === 'user' ? 'blue.200' : 'green.200'
-            }
+            borderLeftColor={message.role === 'user' ? userBorder : aiBorder}
+            fontFamily="mono"
+            fontSize="sm"
+            color={textColor}
+            boxShadow="0 2px 4px rgba(0, 0, 0, 0.1)"
           >
             {typeof message.content === 'string' ? (
-              // Use ReactMarkdown to render markdown content
               <Box className="markdown-content" sx={{
                 '& p': {
                   mb: 2,
@@ -78,36 +95,44 @@ const MessageHistory = ({ messages }) => {
                   mb: 1
                 },
                 '& code': {
-                  bg: 'gray.100',
+                  bg: codeBg,
                   px: 1,
                   py: 0.5,
                   borderRadius: 'sm',
-                  fontFamily: 'monospace',
-                  fontSize: '0.9em'
+                  fontFamily: 'mono',
+                  fontSize: '0.9em',
+                  border: '1px solid',
+                  borderColor: codeBorder
                 },
                 '& pre': {
-                  bg: 'gray.100',
+                  bg: codeBg,
                   p: 2,
                   borderRadius: 'md',
                   overflowX: 'auto',
                   mb: 2,
+                  border: '1px solid',
+                  borderColor: codeBorder,
                   '& code': {
                     bg: 'transparent',
-                    p: 0
+                    p: 0,
+                    border: 'none'
                   }
                 },
                 '& blockquote': {
                   borderLeft: '4px solid',
-                  borderColor: 'gray.300',
+                  borderColor: blockquoteBorder,
                   pl: 4,
                   py: 1,
                   my: 2,
-                  fontStyle: 'italic'
+                  fontStyle: 'italic',
+                  bg: blockquoteBg,
+                  borderRadius: 'md'
                 },
                 '& h1, & h2, & h3, & h4, & h5, & h6': {
                   fontWeight: 'bold',
                   mb: 2,
-                  mt: 4
+                  mt: 4,
+                  color: textColor
                 },
                 '& h1': { fontSize: '1.5em' },
                 '& h2': { fontSize: '1.3em' },
@@ -115,15 +140,17 @@ const MessageHistory = ({ messages }) => {
                 '& table': {
                   borderCollapse: 'collapse',
                   width: '100%',
-                  mb: 2
+                  mb: 2,
+                  border: '1px solid',
+                  borderColor: tableBorder
                 },
                 '& th, & td': {
                   border: '1px solid',
-                  borderColor: 'gray.300',
+                  borderColor: tableBorder,
                   p: 2
                 },
                 '& th': {
-                  bg: 'gray.100'
+                  bg: tableHeaderBg
                 }
               }}>
                 <ReactMarkdown>
@@ -131,18 +158,17 @@ const MessageHistory = ({ messages }) => {
                 </ReactMarkdown>
               </Box>
             ) : (
-              // For structured content (like tool results)
-              <Text whiteSpace="pre-wrap">
+              <Text whiteSpace="pre-wrap" fontFamily="mono">
                 {JSON.stringify(message.content, null, 2)}
               </Text>
             )}
             
             {/* Display tool usage if available */}
             {message.tools && message.tools.length > 0 && (
-              <Box mt={3} p={2} bg="gray.100" borderRadius="sm">
-                <Text fontSize="sm" fontWeight="bold">Tools Used:</Text>
+              <Box mt={3} p={2} bg={codeBg} borderRadius="sm" border="1px solid" borderColor={codeBorder}>
+                <Text fontSize="sm" fontWeight="bold" color={textColor}>Tools Used:</Text>
                 {message.tools.map((tool, toolIndex) => (
-                  <Text key={toolIndex} fontSize="xs" as="pre" fontFamily="monospace">
+                  <Text key={toolIndex} fontSize="xs" as="pre" fontFamily="mono" color={textColor}>
                     {tool.name}
                   </Text>
                 ))}
@@ -150,7 +176,7 @@ const MessageHistory = ({ messages }) => {
             )}
           </Box>
           
-          {index < messages.length - 1 && <Divider my={4} />}
+          {index < messages.length - 1 && <Divider my={4} borderColor={aiBorder} />}
         </Box>
       ))}
     </VStack>

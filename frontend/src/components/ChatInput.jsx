@@ -3,7 +3,8 @@ import {
   Input,
   Button,
   HStack,
-  useColorModeValue
+  useColorModeValue,
+  Box
 } from '@chakra-ui/react';
 
 /**
@@ -11,7 +12,15 @@ import {
  */
 const ChatInput = ({ onSendMessage, isLoading, bg, color }) => {
   const [message, setMessage] = useState('');
-  const borderColor = useColorModeValue('gray.600', 'gray.600');
+  
+  // Dark theme colors
+  const inputBg = useColorModeValue('gray.800', 'gray.800');
+  const inputBorder = useColorModeValue('gray.700', 'gray.700');
+  const inputText = useColorModeValue('gray.100', 'gray.100');
+  const placeholderColor = useColorModeValue('gray.500', 'gray.500');
+  const buttonBg = useColorModeValue('purple.600', 'purple.600');
+  const buttonHoverBg = useColorModeValue('purple.500', 'purple.500');
+  const buttonActiveBg = useColorModeValue('purple.700', 'purple.700');
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -22,31 +31,79 @@ const ChatInput = ({ onSendMessage, isLoading, bg, color }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <HStack>
+    <Box
+      as="form"
+      onSubmit={handleSubmit}
+      p={4}
+      bg="gray.900"
+      borderRadius="lg"
+      border="2px solid"
+      borderColor="purple.500"
+      boxShadow="0 0 15px rgba(143, 63, 255, 0.15)"
+      _hover={{
+        boxShadow: '0 0 20px rgba(143, 63, 255, 0.2)',
+        borderColor: 'purple.400'
+      }}
+      transition="all 0.2s ease-in-out"
+    >
+      <HStack spacing={3}>
         <Input
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           placeholder="Type your message..."
           size="md"
-          bg={bg}
-          color={color}
-          borderColor={borderColor}
-          _placeholder={{ color: 'gray.400' }}
-          _hover={{ borderColor: 'gray.500' }}
-          _focus={{ borderColor: 'blue.400', boxShadow: '0 0 0 1px #3182ce' }}
+          bg={inputBg}
+          color={inputText}
+          borderColor={inputBorder}
+          borderWidth="1px"
+          borderRadius="md"
+          fontFamily="mono"
+          fontSize="sm"
+          _placeholder={{ 
+            color: placeholderColor,
+            fontFamily: 'mono'
+          }}
+          _hover={{ 
+            borderColor: 'purple.500',
+            boxShadow: '0 0 0 1px rgba(143, 63, 255, 0.2)'
+          }}
+          _focus={{ 
+            borderColor: 'purple.400', 
+            boxShadow: '0 0 0 1px rgba(143, 63, 255, 0.3)',
+            outline: 'none'
+          }}
+          _focusVisible={{
+            outline: 'none',
+            borderColor: 'purple.400',
+            boxShadow: '0 0 0 1px rgba(143, 63, 255, 0.3)'
+          }}
         />
         <Button
           type="submit"
-          colorScheme="blue"
           size="md"
+          bg={buttonBg}
+          color="white"
+          _hover={{ 
+            bg: buttonHoverBg,
+            transform: 'translateY(-1px)',
+            boxShadow: '0 4px 12px rgba(143, 63, 255, 0.2)'
+          }}
+          _active={{ 
+            bg: buttonActiveBg,
+            transform: 'translateY(0)'
+          }}
           isLoading={isLoading}
           loadingText="Sending..."
+          fontFamily="mono"
+          fontSize="sm"
+          fontWeight="medium"
+          letterSpacing="0.5px"
+          transition="all 0.2s ease-in-out"
         >
           Send
         </Button>
       </HStack>
-    </form>
+    </Box>
   );
 };
 

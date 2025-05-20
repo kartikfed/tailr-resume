@@ -77,14 +77,128 @@ const SpecCanvas = ({
       contentPreview: content.substring(0, 100) + '...'
     });
     
-    // Render the content normally
     return (
       <Box 
         whiteSpace="pre-wrap" 
         userSelect="text"
         position="relative"
       >
-        <ReactMarkdown rehypePlugins={[rehypeRaw]}>
+        <ReactMarkdown
+          rehypePlugins={[rehypeRaw]}
+          components={{
+            h1: ({ node, children, ...props }) => (
+              <Heading 
+                as="h1" 
+                size="xl" 
+                mb={4} 
+                color={headingColor} 
+                fontFamily="mono"
+                fontWeight="600"
+                {...props}
+              >
+                {children}
+              </Heading>
+            ),
+            h2: ({ node, children, ...props }) => (
+              <Heading 
+                as="h2" 
+                size="lg" 
+                mb={3} 
+                color={headingColor}
+                fontFamily="mono"
+                fontWeight="600"
+                {...props}
+              >
+                {children}
+              </Heading>
+            ),
+            h3: ({ node, children, ...props }) => (
+              <Heading 
+                as="h3" 
+                size="md" 
+                mb={2} 
+                color={headingColor}
+                fontFamily="mono"
+                fontWeight="600"
+                {...props}
+              >
+                {children}
+              </Heading>
+            ),
+            p: ({ node, children, ...props }) => (
+              <Text 
+                color={textColor}
+                fontFamily="mono"
+                mb={4}
+                {...props}
+              >
+                {children}
+              </Text>
+            ),
+            li: ({ node, children, ...props }) => {
+              const textContent = React.Children.toArray(children)
+                .filter(child => typeof child === 'string')
+                .join('')
+                .trim();
+              
+              const bulletIndex = bulletPointsRef.current.findIndex(
+                bullet => bullet.text === textContent
+              );
+              
+              const isRecentlyRevised = lastRevisedText === textContent;
+              const isFirstBullet = bulletIndex === 0;
+              const showPulse = isFirstBullet && !hasUserNavigated;
+              
+              return (
+                <Box
+                  as="li"
+                  id={`bullet-${bulletIndex}`}
+                  bg={
+                    isRecentlyRevised 
+                      ? recentlyRevisedBg
+                      : bulletIndex === currentBulletIndex 
+                        ? selectedBulletBg
+                        : 'transparent'
+                  }
+                  p={isRecentlyRevised || bulletIndex === currentBulletIndex ? 2 : 0}
+                  borderRadius="md"
+                  transition="all 0.2s"
+                  position="relative"
+                  style={showPulse ? { animation: 'pulse 1.2s infinite' } : {}}
+                  border={bulletIndex === currentBulletIndex ? '1px solid' : 'none'}
+                  borderColor={selectedBulletBorder}
+                  color={isRecentlyRevised ? recentlyRevisedTextColor : bulletColor}
+                  _before={{
+                    content: '"•"',
+                    color: bulletColor,
+                    fontWeight: 'bold',
+                    display: 'inline-block',
+                    width: '1em',
+                    marginLeft: '-1em'
+                  }}
+                  {...props}
+                >
+                  {children}
+                  {bulletIndex === currentBulletIndex && (
+                    <Box
+                      position="absolute"
+                      top="-20px"
+                      right="0"
+                      transform="scale(0.8)"
+                      transformOrigin="top right"
+                      style={showPulse ? { animation: 'pulse 1.2s infinite' } : {}}
+                    >
+                      <svg width="40" height="40" viewBox="0 0 40 40">
+                        <rect x="2" y="2" width="36" height="36" rx="8" fill="#2d2950" stroke="#8f3fff" strokeWidth="2" />
+                        <text x="50%" y="60%" textAnchor="middle" fill="#e0e6ff" fontSize="1.5rem" fontWeight="bold" fontFamily="inherit">R</text>
+                      </svg>
+                    </Box>
+                  )}
+                </Box>
+              );
+            }
+          }}
+        >
           {content}
         </ReactMarkdown>
       </Box>
@@ -118,6 +232,46 @@ const SpecCanvas = ({
       })
       .filter(Boolean);
   };
+
+  const [currentBulletIndex, setCurrentBulletIndex] = useState(-1);
+  const [showRevisionPopover, setShowRevisionPopover] = useState(false);
+  const [reviseButtonPosition, setReviseButtonPosition] = useState({ top: 0, left: 0 });
+  const [selectedText, setSelectedText] = useState('');
+
+  // Add useEffect to update popover position when current bullet changes
+  React.useEffect(() => {
+    if (currentBulletIndex !== -1) {
+      const element = document.getElementById(`bullet-${currentBulletIndex}`);
+      if (element) {
+        const rect = element.getBoundingClientRect();
+        const newPosition = {
+          top: rect.top + window.scrollY,
+          left: rect.right + window.scrollX + 8
+        };
+        setReviseButtonPosition(newPosition);
+        setShowRevisionPopover(true);
+      }
+    }
+  }, [currentBulletIndex]);
+
+  // Add scroll event listener to update popover position
+  React.useEffect(() => {
+    if (currentBulletIndex === -1) return;
+
+    const handleScroll = () => {
+      const element = document.getElementById(`bullet-${currentBulletIndex}`);
+      if (element) {
+        const rect = element.getBoundingClientRect();
+        setReviseButtonPosition({
+          top: rect.top + window.scrollY,
+          left: rect.right + window.scrollX + 8
+        });
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [currentBulletIndex]);
 
   // Function to highlight a bullet point
   const highlightBulletPoint = (index) => {
@@ -168,24 +322,20 @@ const SpecCanvas = ({
           });
         }
         
-        // Update popover position if it's open
-        if (showRevisionPopover) {
-          setReviseButtonPosition({
-            top: rect.top + window.scrollY,
-            left: rect.right + window.scrollX + 8
-          });
-        }
-      }, 0); // Use setTimeout to ensure the highlight styles are applied
+        // Update popover position
+        setReviseButtonPosition({
+          top: rect.top + window.scrollY,
+          left: rect.right + window.scrollX + 8
+        });
+        setShowRevisionPopover(true);
+      }, 0);
     }
   };
 
   const [showReviseButton, setShowReviseButton] = useState(false);
-  const [reviseButtonPosition, setReviseButtonPosition] = useState({ top: 0, left: 0 });
-  const [selectedText, setSelectedText] = useState('');
   const canvasRef = useRef(null);
   const floatingRef = useRef(null);
   const ignoreNextClickAway = useRef(false);
-  const [showRevisionPopover, setShowRevisionPopover] = useState(false);
   const [isRevisionPopoverExpanded, setIsRevisionPopoverExpanded] = useState(true);
   const [userInstructions, setUserInstructions] = useState('');
   const [revisedText, setRevisedText] = useState('');
@@ -202,9 +352,8 @@ const SpecCanvas = ({
   const [highlightPosition, setHighlightPosition] = useState(null);
   const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: true });
   const [isQuickRevisionsOpen, setIsQuickRevisionsOpen] = useState(false);
-  const [currentBulletIndex, setCurrentBulletIndex] = useState(-1);
   const bulletPointsRef = useRef([]);
-  const [recentlyRevisedText, setRecentlyRevisedText] = useState(null);
+  const [lastRevisedText, setLastRevisedText] = useState(null);
   const [hasUserNavigated, setHasUserNavigated] = useState(false);
 
   // Add useEffect to monitor prop changes
@@ -230,43 +379,42 @@ const SpecCanvas = ({
   React.useEffect(() => {
     if (!hasUserNavigated && bulletPointsRef.current.length > 0) {
       setCurrentBulletIndex(0);
+      setShowRevisionPopover(true); // Show popover when first bullet is highlighted
     }
   }, [resumeMarkdown, hasUserNavigated]);
 
   // Handle keyboard events
-  const handleKeyDown = (event) => {
-    if (!hasUserNavigated && bulletPointsRef.current.length > 0) {
-      setHasUserNavigated(true);
+  const handleKeyDown = (e) => {
+    // Ignore keyboard shortcuts if user is typing in an input field
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+      return;
     }
-    // Handle space bar for bullet point navigation
-    if (event.code === 'Space' && !event.repeat) {
-      event.preventDefault();
-      
-      // Only handle space if we're not in an input or textarea
-      if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
-        return;
-      }
 
-      if (currentBulletIndex === -1) {
-        // If no bullet is selected, select the first one
-        highlightBulletPoint(0);
+    // Handle space key for bullet selection
+    if (e.key === ' ' && !e.repeat) {
+      e.preventDefault();
+      if (currentBulletIndex === null) {
+        // Select first bullet if none selected
+        setCurrentBulletIndex(0);
       } else {
-        // Move to the next bullet point
-        const nextIndex = (currentBulletIndex + 1) % bulletPointsRef.current.length;
-        highlightBulletPoint(nextIndex);
+        // Move to next bullet
+        const nextIndex = currentBulletIndex + 1;
+        if (nextIndex < bulletPointsRef.current.length) {
+          setCurrentBulletIndex(nextIndex);
+        }
       }
     }
-    
     // Handle R key for expanding/collapsing revision dialog
-    if (event.code === 'KeyR' && !event.repeat) {
+    if (e.code === 'KeyR' && !e.repeat) {
       // Only handle R if we're not in an input or textarea
-      if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
         return;
       }
 
-      // If a bullet point is selected and revision popover is shown
-      if (currentBulletIndex !== -1 && showRevisionPopover) {
-        event.preventDefault(); // Prevent default behavior
+      // If a bullet point is selected
+      if (currentBulletIndex !== -1) {
+        e.preventDefault(); // Prevent default behavior
+        setShowRevisionPopover(true);
         setIsRevisionPopoverExpanded(prev => !prev); // Use functional update to ensure we get the latest state
       }
     }
@@ -440,7 +588,7 @@ const SpecCanvas = ({
     setShowReviseButton(false);
 
     // Set the recently revised text to trigger highlight
-    setRecentlyRevisedText(revisedTextMarkdown);
+    setLastRevisedText(revisedTextMarkdown);
     
     // Clear any existing timeout
     if (highlightTimeout) {
@@ -449,7 +597,7 @@ const SpecCanvas = ({
     
     // Set timeout to clear highlight after 1 second
     const timeout = setTimeout(() => {
-      setRecentlyRevisedText(null);
+      setLastRevisedText(null);
       setCurrentBulletIndex(-1); // Reset the current bullet index to remove purple highlight
     }, 1000);
     setHighlightTimeout(timeout);
@@ -664,10 +812,17 @@ const SpecCanvas = ({
   };
 
   // Add color mode values at the top of the component
-  const textColor = useColorModeValue('black', 'black');
-  const bgColor = useColorModeValue('white', 'white');
-  const borderColor = useColorModeValue('gray.200', 'gray.200');
-  const inputBgColor = useColorModeValue('gray.50', 'gray.50');
+  const textColor = useColorModeValue('gray.100', 'gray.100');
+  const bgColor = useColorModeValue('gray.900', 'gray.900');
+  const borderColor = useColorModeValue('gray.700', 'gray.700');
+  const inputBgColor = useColorModeValue('gray.800', 'gray.800');
+  const headingColor = useColorModeValue('purple.300', 'purple.300');
+  const bulletColor = useColorModeValue('blue.300', 'blue.300');
+  const highlightColor = useColorModeValue('purple.900', 'purple.900');
+  const selectedBulletBg = useColorModeValue('purple.900', 'purple.900');
+  const selectedBulletBorder = useColorModeValue('purple.500', 'purple.500');
+  const recentlyRevisedBg = useColorModeValue('green.900', 'green.900');
+  const recentlyRevisedTextColor = useColorModeValue('green.100', 'green.100');
 
   // Add the keyframes to the document head once
   React.useEffect(() => {
@@ -699,7 +854,7 @@ const SpecCanvas = ({
   }
 
   // Render the Revise button as a portal
-  const reviseButtonPortal = showReviseButton && !showRevisionPopover ? ReactDOM.createPortal(
+  const reviseButtonPortal = showReviseButton ? ReactDOM.createPortal(
     <Box
       ref={floatingRef}
       position="absolute"
@@ -728,14 +883,14 @@ const SpecCanvas = ({
   const revisionPopoverPortal = showRevisionPopover ? ReactDOM.createPortal(
     <Box
       position="absolute"
-      top={reviseButtonPosition.top}
-      left={reviseButtonPosition.left}
+      top={`${reviseButtonPosition.top}px`}
+      left={`${reviseButtonPosition.left}px`}
       bg={isRevisionPopoverExpanded ? "gray.800" : "gray.900"}
       boxShadow="lg"
       borderRadius="xl"
       p={isRevisionPopoverExpanded ? 4 : 2}
       w={isRevisionPopoverExpanded ? "480px" : "120px"}
-      zIndex={1001}
+      zIndex={9999}
       pointerEvents="auto"
       color="gray.100"
       border="1px solid"
@@ -747,6 +902,10 @@ const SpecCanvas = ({
         borderColor: "purple.400",
         boxShadow: "0 0 0 1px var(--chakra-colors-purple-400)",
       } : {}}
+      style={{
+        transform: 'translateY(-50%)',
+        marginTop: '20px'
+      }}
     >
       <VStack align="stretch" spacing={isRevisionPopoverExpanded ? 3 : 0} transition="all 0.3s cubic-bezier(0.4, 0, 0.2, 1)">
         <Collapse in={isRevisionPopoverExpanded} animateOpacity style={{ transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
@@ -1078,16 +1237,28 @@ const SpecCanvas = ({
         p={6}
         bg={bgColor}
         borderRadius="xl"
-        boxShadow="sm"
+        boxShadow="lg"
         position="relative"
-        style={{ overflow: 'visible', zIndex: 9999 }}
+        style={{ 
+          overflow: 'visible', 
+          zIndex: 9999,
+          border: '2px solid',
+          borderColor: 'purple.500',
+          boxShadow: '0 0 15px rgba(143, 63, 255, 0.15)'
+        }}
         color={textColor}
-        border="1px solid"
-        borderColor={borderColor}
+        fontFamily="mono"
+        fontSize="sm"
+        lineHeight="tall"
+        _hover={{
+          boxShadow: '0 0 20px rgba(143, 63, 255, 0.2)',
+          borderColor: 'purple.400'
+        }}
+        transition="all 0.2s ease-in-out"
       >
         {/* Floating Revise Button (via portal) */}
         {reviseButtonPortal}
-        {/* Revision Popover (via portal, fixed position for debug) */}
+        {/* Revision Popover (via portal) */}
         {revisionPopoverPortal}
         {/* Loading indicator for explanation */}
         {isAddingExplanation && (
@@ -1103,24 +1274,10 @@ const SpecCanvas = ({
             color={textColor}
             maxH="calc(100vh - 40px)"
             overflowY="auto"
-            sx={{
-              '&::-webkit-scrollbar': {
-                width: '8px',
-                backgroundColor: 'transparent',
-              },
-              '&::-webkit-scrollbar-thumb': {
-                backgroundColor: 'gray.600',
-                borderRadius: '4px',
-                '&:hover': {
-                  backgroundColor: 'gray.500',
-                },
-              },
-              '&::-webkit-scrollbar-track': {
-                backgroundColor: 'transparent',
-              },
-            }}
+            border="1px solid"
+            borderColor={borderColor}
           >
-            <Text fontSize="sm" color="gray.600">Adding explanation to chat...</Text>
+            <Text fontSize="sm" color="gray.400">Adding explanation to chat...</Text>
           </Box>
         )}
         <VStack align="stretch" spacing={6}>
@@ -1131,83 +1288,7 @@ const SpecCanvas = ({
               userSelect="text"
               position="relative"
             >
-              <ReactMarkdown
-                rehypePlugins={[rehypeRaw]}
-                components={{
-                  h1: ({ node, children, ...props }) => (
-                    <Heading as="h1" size="xl" mb={4} color={textColor} {...props}>
-                      {children}
-                    </Heading>
-                  ),
-                  h2: ({ node, children, ...props }) => (
-                    <Heading as="h2" size="lg" mb={3} color={textColor} {...props}>
-                      {children}
-                    </Heading>
-                  ),
-                  h3: ({ node, children, ...props }) => (
-                    <Heading as="h3" size="md" mb={2} color={textColor} {...props}>
-                      {children}
-                    </Heading>
-                  ),
-                  li: ({ node, children, ...props }) => {
-                    // Get the text content of the list item
-                    const textContent = React.Children.toArray(children)
-                      .filter(child => typeof child === 'string')
-                      .join('')
-                      .trim();
-                    
-                    // Find the matching bullet point
-                    const bulletIndex = bulletPointsRef.current.findIndex(
-                      bullet => bullet.text === textContent
-                    );
-                    
-                    // Check if this is the recently revised text
-                    const isRecentlyRevised = recentlyRevisedText === textContent;
-                    
-                    // Add pulse animation for the first bullet if not navigated
-                    const isFirstBullet = bulletIndex === 0;
-                    const showPulse = isFirstBullet && !hasUserNavigated;
-                    return (
-                      <Box
-                        as="li"
-                        id={`bullet-${bulletIndex}`}
-                        bg={
-                          isRecentlyRevised 
-                            ? 'green.100' 
-                            : bulletIndex === currentBulletIndex 
-                              ? 'purple.100' 
-                              : 'transparent'
-                        }
-                        p={isRecentlyRevised || bulletIndex === currentBulletIndex ? 2 : 0}
-                        borderRadius="md"
-                        transition="all 0.2s"
-                        position="relative"
-                        style={showPulse ? { animation: 'pulse 1.2s infinite' } : {}}
-                        {...props}
-                      >
-                        {children}
-                        {bulletIndex === currentBulletIndex && (
-                          <Box
-                            position="absolute"
-                            top="-20px"
-                            right="0"
-                            transform="scale(0.8)"
-                            transformOrigin="top right"
-                            style={showPulse ? { animation: 'pulse 1.2s infinite' } : {}}
-                          >
-                            <svg width="40" height="40" viewBox="0 0 40 40">
-                              <rect x="2" y="2" width="36" height="36" rx="8" fill="#2d2950" stroke="#8f3fff" strokeWidth="2" />
-                              <text x="50%" y="60%" textAnchor="middle" fill="#e0e6ff" fontSize="1.5rem" fontWeight="bold" fontFamily="inherit">R</text>
-                            </svg>
-                          </Box>
-                        )}
-                      </Box>
-                    );
-                  }
-                }}
-              >
-                {resumeMarkdown}
-              </ReactMarkdown>
+              {renderContent(resumeMarkdown)}
             </Box>
           )}
         </VStack>

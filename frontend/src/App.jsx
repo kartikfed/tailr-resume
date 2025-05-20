@@ -692,7 +692,15 @@ function App() {
                   <Collapse in={isChatExpanded} animateOpacity>
                     <Box p={3} borderBottom="1px solid" borderColor={borderColor}>
                       <Flex align="center" justify="space-between">
-                        <Heading size="sm" color={textColor}>Ask me anything</Heading>
+                        <Heading 
+                          size="sm" 
+                          color={textColor}
+                          fontFamily="mono"
+                          letterSpacing="0.5px"
+                          fontWeight="medium"
+                        >
+                          Chat with Tailr
+                        </Heading>
                         <IconButton
                           icon={<ChatIcon boxSize="22px" />}
                           onClick={() => setIsChatExpanded(!isChatExpanded)}
@@ -737,37 +745,38 @@ function App() {
 
                   {/* Chat Content */}
                   <Collapse in={isChatExpanded} animateOpacity>
-                    <Box 
-                      flex="1" 
-                      overflowY="auto" 
-                      p={3}
-                      maxH="calc(100vh - 200px)"
-                      sx={{
-                        '&::-webkit-scrollbar': {
-                          width: '8px',
-                          backgroundColor: 'transparent',
-                        },
-                        '&::-webkit-scrollbar-thumb': {
-                          backgroundColor: 'gray.600',
-                          borderRadius: '4px',
-                          '&:hover': {
-                            backgroundColor: 'gray.500',
+                    <Box display="flex" flexDirection="column" height="100%" minH="300px" maxH="calc(100vh - 200px)">
+                      <Box 
+                        flex="1" 
+                        overflowY="auto" 
+                        p={3}
+                        sx={{
+                          '&::-webkit-scrollbar': {
+                            width: '8px',
+                            backgroundColor: 'transparent',
                           },
-                        },
-                        '&::-webkit-scrollbar-track': {
-                          backgroundColor: 'transparent',
-                        },
-                      }}
-                    >
-                      <MessageHistory messages={messages} />
-                    </Box>
-                    <Box p={3} borderTop="1px solid" borderColor={borderColor}>
-                      <ChatInput
-                        onSendMessage={handleSendMessage}
-                        isLoading={isLoading}
-                        bg={chatInputBgColor}
-                        color={textColor}
-                      />
+                          '&::-webkit-scrollbar-thumb': {
+                            backgroundColor: 'gray.600',
+                            borderRadius: '4px',
+                            '&:hover': {
+                              backgroundColor: 'gray.500',
+                            },
+                          },
+                          '&::-webkit-scrollbar-track': {
+                            backgroundColor: 'transparent',
+                          },
+                        }}
+                      >
+                        <MessageHistory messages={messages} />
+                      </Box>
+                      <Box p={3} borderTop="1px solid" borderColor={borderColor}>
+                        <ChatInput
+                          onSendMessage={handleSendMessage}
+                          isLoading={isLoading}
+                          bg={chatInputBgColor}
+                          color={textColor}
+                        />
+                      </Box>
                     </Box>
                   </Collapse>
                 </Box>
