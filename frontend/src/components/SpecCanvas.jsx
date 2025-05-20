@@ -699,7 +699,7 @@ const SpecCanvas = ({
   }
 
   // Render the Revise button as a portal
-  const reviseButtonPortal = showReviseButton ? ReactDOM.createPortal(
+  const reviseButtonPortal = showReviseButton && !showRevisionPopover ? ReactDOM.createPortal(
     <Box
       ref={floatingRef}
       position="absolute"
