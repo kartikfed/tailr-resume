@@ -15,8 +15,8 @@ import ReactMarkdown from 'react-markdown';
  */
 const MessageHistory = ({ messages }) => {
   // Dark theme colors
-  const userBg = useColorModeValue('purple.900', 'purple.900');
-  const userBorder = useColorModeValue('purple.700', 'purple.700');
+  const userBg = useColorModeValue('purple.900', 'blue.800');
+  const userBorder = useColorModeValue('purple.700', 'blue.400');
   const aiBg = useColorModeValue('gray.800', 'gray.800');
   const aiBorder = useColorModeValue('gray.700', 'gray.700');
   const textColor = useColorModeValue('gray.100', 'gray.100');
@@ -72,12 +72,12 @@ const MessageHistory = ({ messages }) => {
             bg={message.role === 'user' ? userBg : aiBg}
             p={3}
             borderRadius="md"
-            borderLeftWidth="4px"
-            borderLeftColor={message.role === 'user' ? userBorder : aiBorder}
+            border={message.role === 'user' ? '2px solid' : '1px solid'}
+            borderColor={message.role === 'user' ? userBorder : aiBorder}
+            boxShadow={message.role === 'user' ? '0 2px 8px rgba(0, 80, 200, 0.15)' : '0 2px 4px rgba(0, 0, 0, 0.1)'}
             fontFamily="mono"
             fontSize="sm"
             color={textColor}
-            boxShadow="0 2px 4px rgba(0, 0, 0, 0.1)"
           >
             {typeof message.content === 'string' ? (
               <Box className="markdown-content" sx={{
