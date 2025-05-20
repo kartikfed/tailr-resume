@@ -419,8 +419,22 @@ function App() {
                 }}
               />
               <VStack align="start" spacing={2}>
-                <Heading as="h1" size="3xl" fontWeight="bold" color="white">Tailr</Heading>
-                <Text fontSize="lg" color="gray.400">
+                <Heading 
+                  as="h1" 
+                  size="3xl" 
+                  fontWeight="bold" 
+                  color="purple.300"
+                  fontFamily="mono"
+                  letterSpacing="0.5px"
+                >
+                  Tailr
+                </Heading>
+                <Text 
+                  fontSize="lg" 
+                  color="gray.400"
+                  fontFamily="mono"
+                  letterSpacing="0.3px"
+                >
                   Tailor any resume for any job application
                 </Text>
               </VStack>
@@ -602,8 +616,22 @@ function App() {
                   />
                 </Box>
                 <VStack align="start" spacing={0.5} ref={textBlockRef}>
-                  <Heading as="h1" size="2xl" fontWeight="bold" color="white">Tailr</Heading>
-                  <Text fontSize="md" color="gray.400">
+                  <Heading 
+                    as="h1" 
+                    size="2xl" 
+                    fontWeight="bold" 
+                    color="purple.300"
+                    fontFamily="mono"
+                    letterSpacing="0.5px"
+                  >
+                    Tailr
+                  </Heading>
+                  <Text 
+                    fontSize="md" 
+                    color="gray.400"
+                    fontFamily="mono"
+                    letterSpacing="0.3px"
+                  >
                     Tailor any resume for any job application
                   </Text>
                 </VStack>

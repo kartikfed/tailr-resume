@@ -393,15 +393,12 @@ const SpecCanvas = ({
     // Handle space key for bullet selection
     if (e.key === ' ' && !e.repeat) {
       e.preventDefault();
-      if (currentBulletIndex === null) {
+      if (currentBulletIndex === null || currentBulletIndex === -1) {
         // Select first bullet if none selected
         setCurrentBulletIndex(0);
       } else {
-        // Move to next bullet
-        const nextIndex = currentBulletIndex + 1;
-        if (nextIndex < bulletPointsRef.current.length) {
-          setCurrentBulletIndex(nextIndex);
-        }
+        // Move to next bullet, wrap around if at the end
+        setCurrentBulletIndex((currentBulletIndex + 1) % bulletPointsRef.current.length);
       }
     }
     // Handle R key for expanding/collapsing revision dialog
@@ -1171,10 +1168,10 @@ const SpecCanvas = ({
     return (
       <Box 
         mb={4} 
-        bg="white"
+        bg="gray.800"
         borderRadius="xl"
         border="1px solid"
-        borderColor="purple.100"
+        borderColor="purple.500"
         overflow="hidden"
         boxShadow="sm"
         transition="all 0.2s ease-in-out"
@@ -1186,24 +1183,24 @@ const SpecCanvas = ({
           align="center"
           cursor="pointer"
           onClick={onToggle}
-          bg="purple.50"
-          _hover={{ bg: 'purple.100' }}
+          bg="gray.900"
+          _hover={{ bg: 'gray.800' }}
           transition="all 0.2s ease-in-out"
         >
-          <Heading size="sm" color="purple.700" fontWeight="600">Emphasis Areas</Heading>
+          <Heading size="sm" color="purple.300" fontWeight="600" fontFamily="mono">Emphasis Areas</Heading>
           <IconButton
             icon={isOpen ? <ChevronUpIcon /> : <ChevronDownIcon />}
             variant="ghost"
             colorScheme="purple"
             aria-label={isOpen ? "Collapse" : "Expand"}
             size="sm"
-            _hover={{ bg: 'purple.200' }}
+            _hover={{ bg: 'gray.800' }}
             transition="all 0.2s ease-in-out"
           />
         </Flex>
         <Collapse in={isOpen}>
           <Box p={4} pt={3}>
-            <Text mb={4} color="purple.800" fontSize="sm" lineHeight="tall">
+            <Text mb={4} color="gray.300" fontSize="sm" lineHeight="tall" fontFamily="mono">
               {resumeEmphasis.summary}
             </Text>
             <List spacing={3}>
@@ -1212,14 +1209,14 @@ const SpecCanvas = ({
                   key={index} 
                   display="flex" 
                   alignItems="flex-start"
-                  bg="purple.50"
+                  bg="gray.800"
                   p={2}
                   borderRadius="md"
                   transition="all 0.2s ease-in-out"
-                  _hover={{ bg: 'purple.100' }}
+                  _hover={{ bg: 'gray.700' }}
                 >
-                  <ListIcon as={CheckCircleIcon} color="purple.500" mt={1} />
-                  <Text color="purple.800" fontSize="sm">{point}</Text>
+                  <ListIcon as={CheckCircleIcon} color="purple.400" mt={1} />
+                  <Text color="gray.300" fontSize="sm" fontFamily="mono">{point}</Text>
                 </ListItem>
               ))}
             </List>
