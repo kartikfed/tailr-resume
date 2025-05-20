@@ -18,7 +18,7 @@ import {
   Progress
 } from '@chakra-ui/react';
 import { sendMessage, uploadFiles, getConversation } from './services/apiService';
-import { CheckCircleIcon, ChevronLeftIcon, ChevronRightIcon } from '@chakra-ui/icons';
+import { CheckCircleIcon, ChevronLeftIcon, ChevronRightIcon, ChatIcon } from '@chakra-ui/icons';
 
 import ChatInput from './components/ChatInput';
 import FileUpload from './components/FileUpload';
@@ -657,8 +657,8 @@ function App() {
                   display={{ base: 'none', md: 'block' }}
                   position="fixed"
                   top="80px"
-                  right="150px"
-                  zIndex={0}
+                  right="20px"
+                  zIndex={1}
                   width="auto"
                   maxW="340px"
                   bg="transparent"
@@ -672,11 +672,11 @@ function App() {
                 <Box
                   position={{ md: 'fixed' }}
                   right={{ md: '20px' }}
-                  top={{ md: '210px' }}
+                  top={{ md: '180px' }}
                   w={{ base: '100%', md: isChatExpanded ? '400px' : '60px' }}
                   minW={{ md: isChatExpanded ? '400px' : '60px' }}
                   maxW={{ md: isChatExpanded ? '600px' : '60px' }}
-                  h={{ base: 'auto', md: 'calc(100vh - 210px)' }}
+                  h={{ base: 'auto', md: 'calc(100vh - 180px)' }}
                   bg={chatPaneBgColor}
                   display="flex"
                   flexDirection="column"
@@ -694,7 +694,7 @@ function App() {
                       <Flex align="center" justify="space-between">
                         <Heading size="sm" color={textColor}>Ask me anything</Heading>
                         <IconButton
-                          icon={isChatExpanded ? <ChevronRightIcon /> : <ChevronLeftIcon />}
+                          icon={<ChatIcon boxSize="22px" />}
                           onClick={() => setIsChatExpanded(!isChatExpanded)}
                           bg="transparent"
                           color="white"
@@ -718,7 +718,7 @@ function App() {
                       justifyContent="center"
                     >
                       <IconButton
-                        icon={<ChevronLeftIcon boxSize="24px" />}
+                        icon={<ChatIcon boxSize="24px" />}
                         onClick={() => setIsChatExpanded(!isChatExpanded)}
                         bg="transparent"
                         color="white"
