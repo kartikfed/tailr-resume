@@ -22,6 +22,7 @@
     "concurrently": "^8.2.0"
   },
   "dependencies": {
+    "cors": "^2.8.5",
     "pdf-parse": "^1.1.1",
     "pdf2md": "^1.0.2",
     "react-markdown": "^10.1.0",

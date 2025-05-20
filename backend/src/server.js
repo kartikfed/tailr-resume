@@ -23,10 +23,8 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors({
   origin: [
-    'https://ai-spec-assistant-frontend.onrender.com',
     'https://tailr.onrender.com',
     'https://tailr-frontend.onrender.com',
-    'https://ai-spec-assistant.onrender.com',
     'http://localhost:5173',  // Local development
     'http://localhost:3000',  // Local development
     'http://127.0.0.1:5173',  // Local development alternative
