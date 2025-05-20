@@ -38,10 +38,7 @@ const pulseKeyframes = `
  * Component for rendering resume content with text selection and revision support
  */
 const SpecCanvas = ({
-  resumeStructured = null,
   resumeMarkdown = null,
-  resumeHtml = null,
-  resumeSections = null,
   onAcceptRevision,
   onRejectRevision,
   jobDescriptionProvided = false,
@@ -56,7 +53,6 @@ const SpecCanvas = ({
 }) => {
   // Debug logging
   console.log('SpecCanvas received props:', {
-    resumeStructured,
     resumeMarkdown,
     jobDescriptionProvided,
     jobDescriptionLength: jobDescription?.length || 0,
@@ -66,11 +62,10 @@ const SpecCanvas = ({
   // Check if any content is available
   const hasContent = () => {
     console.log('Checking content:', {
-      hasStructured: !!resumeStructured,
       hasMarkdown: !!resumeMarkdown
     });
     
-    return !!resumeStructured || !!resumeMarkdown;
+    return !!resumeMarkdown;
   };
 
   // Helper function to render content with proper line breaks and allow fine-grained selection
@@ -131,20 +126,56 @@ const SpecCanvas = ({
       const bullet = bulletPointsRef.current[index];
       setSelectedText(bullet.text);
       
-      // Find the element and scroll it into view
-      const elements = document.querySelectorAll('li');
-      if (elements[index]) {
-        elements[index].scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Use setTimeout to ensure the highlight styles are applied before scrolling
+      setTimeout(() => {
+        // Find the actual highlighted element (Box component with id)
+        const element = document.getElementById(`bullet-${index}`);
+        if (!element) return;
+
+        // Get the element's bounding rectangle
+        const rect = element.getBoundingClientRect();
+        
+        // Calculate the total height needed for the complete highlighted area
+        const totalHeight = rect.height + 40; // Base height + R key indicator height
+        
+        // Calculate the viewport height
+        const viewportHeight = window.innerHeight;
+        
+        // Calculate the element's position relative to the viewport
+        const elementTop = rect.top;
+        const elementBottom = rect.bottom;
+        
+        // Add padding to prevent the highlight from touching viewport edges
+        const viewportPadding = 20;
+        
+        // Calculate the scroll position needed to show the complete highlighted area
+        let scrollAmount = 0;
+        
+        // If the element is partially above the viewport
+        if (elementTop < viewportPadding) {
+          scrollAmount = elementTop - viewportPadding;
+        }
+        // If the element is partially below the viewport
+        else if (elementBottom > viewportHeight - viewportPadding) {
+          scrollAmount = elementBottom - (viewportHeight - viewportPadding);
+        }
+        
+        // If we need to scroll
+        if (scrollAmount !== 0) {
+          window.scrollBy({
+            top: scrollAmount,
+            behavior: 'smooth'
+          });
+        }
         
         // Update popover position if it's open
         if (showRevisionPopover) {
-          const rect = elements[index].getBoundingClientRect();
           setReviseButtonPosition({
             top: rect.top + window.scrollY,
-            left: rect.right + window.scrollX + 8 // 8px offset to the right
+            left: rect.right + window.scrollX + 8
           });
         }
-      }
+      }, 0); // Use setTimeout to ensure the highlight styles are applied
     }
   };
 
@@ -155,6 +186,7 @@ const SpecCanvas = ({
   const floatingRef = useRef(null);
   const ignoreNextClickAway = useRef(false);
   const [showRevisionPopover, setShowRevisionPopover] = useState(false);
+  const [isRevisionPopoverExpanded, setIsRevisionPopoverExpanded] = useState(true);
   const [userInstructions, setUserInstructions] = useState('');
   const [revisedText, setRevisedText] = useState('');
   const [revisedTextMarkdown, setRevisedTextMarkdown] = useState('');
@@ -180,10 +212,10 @@ const SpecCanvas = ({
     console.log('SpecCanvas: Props changed:', {
       highlightedText,
       resumeMarkdownLength: resumeMarkdown?.length,
-      hasStructured: !!resumeStructured,
+      hasMarkdown: !!resumeMarkdown,
       timestamp: new Date().toISOString()
     });
-  }, [highlightedText, resumeMarkdown, resumeStructured]);
+  }, [highlightedText, resumeMarkdown]);
 
   // Update bullet points when markdown content changes
   React.useEffect(() => {
@@ -225,28 +257,17 @@ const SpecCanvas = ({
       }
     }
     
-    // Handle R key for revision
+    // Handle R key for expanding/collapsing revision dialog
     if (event.code === 'KeyR' && !event.repeat) {
       // Only handle R if we're not in an input or textarea
       if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
         return;
       }
 
-      // If a bullet point is selected, show the revision popover
-      if (currentBulletIndex !== -1) {
-        const bullet = bulletPointsRef.current[currentBulletIndex];
-        setSelectedText(bullet.text);
-        
-        // Get the position of the selected bullet point using its unique id
-        const bulletElement = document.getElementById(`bullet-${currentBulletIndex}`);
-        if (bulletElement) {
-          const bulletRect = bulletElement.getBoundingClientRect();
-          setReviseButtonPosition({
-            top: bulletRect.top + window.scrollY,
-            left: bulletRect.right + window.scrollX + 8 // 8px offset to the right
-          });
-          setShowRevisionPopover(true);
-        }
+      // If a bullet point is selected and revision popover is shown
+      if (currentBulletIndex !== -1 && showRevisionPopover) {
+        event.preventDefault(); // Prevent default behavior
+        setIsRevisionPopoverExpanded(prev => !prev); // Use functional update to ensure we get the latest state
       }
     }
 
@@ -709,221 +730,273 @@ const SpecCanvas = ({
       position="absolute"
       top={reviseButtonPosition.top}
       left={reviseButtonPosition.left}
-      bg="gray.800"
+      bg={isRevisionPopoverExpanded ? "gray.800" : "gray.900"}
       boxShadow="lg"
       borderRadius="xl"
-      p={4}
-      minW="480px"
-      maxW="600px"
+      p={isRevisionPopoverExpanded ? 4 : 2}
+      w={isRevisionPopoverExpanded ? "480px" : "120px"}
       zIndex={1001}
       pointerEvents="auto"
       color="gray.100"
       border="1px solid"
-      borderColor="gray.700"
+      borderColor={isRevisionPopoverExpanded ? "gray.700" : "purple.500"}
+      transition="all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
+      overflow="hidden"
+      willChange="width"
+      _hover={!isRevisionPopoverExpanded ? {
+        borderColor: "purple.400",
+        boxShadow: "0 0 0 1px var(--chakra-colors-purple-400)",
+      } : {}}
     >
-      <VStack align="stretch" spacing={3}>
-        {/* Add X button in top right */}
-        <Flex justify="flex-end">
-          <IconButton
-            icon={<CloseIcon />}
-            size="xs"
-            variant="ghost"
-            onClick={handleClosePopover}
-            aria-label="Close popover"
-            color="gray.400"
-            _hover={{ bg: 'gray.700', color: 'gray.200' }}
-          />
-        </Flex>
-
-        {/* Original Text Section */}
-        <Box>
-          <Flex align="center" mb={2}>
-            <Text fontWeight="medium" fontSize="xs" color="gray.400" mr={2}>Original</Text>
-            <Box h="1px" flex="1" bg="gray.700" />
-          </Flex>
-          <Box 
-            p={3} 
-            bg="gray.700" 
-            borderRadius="md" 
-            fontSize="sm" 
-            fontFamily="mono" 
-            whiteSpace="pre-wrap" 
-            color="gray.100" 
-            border="1px solid"
-            borderColor="gray.600"
-          >
-            {selectedText}
-          </Box>
-        </Box>
-
-        {/* Revised Text Section */}
-        {hasSubmittedRevision && (
-          <Box>
-            <Flex align="center" mb={2}>
-              <Text fontWeight="medium" fontSize="xs" color="green.400" mr={2}>Revised</Text>
-              <Box h="1px" flex="1" bg="gray.700" />
-            </Flex>
-            <Box
-              p={3}
-              bg="gray.700"
-              borderRadius="md"
-              fontSize="sm"
-              fontFamily="mono"
-              whiteSpace="pre-wrap"
-              color="gray.100"
-              border="1px solid"
-              borderColor="gray.600"
-            >
-              <Text color="gray.100">{unescapeMarkdown(revisedText)}</Text>
-            </Box>
-          </Box>
-        )}
-
-        {/* Quick Revisions Section */}
-        {promptPresets.length > 0 && (
-          <Box>
-            <Flex 
-              align="center" 
-              mb={2}
-              gap={1}
-            >
-              <HStack spacing={1}>
-                <Text fontSize="sm" fontWeight="medium" color="gray.300">Quick Revisions</Text>
-                <IconButton
-                  icon={<ChevronDownIcon />}
-                  size="md"
-                  variant="ghost"
-                  color="gray.400"
-                  _hover={{ bg: 'gray.700', color: 'gray.200' }}
-                  onClick={() => setIsQuickRevisionsOpen(!isQuickRevisionsOpen)}
-                  aria-label={isQuickRevisionsOpen ? "Collapse quick revisions" : "Expand quick revisions"}
-                  transform={isQuickRevisionsOpen ? "rotate(180deg)" : "none"}
-                  transition="all 0.2s"
-                />
-              </HStack>
-            </Flex>
-            <Collapse in={isQuickRevisionsOpen}>
-              <Box mb={2}>
-                <Button
-                  size="xs"
-                  variant="solid"
-                  onClick={handleRegeneratePrompts}
-                  isLoading={isRegeneratingPrompts}
-                  colorScheme="purple"
-                  _hover={{ bg: 'purple.600' }}
-                  fontSize="xs"
-                  fontWeight="medium"
-                  px={3}
-                  mb={2}
-                  leftIcon={<RepeatIcon />}
-                >
-                  Regenerate
-                </Button>
-                <SimpleGrid columns={1} spacing={2}>
-                  {promptPresets.map((preset, index) => (
-                    <Button
-                      key={index}
-                      size="xs"
-                      variant="outline"
-                      onClick={() => setUserInstructions(preset.prompt)}
-                      textAlign="left"
-                      justifyContent="flex-start"
-                      whiteSpace="normal"
-                      height="auto"
-                      py={2}
-                      px={3}
-                      color="gray.300"
-                      borderColor="gray.600"
-                      _hover={{ bg: 'gray.700', borderColor: 'gray.500', color: 'gray.100' }}
-                      fontSize="sm"
-                      maxW="400px"
-                      alignSelf="flex-start"
-                    >
-                      {preset.title}
-                    </Button>
-                  ))}
-                </SimpleGrid>
+      <VStack align="stretch" spacing={isRevisionPopoverExpanded ? 3 : 0} transition="all 0.3s cubic-bezier(0.4, 0, 0.2, 1)">
+        <Collapse in={isRevisionPopoverExpanded} animateOpacity style={{ transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
+          <VStack align="stretch" spacing={3} transition="all 0.3s cubic-bezier(0.4, 0, 0.2, 1)">
+            {/* Original Text Section */}
+            <Box>
+              <Flex align="center" mb={2}>
+                <Text fontWeight="medium" fontSize="xs" color="gray.400" mr={2}>Original</Text>
+                <Box h="1px" flex="1" bg="gray.700" />
+              </Flex>
+              <Box 
+                p={3} 
+                bg="gray.700" 
+                borderRadius="md" 
+                fontSize="sm" 
+                fontFamily="mono" 
+                whiteSpace="pre-wrap" 
+                color="gray.100" 
+                border="1px solid"
+                borderColor="gray.600"
+              >
+                {selectedText}
               </Box>
-            </Collapse>
-          </Box>
-        )}
-        
-        {/* Instructions Input */}
-        <Box>
-          <Text fontWeight="medium" fontSize="xs" color="gray.400" mb={2}>Instructions</Text>
-          <Textarea
-            value={userInstructions}
-            onChange={e => setUserInstructions(e.target.value)}
-            placeholder="E.g., Make this more results-oriented"
-            size="sm"
-            rows={4}
-            bg="gray.700"
-            color="gray.100"
-            _placeholder={{ color: 'gray.500' }}
-            borderColor="gray.600"
-            borderRadius="md"
-            fontSize="sm"
-            _hover={{ borderColor: 'gray.500' }}
-            _focus={{ borderColor: 'blue.400', boxShadow: 'none' }}
-            sx={{
-              '&::-webkit-scrollbar': {
-                width: '8px',
-                backgroundColor: 'transparent',
-              },
-              '&::-webkit-scrollbar-thumb': {
-                backgroundColor: 'gray.600',
-                borderRadius: '4px',
-                '&:hover': {
-                  backgroundColor: 'gray.500',
-                },
-              },
-              '&::-webkit-scrollbar-track': {
-                backgroundColor: 'transparent',
-              },
-            }}
-          />
-        </Box>
+            </Box>
 
-        <HStack justify="space-between" spacing={3} pt={1}>
-          <HStack spacing={2}>
+            {/* Revised Text Section */}
             {hasSubmittedRevision && (
-              <>
-                <Button 
-                  size="sm" 
-                  colorScheme="red" 
-                  variant="outline"
-                  onClick={handleReject}
-                  _hover={{ bg: 'red.900', borderColor: 'red.400' }}
+              <Box>
+                <Flex align="center" mb={2}>
+                  <Text fontWeight="medium" fontSize="xs" color="green.400" mr={2}>Revised</Text>
+                  <Box h="1px" flex="1" bg="gray.700" />
+                </Flex>
+                <Box
+                  p={3}
+                  bg="gray.700"
+                  borderRadius="md"
+                  fontSize="sm"
+                  fontFamily="mono"
+                  whiteSpace="pre-wrap"
+                  color="gray.100"
+                  border="1px solid"
+                  borderColor="gray.600"
                 >
-                  Reject
-                </Button>
-                <Button 
-                  size="sm" 
-                  colorScheme="green" 
-                  variant="outline"
-                  onClick={() => {
-                    console.log('Accept button clicked');
-                    handleAcceptRevision(selectedText, revisedTextMarkdown);
-                  }}
-                  _hover={{ bg: 'green.900', borderColor: 'green.400' }}
-                >
-                  Accept
-                </Button>
-              </>
+                  <Text color="gray.100">{unescapeMarkdown(revisedText)}</Text>
+                </Box>
+              </Box>
             )}
-          </HStack>
-          <Button
-            size="sm"
-            colorScheme="blue"
-            variant="outline"
-            onClick={() => handleSubmitRevision(userInstructions)}
-            isLoading={isSubmitting}
-            loadingText="Revising..."
-            _hover={{ bg: 'blue.900', borderColor: 'blue.400' }}
+
+            {/* Quick Revisions Section */}
+            {promptPresets.length > 0 && (
+              <Box>
+                <Flex 
+                  align="center" 
+                  mb={2}
+                  gap={1}
+                >
+                  <HStack spacing={1}>
+                    <Text fontSize="sm" fontWeight="medium" color="gray.300">Quick Revisions</Text>
+                    <IconButton
+                      icon={<ChevronDownIcon />}
+                      size="md"
+                      variant="ghost"
+                      color="gray.400"
+                      _hover={{ bg: 'gray.700', color: 'gray.200' }}
+                      onClick={() => setIsQuickRevisionsOpen(!isQuickRevisionsOpen)}
+                      aria-label={isQuickRevisionsOpen ? "Collapse quick revisions" : "Expand quick revisions"}
+                      transform={isQuickRevisionsOpen ? "rotate(180deg)" : "none"}
+                      transition="all 0.2s"
+                    />
+                  </HStack>
+                </Flex>
+                <Collapse in={isQuickRevisionsOpen}>
+                  <Box mb={2}>
+                    <Button
+                      size="xs"
+                      variant="solid"
+                      onClick={handleRegeneratePrompts}
+                      isLoading={isRegeneratingPrompts}
+                      colorScheme="purple"
+                      _hover={{ bg: 'purple.600' }}
+                      fontSize="xs"
+                      fontWeight="medium"
+                      px={3}
+                      mb={2}
+                      leftIcon={<RepeatIcon />}
+                    >
+                      Regenerate
+                    </Button>
+                    <SimpleGrid columns={1} spacing={2}>
+                      {promptPresets.map((preset, index) => (
+                        <Button
+                          key={index}
+                          size="xs"
+                          variant="outline"
+                          onClick={() => setUserInstructions(preset.prompt)}
+                          textAlign="left"
+                          justifyContent="flex-start"
+                          whiteSpace="normal"
+                          height="auto"
+                          py={2}
+                          px={3}
+                          color="gray.300"
+                          borderColor="gray.600"
+                          _hover={{ bg: 'gray.700', borderColor: 'gray.500', color: 'gray.100' }}
+                          fontSize="sm"
+                          maxW="400px"
+                          alignSelf="flex-start"
+                        >
+                          {preset.title}
+                        </Button>
+                      ))}
+                    </SimpleGrid>
+                  </Box>
+                </Collapse>
+              </Box>
+            )}
+            
+            {/* Instructions Input */}
+            <Box>
+              <Text fontWeight="medium" fontSize="xs" color="gray.400" mb={2}>Instructions</Text>
+              <Textarea
+                value={userInstructions}
+                onChange={e => setUserInstructions(e.target.value)}
+                placeholder="E.g., Make this more results-oriented"
+                size="sm"
+                rows={4}
+                bg="gray.700"
+                color="gray.100"
+                _placeholder={{ color: 'gray.500' }}
+                borderColor="gray.600"
+                borderRadius="md"
+                fontSize="sm"
+                _hover={{ borderColor: 'gray.500' }}
+                _focus={{ borderColor: 'blue.400', boxShadow: 'none' }}
+                sx={{
+                  '&::-webkit-scrollbar': {
+                    width: '8px',
+                    backgroundColor: 'transparent',
+                  },
+                  '&::-webkit-scrollbar-thumb': {
+                    backgroundColor: 'gray.600',
+                    borderRadius: '4px',
+                    '&:hover': {
+                      backgroundColor: 'gray.500',
+                    },
+                  },
+                  '&::-webkit-scrollbar-track': {
+                    backgroundColor: 'transparent',
+                  },
+                }}
+              />
+            </Box>
+
+            <HStack justify="space-between" spacing={3} pt={1}>
+              <HStack spacing={2}>
+                {hasSubmittedRevision && (
+                  <>
+                    <Button 
+                      size="sm" 
+                      colorScheme="red" 
+                      variant="outline"
+                      onClick={handleReject}
+                      _hover={{ bg: 'red.900', borderColor: 'red.400' }}
+                    >
+                      Reject
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      colorScheme="green" 
+                      variant="outline"
+                      onClick={() => {
+                        console.log('Accept button clicked');
+                        handleAcceptRevision(selectedText, revisedTextMarkdown);
+                      }}
+                      _hover={{ bg: 'green.900', borderColor: 'green.400' }}
+                    >
+                      Accept
+                    </Button>
+                  </>
+                )}
+              </HStack>
+              <Button
+                size="sm"
+                colorScheme="blue"
+                variant="outline"
+                onClick={() => handleSubmitRevision(userInstructions)}
+                isLoading={isSubmitting}
+                loadingText="Revising..."
+                _hover={{ bg: 'blue.900', borderColor: 'blue.400' }}
+              >
+                Submit
+              </Button>
+            </HStack>
+          </VStack>
+        </Collapse>
+
+        {/* Collapsed state indicator with buttons */}
+        {!isRevisionPopoverExpanded && (
+          <Flex 
+            align="center" 
+            justify="space-between" 
+            py={0.5}
+            px={1.5}
+            bg="gray.800"
+            borderRadius="md"
+            border="1px solid"
+            borderColor="purple.500"
+            _hover={{
+              borderColor: "purple.400",
+              bg: "gray.700"
+            }}
           >
-            Submit
-          </Button>
-        </HStack>
+            <Text 
+              fontSize="2xs" 
+              color="purple.400" 
+              fontWeight="medium"
+              letterSpacing="0.5px"
+            >
+              Expand
+            </Text>
+            <HStack spacing={0.5}>
+              <IconButton
+                icon={<ChevronDownIcon />}
+                size="xs"
+                variant="ghost"
+                onClick={() => setIsRevisionPopoverExpanded(!isRevisionPopoverExpanded)}
+                aria-label={isRevisionPopoverExpanded ? "Collapse popover" : "Expand popover"}
+                color="purple.400"
+                _hover={{ bg: 'gray.700', color: 'purple.300' }}
+                transform="rotate(-90deg)"
+                transition="all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
+                boxSize="18px"
+                minW="18px"
+                minH="18px"
+              />
+              <IconButton
+                icon={<CloseIcon />}
+                size="xs"
+                variant="ghost"
+                onClick={handleClosePopover}
+                aria-label="Close popover"
+                color="purple.400"
+                _hover={{ bg: 'gray.700', color: 'purple.300' }}
+                boxSize="18px"
+                minW="18px"
+                minH="18px"
+              />
+            </HStack>
+          </Flex>
+        )}
       </VStack>
     </Box>,
     document.body
@@ -1051,7 +1124,7 @@ const SpecCanvas = ({
           </Box>
         )}
         <VStack align="stretch" spacing={6}>
-          {/* Render Markdown if present (Claude flow) */}
+          {/* Render Markdown */}
           {resumeMarkdown && (
             <Box 
               whiteSpace="pre-wrap" 
@@ -1136,76 +1209,6 @@ const SpecCanvas = ({
                 {resumeMarkdown}
               </ReactMarkdown>
             </Box>
-          )}
-          {/* Fallback: Render structured data (Affinda flow) */}
-          {!resumeMarkdown && resumeStructured && (
-            <>
-              {/* Metadata */}
-              {resumeStructured.metadata && (
-                <Box mb={6}>
-                  <Heading as="h3" size="md" mb={2} color={textColor}>Contact Information</Heading>
-                  <VStack align="start" spacing={1}>
-                    {resumeStructured.metadata.name && (
-                      <Text fontWeight="bold" color={textColor}>{resumeStructured.metadata.name}</Text>
-                    )}
-                    {resumeStructured.metadata.email && (
-                      <Text color="gray.600">{resumeStructured.metadata.email}</Text>
-                    )}
-                    {resumeStructured.metadata.phone && (
-                      <Text color="gray.600">{resumeStructured.metadata.phone}</Text>
-                    )}
-                    {resumeStructured.metadata.location && (
-                      <Text color="gray.600">{resumeStructured.metadata.location}</Text>
-                    )}
-                  </VStack>
-                </Box>
-              )}
-
-              {/* Sections */}
-              {resumeStructured.sections?.map((section) => (
-                <Box key={section.id} mb={6}>
-                  <Heading as="h3" size="md" mb={3} color={textColor}>{section.title}</Heading>
-                  {section.type === 'text' && (
-                    renderContent(section.content)
-                  )}
-                  {section.type === 'list' && section.items && (
-                    <List spacing={4}>
-                      {section.items.map((item) => (
-                        <ListItem key={item.id}>
-                          <Flex direction="column" gap={1}>
-                            {item.title && (
-                              <Text fontWeight="bold" color={textColor}>{item.title}</Text>
-                            )}
-                            {item.company && (
-                              <Text color="gray.600">{item.company}</Text>
-                            )}
-                            {item.location && (
-                              <Text color="gray.600" fontSize="sm">{item.location}</Text>
-                            )}
-                            {item.dates && (
-                              <Text fontSize="sm" color="gray.500">{item.dates}</Text>
-                            )}
-                            {/* Render only bullets */}
-                            {item.bullets && item.bullets.length > 0 && (
-                              <List spacing={2} styleType="disc" pl={4}>
-                                {item.bullets.map((bullet, bIdx) => (
-                                  <ListItem key={bIdx} color="gray.700">{bullet}</ListItem>
-                                ))}
-                              </List>
-                            )}
-                            {item.name && (
-                              <Badge colorScheme="blue" width="fit-content">
-                                {item.name}
-                              </Badge>
-                            )}
-                          </Flex>
-                        </ListItem>
-                      ))}
-                    </List>
-                  )}
-                </Box>
-              ))}
-            </>
           )}
         </VStack>
       </Box>

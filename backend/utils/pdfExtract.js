@@ -75,4 +75,4 @@ async function extractPdfText(base64String) {
   return data.text;
 }
 
-module.exports = { extractPdfMarkdown, extractPdfHtml, extractPdfText }; 
+module.exports = { extractPdfMarkdown, extractPdfText }; 

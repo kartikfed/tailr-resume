@@ -18,7 +18,7 @@ import {
   Progress
 } from '@chakra-ui/react';
 import { sendMessage, uploadFiles, getConversation } from './services/apiService';
-import { CheckCircleIcon, ChevronLeftIcon, ChevronRightIcon, ChatIcon } from '@chakra-ui/icons';
+import { CheckCircleIcon, ChevronLeftIcon, ChatIcon } from '@chakra-ui/icons';
 
 import ChatInput from './components/ChatInput';
 import FileUpload from './components/FileUpload';
