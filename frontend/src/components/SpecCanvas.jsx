@@ -19,7 +19,8 @@ import {
   PopoverBody,
   useColorModeValue,
   Collapse,
-  useDisclosure
+  useDisclosure,
+  Spinner
 } from '@chakra-ui/react';
 import { CheckCircleIcon, RepeatIcon, CloseIcon, ChevronDownIcon, ChevronUpIcon } from '@chakra-ui/icons';
 import ReactMarkdown from 'react-markdown';
@@ -49,7 +50,8 @@ const SpecCanvas = ({
   writingTone = 'concise',
   conversationId,
   onUpdateMessages,
-  resumeEmphasis = null
+  resumeEmphasis = null,
+  getQuickRevisionsForBullet = null
 }) => {
   // Debug logging
   console.log('SpecCanvas received props:', {
@@ -146,8 +148,7 @@ const SpecCanvas = ({
               );
               
               const isRecentlyRevised = lastRevisedText === textContent;
-              const isFirstBullet = bulletIndex === 0;
-              const showPulse = isFirstBullet && !hasUserNavigated;
+              const isSelected = bulletIndex === currentBulletIndex;
               
               return (
                 <Box
@@ -156,16 +157,19 @@ const SpecCanvas = ({
                   bg={
                     isRecentlyRevised 
                       ? recentlyRevisedBg
-                      : bulletIndex === currentBulletIndex 
+                      : isSelected
                         ? selectedBulletBg
                         : 'transparent'
                   }
-                  p={isRecentlyRevised || bulletIndex === currentBulletIndex ? 2 : 0}
+                  p={isRecentlyRevised || isSelected ? 2 : 0}
                   borderRadius="md"
                   transition="all 0.2s"
                   position="relative"
-                  style={showPulse ? { animation: 'pulse 1.2s infinite' } : {}}
-                  border={bulletIndex === currentBulletIndex ? '1px solid' : 'none'}
+                  style={{
+                    ...(isSelected ? { animation: 'pulse 1.2s infinite' } : {}),
+                    listStyleType: 'none',
+                  }}
+                  border={isSelected ? '1px solid' : 'none'}
                   borderColor={selectedBulletBorder}
                   color={isRecentlyRevised ? recentlyRevisedTextColor : bulletColor}
                   _before={{
@@ -179,14 +183,14 @@ const SpecCanvas = ({
                   {...props}
                 >
                   {children}
-                  {bulletIndex === currentBulletIndex && (
+                  {isSelected && (
                     <Box
                       position="absolute"
                       top="-20px"
                       right="0"
                       transform="scale(0.8)"
                       transformOrigin="top right"
-                      style={showPulse ? { animation: 'pulse 1.2s infinite' } : {}}
+                      style={{ animation: 'pulse 1.2s infinite' }}
                     >
                       <svg width="40" height="40" viewBox="0 0 40 40">
                         <rect x="2" y="2" width="36" height="36" rx="8" fill="#2d2950" stroke="#8f3fff" strokeWidth="2" />
@@ -279,6 +283,7 @@ const SpecCanvas = ({
       setCurrentBulletIndex(index);
       const bullet = bulletPointsRef.current[index];
       setSelectedText(bullet.text);
+      setShowRevisionPopover(true);
       
       // Use setTimeout to ensure the highlight styles are applied before scrolling
       setTimeout(() => {
@@ -327,7 +332,6 @@ const SpecCanvas = ({
           top: rect.top + window.scrollY,
           left: rect.right + window.scrollX + 8
         });
-        setShowRevisionPopover(true);
       }, 0);
     }
   };
@@ -375,13 +379,23 @@ const SpecCanvas = ({
     }
   }, [resumeMarkdown]);
 
-  // On first render, highlight only the first bullet
+  // On first render, highlight only the first bullet but don't show popover
   React.useEffect(() => {
     if (!hasUserNavigated && bulletPointsRef.current.length > 0) {
+      const firstBullet = bulletPointsRef.current[0];
       setCurrentBulletIndex(0);
-      setShowRevisionPopover(true); // Show popover when first bullet is highlighted
+      setSelectedText(firstBullet.text); // Set the selected text for the first bullet
+      setShowRevisionPopover(false); // Don't show popover on first load
     }
   }, [resumeMarkdown, hasUserNavigated]);
+
+  // Add useEffect to update selected text when current bullet changes
+  React.useEffect(() => {
+    if (currentBulletIndex >= 0 && currentBulletIndex < bulletPointsRef.current.length) {
+      const bullet = bulletPointsRef.current[currentBulletIndex];
+      setSelectedText(bullet.text);
+    }
+  }, [currentBulletIndex]);
 
   // Handle keyboard events
   const handleKeyDown = (e) => {
@@ -393,13 +407,31 @@ const SpecCanvas = ({
     // Handle space key for bullet selection
     if (e.key === ' ' && !e.repeat) {
       e.preventDefault();
+      let nextIndex;
       if (currentBulletIndex === null || currentBulletIndex === -1) {
         // Select first bullet if none selected
-        setCurrentBulletIndex(0);
+        nextIndex = 0;
       } else {
         // Move to next bullet, wrap around if at the end
-        setCurrentBulletIndex((currentBulletIndex + 1) % bulletPointsRef.current.length);
+        nextIndex = (currentBulletIndex + 1) % bulletPointsRef.current.length;
       }
+      
+      // Update the current bullet index
+      setCurrentBulletIndex(nextIndex);
+      // Selected text will be updated by the useEffect above
+      setShowRevisionPopover(false); // Don't show popover when cycling through bullets
+      
+      // Use setTimeout to ensure the highlight styles are applied before scrolling
+      setTimeout(() => {
+        const element = document.getElementById(`bullet-${nextIndex}`);
+        if (!element) return;
+
+        const rect = element.getBoundingClientRect();
+        setReviseButtonPosition({
+          top: rect.top + window.scrollY,
+          left: rect.right + window.scrollX + 8
+        });
+      }, 0);
     }
     // Handle R key for expanding/collapsing revision dialog
     if (e.code === 'KeyR' && !e.repeat) {
@@ -417,9 +449,9 @@ const SpecCanvas = ({
     }
 
     // Handle Down Arrow for next bullet
-    if (event.code === 'ArrowDown' && !event.repeat) {
-      if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
-      event.preventDefault();
+    if (e.code === 'ArrowDown' && !e.repeat) {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      e.preventDefault();
       if (currentBulletIndex === -1) {
         highlightBulletPoint(0);
       } else {
@@ -429,9 +461,9 @@ const SpecCanvas = ({
     }
 
     // Handle Up Arrow for previous bullet
-    if (event.code === 'ArrowUp' && !event.repeat) {
-      if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
-      event.preventDefault();
+    if (e.code === 'ArrowUp' && !e.repeat) {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      e.preventDefault();
       if (currentBulletIndex === -1) {
         highlightBulletPoint(bulletPointsRef.current.length - 1);
       } else {
@@ -682,63 +714,41 @@ const SpecCanvas = ({
     setUserInstructions('');
   };
 
-  // Update handleRegeneratePrompts toast
+  // Update handleRegeneratePrompts to handle regeneration
   const handleRegeneratePrompts = async () => {
-    if (!selectedText || !jobDescription) return;
-    
-    setIsRegeneratingPrompts(true);
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/spec/analyze-job-description`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          content: jobDescription,
-          analysisType: 'full_analysis',
-          selectedText,
-          writingTone
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        console.error('Failed to regenerate prompts:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorData
-        });
-        throw new Error(errorData?.message || `Failed to regenerate prompts: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      if (data.results?.prompt_presets) {
-        onRegeneratePrompts(data.results.prompt_presets);
-        toast({
-          title: 'Prompts Updated',
-          description: 'New revision suggestions are ready',
-          status: 'success',
-          duration: 3000,
-          isClosable: true,
-          position: 'top-right',
-          containerStyle: {
-            width: '320px',
-            maxWidth: '100%',
-          }
-        });
-      }
-    } catch (error) {
+    if (!selectedText || !jobDescription) {
       toast({
-        title: 'Update Failed',
-        description: 'Unable to generate new suggestions',
-        status: 'error',
+        title: "Missing Information",
+        description: "Please select text and provide a job description",
+        status: "error",
         duration: 3000,
         isClosable: true,
-        position: 'top-right',
-        containerStyle: {
-          width: '320px',
-          maxWidth: '100%',
-        }
+        position: "top-right"
+      });
+      return;
+    }
+
+    try {
+      setIsRegeneratingPrompts(true);
+      // Force regenerate and update cache
+      await onRegeneratePrompts(selectedText, true);
+      toast({
+        title: "Prompts Updated",
+        description: "New revision suggestions are ready",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+        position: "top-right"
+      });
+    } catch (error) {
+      console.error('Error generating prompts:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate quick revisions",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+        position: "top-right"
       });
     } finally {
       setIsRegeneratingPrompts(false);
@@ -951,48 +961,57 @@ const SpecCanvas = ({
               </Box>
             )}
 
-            {/* Quick Revisions Section */}
-            {promptPresets.length > 0 && (
-              <Box>
-                <Flex 
-                  align="center" 
-                  mb={2}
-                  gap={1}
-                >
-                  <HStack spacing={1}>
-                    <Text fontSize="sm" fontWeight="medium" color="gray.300">Quick Revisions</Text>
-                    <IconButton
-                      icon={<ChevronDownIcon />}
-                      size="md"
-                      variant="ghost"
+            {/* Quick Revisions Section (always shown, always correct for current bullet) */}
+            <Box>
+              <Flex 
+                align="center" 
+                mb={2}
+                gap={1}
+              >
+                <HStack spacing={1}>
+                  <Text fontSize="sm" fontWeight="medium" color="gray.300">Quick Revisions</Text>
+                  <IconButton
+                    icon={<ChevronDownIcon />}
+                    size="md"
+                    variant="ghost"
+                    color="gray.400"
+                    _hover={{ bg: 'gray.700', color: 'gray.200' }}
+                    onClick={() => setIsQuickRevisionsOpen(!isQuickRevisionsOpen)}
+                    aria-label={isQuickRevisionsOpen ? "Collapse quick revisions" : "Expand quick revisions"}
+                    transform={isQuickRevisionsOpen ? "rotate(180deg)" : "none"}
+                    transition="all 0.2s"
+                  />
+                </HStack>
+              </Flex>
+              <Collapse in={isQuickRevisionsOpen}>
+                <Box mb={2}>
+                  <Button
+                    size="xs"
+                    onClick={handleRegeneratePrompts}
+                    isLoading={isRegeneratingPrompts}
+                    colorScheme="purple"
+                    _hover={{ bg: 'purple.600' }}
+                    fontSize="xs"
+                    fontWeight="medium"
+                    px={3}
+                    mb={2}
+                    leftIcon={<RepeatIcon />}
+                  >
+                    {getQuickRevisionsForBullet(selectedText).length > 0 ? 'Regenerate' : 'Generate'}
+                  </Button>
+                  {isRegeneratingPrompts ? (
+                    <Box 
+                      p={4} 
+                      textAlign="center" 
                       color="gray.400"
-                      _hover={{ bg: 'gray.700', color: 'gray.200' }}
-                      onClick={() => setIsQuickRevisionsOpen(!isQuickRevisionsOpen)}
-                      aria-label={isQuickRevisionsOpen ? "Collapse quick revisions" : "Expand quick revisions"}
-                      transform={isQuickRevisionsOpen ? "rotate(180deg)" : "none"}
-                      transition="all 0.2s"
-                    />
-                  </HStack>
-                </Flex>
-                <Collapse in={isQuickRevisionsOpen}>
-                  <Box mb={2}>
-                    <Button
-                      size="xs"
-                      variant="solid"
-                      onClick={handleRegeneratePrompts}
-                      isLoading={isRegeneratingPrompts}
-                      colorScheme="purple"
-                      _hover={{ bg: 'purple.600' }}
-                      fontSize="xs"
-                      fontWeight="medium"
-                      px={3}
-                      mb={2}
-                      leftIcon={<RepeatIcon />}
+                      fontSize="sm"
                     >
-                      Regenerate
-                    </Button>
+                      <Spinner size="sm" mr={2} />
+                      Generating quick revisions...
+                    </Box>
+                  ) : getQuickRevisionsForBullet(selectedText).length > 0 ? (
                     <SimpleGrid columns={1} spacing={2}>
-                      {promptPresets.map((preset, index) => (
+                      {getQuickRevisionsForBullet(selectedText).map((preset, index) => (
                         <Button
                           key={index}
                           size="xs"
@@ -1015,10 +1034,19 @@ const SpecCanvas = ({
                         </Button>
                       ))}
                     </SimpleGrid>
-                  </Box>
-                </Collapse>
-              </Box>
-            )}
+                  ) : (
+                    <Box 
+                      p={4} 
+                      textAlign="center" 
+                      color="gray.400"
+                      fontSize="sm"
+                    >
+                      Click "Generate" to create quick revision suggestions
+                    </Box>
+                  )}
+                </Box>
+              </Collapse>
+            </Box>
             
             {/* Instructions Input */}
             <Box>

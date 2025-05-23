@@ -336,7 +336,8 @@ Revision Process:
    - Opportunities for better alignment with job description
    - Natural keyword integration
 2. Restructure using the WHAT-HOW-WHY framework
-3. Provide the revised bullet point
+3. The revised text should be similar in length to the original text
+4. Provide the revised bullet point
 
 CRITICAL RULES:
 - NEVER invent or hallucinate metrics, numbers, or specific achievements
@@ -373,6 +374,7 @@ writingTone === 'detailed' ? `
 - Use clear, accessible language
 - Focus on straightforward descriptions
 - Emphasize readability`}
+
 
 Your response should be a JSON object with the following structure:
 {
@@ -516,28 +518,20 @@ Analysis Requirements:
 4. List key responsibilities
 5. Extract company information and industry
 6. Identify keywords for ATS optimization
-7. Generate 3 concise prompt presets for resume revision
-8. Provide a brief summary of key points to emphasize in the resume
+7. Provide a brief summary of key points to emphasize in the resume
 
-Writing Style Guidelines for Prompt Presets:
-${writingTone === 'concise' ? `
-- Use direct, action-oriented language
-- Focus on quantifiable achievements and metrics
-- Keep prompts punchy and results-focused
-- Emphasize impact and outcomes
-- Use strong action verbs
-- Example: "Make this more results-oriented with metrics"` : 
-writingTone === 'technical' ? `
-- Use precise technical terminology
-- Focus on technical depth and complexity
-- Emphasize system architecture and implementation
-- Include specific technologies and methodologies
-- Example: "Highlight the technical architecture and scalability"` : `
-- Use clear, accessible language
-- Focus on collaboration and community impact
-- Emphasize stakeholder engagement
-- Avoid technical jargon
-- Example: "Emphasize community impact and stakeholder collaboration"`}
+IMPORTANT:
+- Be specific and detailed in your analysis
+- Include both technical and soft skills
+- Extract exact experience requirements
+- List all major responsibilities
+- Include industry-specific keywords
+
+- The resume_emphasis section should:
+  * Provide a concise summary of what to emphasize in the resume
+  * List 3-4 key points that are most important for this role
+  * Focus on the most critical aspects that will make the resume stand out
+  * Be specific to the role and company
 
 Your response must be in the following JSON format:
 {
@@ -550,12 +544,6 @@ Your response must be in the following JSON format:
     "industry": "industry"
   },
   "keywords": ["keyword1", "keyword2", ...],
-  "prompt_presets": [
-    {
-      "title": "short descriptive title",
-      "prompt": "concise prompt text"
-    }
-  ],
   "resume_emphasis": {
     "summary": "A brief, 2-3 sentence overview of what to emphasize in the resume",
     "key_points": [
@@ -564,31 +552,7 @@ Your response must be in the following JSON format:
       "Third key point to emphasize"
     ]
   }
-}
-
-IMPORTANT:
-- Be specific and detailed in your analysis
-- Include both technical and soft skills
-- Extract exact experience requirements
-- List all major responsibilities
-- Include industry-specific keywords
-- Generate exactly 3 prompt presets that are:
-  * Relevant to the job requirements
-  * Concise and actionable
-  * Focused on different aspects (e.g., technical skills, leadership, impact)
-  * Clear and easy to understand
-  * Written from the user's perspective, as if they're asking for the revision
-  * Should use direct, first-person language
-  * Should NOT use phrases like "revise my resume" or "update my resume" since they apply to single bullet points
-  * Should use natural language that a user would use when asking for a revision
-  * Should match the specified writing tone
-  * If selected text is provided, tailor the prompts to be more specific to that text
-- The resume_emphasis section should:
-  * Provide a concise summary of what to emphasize in the resume
-  * List 3-4 key points that are most important for this role
-  * Focus on the most critical aspects that will make the resume stand out
-  * Be specific to the role and company
-- Format response as valid JSON only`;
+}`;
 
     const messages = [
       { role: 'user', content: `Please analyze this job description${selectedText ? ' and selected text' : ''}:\n\nJob Description:\n${content}${selectedText ? `\n\nSelected Text to Tailor Prompts For:\n${selectedText}` : ''}` }
@@ -652,6 +616,87 @@ IMPORTANT:
     res.status(500).json({
       error: `Failed to analyze job description: ${error.message}`
     });
+  }
+});
+
+/**
+ * Generate quick revision prompts for a selected bullet point
+ */
+router.post('/generate-prompts', async (req, res) => {
+  try {
+    const { selectedText, jobDescription, writingTone = 'concise' } = req.body;
+    if (!selectedText || !jobDescription) {
+      return res.status(400).json({ error: 'Selected text and job description are required' });
+    }
+
+    // System prompt for Claude
+    const systemPrompt = `You are an expert resume coach. Your task is to generate exactly 3 quick revision prompts that will help improve the selected text from the resume to better align with the job description.
+
+Core Principles for Effective Resume Bullet Points:
+1. Start with strong action verbs
+2. Follow the WHAT-HOW-WHY structure
+3. Quantify achievements ONLY when explicitly stated in the original text
+4. Be specific and concrete, but NEVER invent details
+5. Focus on accomplishments rather than responsibilities
+6. Keep bullet points concise and relevant
+
+CRITICAL RULES:
+- NEVER invent or hallucinate metrics, numbers, or specific achievements
+- ONLY use information that is explicitly stated in the original text
+- Focus on improving the language, structure, and alignment while preserving the factual content
+- Each prompt should be specific to the selected text and job description
+- Prompts should be actionable and clear
+- Generate EXACTLY 3 prompts, no more and no less
+- Each prompt should be unique and offer a different perspective on improving the text
+
+Your response should be a JSON object with the following structure:
+{
+  "prompts": [
+    {
+      "title": "Short, clear title for the prompt",
+      "prompt": "Detailed prompt that will guide the revision"
+    }
+  ]
+}`;
+
+    const messages = [
+      {
+        role: 'user',
+        content: `Selected Text: ${selectedText}\n\nJob Description: ${jobDescription}\n\nWriting Tone: ${writingTone}`
+      }
+    ];
+
+    const claudeResponse = await sendMessageToClaudeWithMCP(messages, [], systemPrompt);
+    let prompts = [];
+
+    if (claudeResponse.content && claudeResponse.content.length > 0 && claudeResponse.content[0].type === 'text') {
+      const responseText = claudeResponse.content[0].text.trim();
+      try {
+        // Parse the JSON response
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const cleanedJson = jsonMatch[0]
+            .replace(/```json\n?/g, '')
+            .replace(/```\n?/g, '')
+            .trim();
+          const parsedResponse = JSON.parse(cleanedJson);
+          prompts = parsedResponse.prompts.slice(0, 3);
+          if (prompts.length !== 3) {
+            throw new Error('Invalid number of prompts generated');
+          }
+        } else {
+          throw new Error('No JSON found in response');
+        }
+      } catch (error) {
+        console.error('Error parsing Claude response:', error);
+        throw new Error('Failed to parse prompts response');
+      }
+    }
+
+    res.json({ prompts });
+  } catch (error) {
+    console.error('Error generating prompts:', error);
+    res.status(500).json({ error: 'Failed to generate prompts' });
   }
 });
 

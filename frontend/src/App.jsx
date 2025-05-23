@@ -26,7 +26,6 @@ import MessageHistory from './components/MessageHistory';
 import SpecCanvas from './components/SpecCanvas';
 import ToneSelector from './components/ToneSelector';
 import TextInput from './components/TextInput';
-import KeyboardInstructions from './components/KeyboardInstructions';
 
 function App() {
   const [messages, setMessages] = useState([]);
@@ -61,10 +60,19 @@ function App() {
 
   const textBlockRef = useRef(null);
   const [logoHeight, setLogoHeight] = useState(0);
-  const [isChatExpanded, setIsChatExpanded] = useState(true);
+  const [isChatExpanded, setIsChatExpanded] = useState(false);
   const [progressValue, setProgressValue] = useState(0);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisStage, setAnalysisStage] = useState('');
+
+  // Quick revision cache: bulletText -> quick revisions
+  const [quickRevisionCache, setQuickRevisionCache] = useState({});
+  // Track the latest request ID and abort controller for quick revisions
+  const quickRevisionRequestId = useRef(0);
+  const quickRevisionAbortController = useRef(null);
+
+  // Helper to get bullet text for current selection (assume SpecCanvas passes bulletText)
+  const getQuickRevisionsForBullet = (bulletText) => quickRevisionCache[bulletText] || [];
 
   useLayoutEffect(() => {
     if (textBlockRef.current) {
@@ -379,9 +387,78 @@ function App() {
     }
   }
 
-  // Add handler for regenerating prompts
-  const handleRegeneratePrompts = (newPrompts) => {
-    setPromptPresets(newPrompts);
+  // Add handler for regenerating prompts (now caches by bulletText, uses abort and request ID)
+  const handleRegeneratePrompts = async (selectedText, forceRegenerate = false) => {
+    if (!selectedText || !jobDescription) {
+      toast({
+        title: "Missing Information",
+        description: "Please select text and provide a job description",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+        position: "top-right"
+      });
+      return Promise.reject(new Error('Missing information'));
+    }
+
+    // Abort any previous fetch
+    if (quickRevisionAbortController.current) {
+      quickRevisionAbortController.current.abort();
+      console.log('[QuickRevision] Previous fetch aborted by AbortController');
+    }
+    // Create a new AbortController for this request
+    const abortController = new AbortController();
+    quickRevisionAbortController.current = abortController;
+
+    // Increment request ID
+    const requestId = ++quickRevisionRequestId.current;
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/spec/generate-prompts`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          selectedText,
+          jobDescription,
+          writingTone
+        }),
+        signal: abortController.signal
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate prompts');
+      }
+
+      const data = await response.json();
+      
+      // Only update if this is the latest request
+      if (quickRevisionRequestId.current === requestId) {
+        if (data.prompts) {
+          setPromptPresets(data.prompts);
+          setQuickRevisionCache(prev => ({ ...prev, [selectedText]: data.prompts }));
+        }
+      }
+      return Promise.resolve();
+    } catch (error) {
+      if (abortController.signal.aborted) {
+        // Fetch was aborted, do not show error
+        console.log('[QuickRevision] Fetch aborted for bullet:', selectedText);
+        return Promise.resolve();
+      }
+      if (quickRevisionRequestId.current === requestId) {
+        toast({
+          title: "Error",
+          description: "Failed to generate quick revisions",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+          position: "top-right"
+        });
+      }
+      return Promise.reject(error);
+    }
   };
 
   return (
@@ -677,23 +754,8 @@ function App() {
                     conversationId={conversationId}
                     onUpdateMessages={setMessages}
                     resumeEmphasis={resumeEmphasis}
+                    getQuickRevisionsForBullet={getQuickRevisionsForBullet}
                   />
-                </Box>
-
-                {/* Keyboard Navigation Instructions (Top Right, above chat pane) */}
-                <Box
-                  display={{ base: 'none', md: 'block' }}
-                  position="fixed"
-                  top="80px"
-                  right="20px"
-                  zIndex={1}
-                  width="auto"
-                  maxW="340px"
-                  bg="transparent"
-                  boxShadow="none"
-                  borderRadius="none"
-                >
-                  <KeyboardInstructions />
                 </Box>
 
                 {/* Chat Pane (Right) */}
