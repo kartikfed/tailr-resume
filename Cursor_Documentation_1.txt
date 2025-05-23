@@ -1,0 +1,200 @@
+====================================================================
+AI Spec Assistant (Tailr) - Comprehensive Project Documentation
+====================================================================
+
+Table of Contents
+-----------------
+1. Overview
+2. Tech Stack
+3. System Architecture & Design Decisions
+4. Frontend Code Structure & UX Flows
+5. Backend Code Structure & API Design
+6. Data Flow & Key Algorithms
+7. Security & Privacy
+8. Setup & Development
+9. Best Practices & Conventions
+10. Future Enhancements
+
+====================================================================
+1. Overview
+====================================================================
+Tailr (AI Spec Assistant) is an AI-powered resume optimization tool that helps job seekers tailor their resumes for specific job applications. It leverages advanced AI (Anthropic Claude) to analyze job descriptions and resumes, providing targeted, actionable suggestions and revision flows. The system is designed for high usability, security, and extensibility.
+
+Key Features:
+- Job description analysis and extraction of focus points
+- Resume upload and parsing (PDF, DOCX, TXT)
+- Interactive, context-aware chat interface
+- Quick revision suggestions for resume bullet points
+- Custom writing style selection
+- Real-time feedback and revision acceptance/rejection
+- Secure, privacy-focused data handling
+
+====================================================================
+2. Tech Stack
+====================================================================
+
+Frontend:
+- React 18 (Functional Components, Hooks)
+- TypeScript (recommended, some files may be JS)
+- Chakra UI (component library)
+- Vite (build tool)
+- Axios (API requests)
+- React Markdown + rehype-raw (Markdown rendering)
+- Framer Motion (animations)
+
+Backend:
+- Node.js (Express server)
+- Anthropic Claude API (AI/LLM integration)
+- Langchain (AI orchestration)
+- PDF parsing: pdf-parse, pdf2json
+- dotenv (env config), morgan (logging), cors (CORS)
+
+Monorepo/Tooling:
+- Concurrently (dev scripts)
+- ESLint, Prettier (linting/formatting)
+- Environment variables for all secrets/config
+
+====================================================================
+3. System Architecture & Design Decisions
+====================================================================
+
+- **Monorepo**: Separate `frontend/` and `backend/` directories, each with their own package.json.
+- **API-Driven**: All frontend/backend communication via RESTful API endpoints.
+- **Stateless Backend**: Uses in-memory storage for conversations/files (swap for DB in production).
+- **AI Integration**: All resume/job analysis and revision logic is handled by Anthropic Claude via a service layer.
+- **Security**: CORS, payload size limits, environment variable management, and no permanent data storage by default.
+- **Extensibility**: Modular service layers, clear separation of UI, business logic, and API calls.
+
+====================================================================
+4. Frontend Code Structure & UX Flows
+====================================================================
+
+**Directory Structure:**
+- `frontend/src/components/` - All UI components (FileUpload, SpecCanvas, MessageHistory, etc.)
+- `frontend/src/services/` - API service layer (apiService.js)
+- `frontend/src/App.jsx` - Main app logic, state, and layout
+
+**Key Components:**
+- **FileUpload**: Handles file selection, PDF parsing, and upload to backend. Shows progress and success states.
+- **SpecCanvas**: Renders resume content, highlights bullet points, manages revision popovers, and integrates quick revision suggestions. Custom Markdown rendering for bullet points.
+- **MessageHistory**: Displays chat history between user and AI, with Markdown support and role-based styling.
+- **ToneSelector**: Dropdown for selecting writing style (concise, technical, plain).
+- **TextInput**: Styled textarea for job description input.
+- **ChatInput**: Input box for sending messages to the AI.
+- **SpecDisplay**: Accordion-based display of generated product specs (problem statement, user stories, requirements, metrics).
+
+**UX Flows:**
+1. **Onboarding**: User selects writing style, uploads resume, and pastes job description.
+2. **Job Description Analysis**: User clicks "Analyze"; backend extracts focus points and requirements.
+3. **Resume Revision**: User selects a bullet point, sees quick revision suggestions, and can accept/reject AI-generated changes.
+4. **Chat Interaction**: User can chat with the AI for further suggestions or clarification.
+5. **Revision Acceptance**: Accepting a revision updates the resume content and highlights the change.
+6. **File Upload**: Supports PDF, DOCX, TXT; parses and converts to Markdown for display and editing.
+
+**Accessibility & Responsiveness:**
+- All components use Chakra UI for consistent theming and accessibility.
+- Keyboard navigation and ARIA attributes are used where appropriate.
+- Responsive design for desktop and mobile.
+
+====================================================================
+5. Backend Code Structure & API Design
+====================================================================
+
+**Directory Structure:**
+- `backend/src/server.js` - Express server entry point
+- `backend/src/api/routes/specRoutes.js` - All API endpoints
+- `backend/src/mcp/claudeService.js` - Anthropic Claude integration
+- `backend/utils/pdfExtract.js` - PDF parsing and Markdown conversion
+
+**Key API Endpoints:**
+- `POST /api/spec/chat` - Main chat endpoint (user/AI conversation)
+- `POST /api/spec/upload` - Uploads resume files, parses PDFs
+- `GET /api/spec/conversation/:conversationId` - Fetches conversation history and files
+- `POST /api/spec/revise` - Revises a selected resume bullet point
+- `POST /api/spec/analyze-job-description` - Analyzes job description for key requirements
+- `POST /api/spec/generate-prompts` - Generates quick revision prompts for a bullet point
+
+**AI Integration:**
+- All AI logic (analysis, revision, prompt generation) is handled by Anthropic Claude via a service layer.
+- System prompts are carefully crafted to ensure factual, actionable, and non-hallucinated output.
+
+**PDF/Resume Parsing:**
+- PDF files are parsed and converted to Markdown for consistent rendering and editing.
+- Extraction logic ensures headings, bullets, and sections are preserved.
+
+====================================================================
+6. Data Flow & Key Algorithms
+====================================================================
+
+- **File Upload**: Frontend reads file (as text or base64 for PDFs), sends to backend, backend parses and stores in-memory.
+- **Resume Rendering**: Markdown is rendered with custom bullet logic to allow for selection, highlighting, and revision.
+- **Revision Flow**: User selects bullet, requests revision, AI returns revised text and explanation, frontend updates content and highlights change.
+- **Job Description Analysis**: AI extracts required skills, responsibilities, and focus points, which are displayed to the user.
+- **Quick Revisions**: AI generates 3 actionable prompts for each bullet, which the user can select for instant revision.
+
+====================================================================
+7. Security & Privacy
+====================================================================
+- All secrets and API keys are managed via environment variables.
+- CORS is strictly configured for allowed origins.
+- No sensitive data is stored permanently by default.
+- All user input is validated on both client and server.
+- HTTPS is required for production deployments.
+- No sensitive data is ever logged or exposed in API responses.
+
+====================================================================
+8. Setup & Development
+====================================================================
+
+**Prerequisites:**
+- Node.js (v16+ recommended)
+- npm
+
+**Install All Dependencies:**
+```
+npm run install:all
+```
+
+**Start Development Servers:**
+```
+npm run dev
+```
+(Starts both frontend and backend concurrently)
+
+**Environment Variables:**
+- See `.env.example` for required variables (API keys, etc.)
+- `VITE_API_URL` for frontend API base URL
+- `ANTHROPIC_API_KEY` for backend AI integration
+
+**Linting & Formatting:**
+- Run `eslint` and `prettier` for code quality
+
+====================================================================
+9. Best Practices & Conventions
+====================================================================
+- TypeScript for all new files (use .tsx/.ts)
+- Self-documenting code with JSDoc comments
+- Single responsibility principle for all functions/components
+- Consistent naming: camelCase (vars/functions), PascalCase (components)
+- No hardcoded values; use constants/config/env
+- Error handling with user-friendly messages
+- Pure functions and separation of business logic from UI
+- Service layers for all API calls
+- Absolute imports with path aliases (e.g., @/components)
+- Accessibility: ARIA labels, alt text, keyboard navigation
+- Security: input validation, CORS, no sensitive data in localStorage
+- Version control: meaningful commit messages, small focused commits
+
+====================================================================
+10. Future Enhancements
+====================================================================
+- Additional writing styles and tone options
+- More file format support (DOCX, ODT, etc.)
+- Persistent storage (database integration)
+- Enhanced AI capabilities and prompt engineering
+- Integration with job boards and resume libraries
+- Advanced analytics and reporting
+
+====================================================================
+For further details, see README.md and code comments throughout the codebase.
+====================================================================
