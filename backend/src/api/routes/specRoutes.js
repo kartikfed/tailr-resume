@@ -10,6 +10,7 @@ const router = express.Router();
 const { sendMessageToClaudeWithMCP } = require('../../mcp/claudeService');
 const { extractPdfText, extractPdfMarkdown } = require('../../../utils/pdfExtract');
 const sectionExtractorTool = require('../../mcp/tools/sectionExtractor');
+const { extractJobDescription } = require('../../utils/jobScraper');
 
 // Simple in-memory storage for conversation history and files
 // In production, use a database
@@ -336,7 +337,7 @@ Revision Process:
    - Opportunities for better alignment with job description
    - Natural keyword integration
 2. Restructure using the WHAT-HOW-WHY framework
-3. The revised text should be similar in length to the original text
+3. The revised text should be no longer than ~10% longer than the original text
 4. Provide the revised bullet point
 
 CRITICAL RULES:
@@ -645,7 +646,8 @@ CRITICAL RULES:
 - ONLY use information that is explicitly stated in the original text
 - Focus on improving the language, structure, and alignment while preserving the factual content
 - Each prompt should be specific to the selected text and job description
-- Prompts should be actionable and clear
+- Prompts should be actionable, clear, and concise (no more than 1 sentence)
+- Prompts should ALWAYS directive statements - this means they should be worded as if the user is being told what to do.
 - Generate EXACTLY 3 prompts, no more and no less
 - Each prompt should be unique and offer a different perspective on improving the text
 
@@ -698,6 +700,66 @@ Your response should be a JSON object with the following structure:
     console.error('Error generating prompts:', error);
     res.status(500).json({ error: 'Failed to generate prompts' });
   }
+});
+
+/**
+ * Scrape job description from a provided URL
+ */
+router.post('/scrape-job', async (req, res) => {
+    try {
+        const { url } = req.body;
+        
+        console.log('Received scrape request for URL:', url);
+        
+        if (!url) {
+            console.log('Error: URL is missing from request body');
+            return res.status(400).json({ error: 'URL is required' });
+        }
+
+        // Validate URL format
+        let urlObj;
+        try {
+            urlObj = new URL(url);
+            console.log('URL parsed successfully. Hostname:', urlObj.hostname);
+        } catch (error) {
+            console.log('Error: Invalid URL format:', error.message);
+            return res.status(400).json({ error: 'Invalid URL format' });
+        }
+
+        // Check if it's a supported job board URL
+        const isGreenhouse = urlObj.hostname.includes('greenhouse.io');
+        const isLever = urlObj.hostname.includes('lever.co');
+        const isAshby = urlObj.hostname.includes('jobs.ashbyhq.com');
+        const isJobvite = urlObj.hostname.includes('jobs.jobvite.com');
+        
+        console.log('URL type check:', {
+            isGreenhouse,
+            isLever,
+            isAshby,
+            isJobvite,
+            hostname: urlObj.hostname
+        });
+
+        if (!isGreenhouse && !isLever && !isAshby && !isJobvite) {
+            console.log('Error: Unsupported job board URL');
+            return res.status(400).json({ error: 'Unsupported job board URL. Currently supporting Greenhouse, Lever, Ashby, and Jobvite.' });
+        }
+
+        console.log('Starting job description extraction...');
+        const jobDescription = await extractJobDescription(url);
+        
+        if (!jobDescription) {
+            console.log('Error: Could not extract job description');
+            return res.status(404).json({ error: 'Could not extract job description from the provided URL' });
+        }
+
+        console.log('Successfully extracted job description. Length:', jobDescription.length);
+        res.json({ jobDescription });
+    } catch (error) {
+        console.error('Error in scrape-job endpoint:', error);
+        console.error('Error stack:', error.stack);
+        res.status(500).json({ error: 'Error scraping job description: ' + error.message });
+    }
 });
 
 module.exports = router;

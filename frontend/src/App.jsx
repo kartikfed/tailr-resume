@@ -15,10 +15,11 @@ import {
   useColorModeValue,
   IconButton,
   Collapse,
-  Progress
+  Progress,
+  Input
 } from '@chakra-ui/react';
 import { sendMessage, uploadFiles, getConversation } from './services/apiService';
-import { CheckCircleIcon, ChevronLeftIcon, ChatIcon } from '@chakra-ui/icons';
+import { CheckCircleIcon, ChevronLeftIcon, ChatIcon, LinkIcon } from '@chakra-ui/icons';
 
 import ChatInput from './components/ChatInput';
 import FileUpload from './components/FileUpload';
@@ -73,6 +74,9 @@ function App() {
 
   // Helper to get bullet text for current selection (assume SpecCanvas passes bulletText)
   const getQuickRevisionsForBullet = (bulletText) => quickRevisionCache[bulletText] || [];
+
+  const [jobUrl, setJobUrl] = useState('');
+  const [isScraping, setIsScraping] = useState(false);
 
   useLayoutEffect(() => {
     if (textBlockRef.current) {
@@ -461,6 +465,53 @@ function App() {
     }
   };
 
+  const handleScrapeJob = async () => {
+    if (!jobUrl.trim()) return;
+    
+    try {
+      setIsScraping(true);
+      setError('');
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/spec/scrape-job`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url: jobUrl }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to scrape job description');
+      }
+
+      const data = await response.json();
+      
+      if (data.jobDescription) {
+        setJobDescription(data.jobDescription);
+        toast({
+          title: 'Job Description Scraped',
+          description: 'Successfully retrieved job description',
+          status: 'success',
+          duration: 3000,
+          isClosable: true,
+          position: 'top-right'
+        });
+      }
+    } catch (error) {
+      setError(error.message);
+      toast({
+        title: 'Scraping Failed',
+        description: error.message,
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+        position: 'top-right'
+      });
+    } finally {
+      setIsScraping(false);
+    }
+  };
+
   return (
     <ChakraProvider>
       {appMode === 'upload' ? (
@@ -590,7 +641,7 @@ function App() {
               />
             </Box>
 
-            {/* Header */}
+            {/* Job Description Section */}
             <Box>
               <Text 
                 fontSize="xl" 
@@ -598,19 +649,39 @@ function App() {
                 color="white" 
                 mb={4}
               >
-                Paste the job description you want to tailor your resume for
+                Enter job URL or paste job description
               </Text>
-            </Box>
 
-            {/* Job Description Input */}
-            <Box flex="1">
+              {/* URL Input */}
+              <HStack mb={4}>
+                <Input
+                  placeholder="https://boards.greenhouse.io/company/jobs/123456"
+                  value={jobUrl}
+                  onChange={(e) => setJobUrl(e.target.value)}
+                  bg={chatInputBgColor}
+                  color={textColor}
+                  _placeholder={{ color: 'gray.500' }}
+                />
+                <Button
+                  colorScheme="purple"
+                  onClick={handleScrapeJob}
+                  isLoading={isScraping}
+                  loadingText="Scraping..."
+                  isDisabled={!jobUrl.trim() || isScraping}
+                  leftIcon={<LinkIcon />}
+                >
+                  Scrape
+                </Button>
+              </HStack>
+
+              {/* Job Description Text Area */}
               <TextInput
                 id="job-description"
                 value={jobDescription}
                 onChange={(e) => setJobDescription(e.target.value)}
                 rows={12}
                 h="400px"
-                placeholder=""
+                placeholder="Job description will appear here..."
               />
             </Box>
 
