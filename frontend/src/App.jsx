@@ -62,40 +62,40 @@ function App() {
               <Route
                 path="/"
                 element={
-                  <Flex direction="row" align="stretch" minH="100vh" bg="linear-gradient(135deg, #667eea 0%, #764ba2 100%)">
-                    <Sidebar />
-                    <Box ml="0" flex={1} p={0}>
-                      <PrivateRoute>
+                  <PrivateRoute>
+                    <Flex direction="row" align="stretch" minH="100vh" bg="linear-gradient(135deg, #667eea 0%, #764ba2 100%)">
+                      <Sidebar />
+                      <Box ml="0" flex={1} p={0}>
                         <Dashboard />
-                      </PrivateRoute>
-                    </Box>
-                  </Flex>
+                      </Box>
+                    </Flex>
+                  </PrivateRoute>
                 }
               />
               <Route
                 path="/job-description"
                 element={
-                  <Flex direction="row" align="stretch" minH="100vh" bg="linear-gradient(135deg, #667eea 0%, #764ba2 100%)">
-                    <Sidebar />
-                    <Box ml="0" flex={1} p={4}>
-                      <PrivateRoute>
+                  <PrivateRoute>
+                    <Flex direction="row" align="stretch" minH="100vh" bg="linear-gradient(135deg, #667eea 0%, #764ba2 100%)">
+                      <Sidebar />
+                      <Box ml="0" flex={1} p={4}>
                         <JobDescriptionPage />
-                      </PrivateRoute>
-                    </Box>
-                  </Flex>
+                      </Box>
+                    </Flex>
+                  </PrivateRoute>
                 }
               />
               <Route
                 path="/applications/:id"
                 element={
-                  <Flex direction="row" align="stretch" minH="100vh" bg="linear-gradient(135deg, #667eea 0%, #764ba2 100%)">
-                    <Sidebar />
-                    <Box ml="0" flex={1} p={4}>
-                      <PrivateRoute>
+                  <PrivateRoute>
+                    <Flex direction="row" align="stretch" minH="100vh" bg="linear-gradient(135deg, #667eea 0%, #764ba2 100%)">
+                      <Sidebar />
+                      <Box ml="0" flex={1} p={4}>
                         <ApplicationDetails />
-                      </PrivateRoute>
-                    </Box>
-                  </Flex>
+                      </Box>
+                    </Flex>
+                  </PrivateRoute>
                 }
               />
             </Routes>
