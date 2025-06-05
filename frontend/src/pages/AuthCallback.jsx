@@ -11,11 +11,16 @@ export function AuthCallback() {
       try {
         // Get the hash fragment from the URL
         const hash = window.location.hash;
+        console.log('Hash fragment:', hash); // Debug log
+
         if (hash) {
           // Parse the hash fragment
           const params = new URLSearchParams(hash.substring(1));
           const accessToken = params.get('access_token');
           const refreshToken = params.get('refresh_token');
+          
+          console.log('Access token:', accessToken ? 'Present' : 'Missing'); // Debug log
+          console.log('Refresh token:', refreshToken ? 'Present' : 'Missing'); // Debug log
           
           if (accessToken && refreshToken) {
             // Set the session using the tokens
@@ -24,11 +29,33 @@ export function AuthCallback() {
               refresh_token: refreshToken
             });
             
-            if (error) throw error;
+            if (error) {
+              console.error('Error setting session:', error); // Debug log
+              throw error;
+            }
             
-            // Navigate to dashboard on success
-            navigate('/');
+            // Get the current session to verify
+            const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+            
+            if (sessionError) {
+              console.error('Error getting session:', sessionError); // Debug log
+              throw sessionError;
+            }
+            
+            if (session) {
+              console.log('Session established successfully'); // Debug log
+              navigate('/');
+            } else {
+              console.error('No session established'); // Debug log
+              throw new Error('No session established');
+            }
+          } else {
+            console.error('Missing tokens in hash fragment'); // Debug log
+            throw new Error('Missing tokens in hash fragment');
           }
+        } else {
+          console.error('No hash fragment found'); // Debug log
+          throw new Error('No hash fragment found');
         }
       } catch (error) {
         console.error('Error handling auth callback:', error);

@@ -4,11 +4,14 @@ services:
     env: node
     nodeVersion: 18.17.0
     buildCommand: cd frontend && npm install && npm run build
-    startCommand: cd frontend && npm run preview
+    startCommand: cd frontend && npm run preview -- --host 0.0.0.0 --port $PORT
     envVars:
       - key: NODE_ENV
         value: production
     routes:
+      - type: rewrite
+        source: /auth/callback
+        destination: /index.html
       - type: rewrite
         source: /*
         destination: /index.html 
