@@ -12,6 +12,7 @@
     "@chakra-ui/react": "^2.8.2",
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
+    "@supabase/supabase-js": "^2.49.10",
     "@types/react-dropzone": "^4.2.2",
     "axios": "^1.6.2",
     "framer-motion": "^10.16.12",
