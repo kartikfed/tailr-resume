@@ -22,9 +22,14 @@
     "concurrently": "^8.2.0"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.49.10",
+    "@types/pdfjs-dist": "^2.10.377",
     "cors": "^2.8.5",
+    "pdf-lib": "^1.17.1",
     "pdf-parse": "^1.1.1",
     "pdf2md": "^1.0.2",
+    "pdfjs-dist": "^5.3.31",
+    "react-icons": "^5.5.0",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1"
   }

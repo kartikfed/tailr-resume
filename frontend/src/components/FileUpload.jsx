@@ -19,6 +19,7 @@ import {
 } from '@chakra-ui/react';
 import { AttachmentIcon, CheckCircleIcon } from '@chakra-ui/icons';
 import { uploadFiles } from '../services/apiService';
+import { readFileContent } from '../utils/fileReader';
 
 /**
  * Component for uploading context files for the AI Spec Assistant
@@ -37,37 +38,6 @@ const FileUpload = ({ onFilesUploaded, isLoading, conversationId, bg, color }) =
     }
   };
 
-  const readFileContent = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      
-      reader.onerror = function(error) {
-        reject(error);
-      };
-
-      if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
-        // Read PDF as ArrayBuffer and encode as base64
-        reader.onload = function(event) {
-          const arrayBuffer = event.target.result;
-          // Convert ArrayBuffer to base64
-          const base64String = btoa(
-            new Uint8Array(arrayBuffer)
-              .reduce((data, byte) => data + String.fromCharCode(byte), '')
-          );
-          resolve(base64String);
-        };
-        reader.readAsArrayBuffer(file);
-      } else {
-        // Read as text for other file types
-        reader.onload = function(event) {
-          const content = event.target.result;
-          resolve(content);
-        };
-        reader.readAsText(file);
-      }
-    });
-  };
-
   const handleUpload = async () => {
     if (files.length === 0) return;
 
@@ -77,7 +47,7 @@ const FileUpload = ({ onFilesUploaded, isLoading, conversationId, bg, color }) =
       // Read all files with content
       const filePromises = files.map(async (file) => {
         try {
-          const content = await readFileContent(file);
+          const content = await readFileContent(file, file.name);
           return {
             name: file.name,
             type: file.type,
