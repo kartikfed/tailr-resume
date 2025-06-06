@@ -30,22 +30,47 @@ async function sendMessageToClaudeWithMCP(messages, files = [], systemPrompt = D
     try {
       const { formatToolsForMCP } = require('./toolDefinitions');
       const tools = formatToolsForMCP();
-      const formattedMessages = messages.map(msg => ({
-        role: msg.role,
-        content: typeof msg.content === 'string' ? msg.content : msg.content
-      }));
+      
+      // Format messages properly for Claude API
+      const formattedMessages = messages.map(msg => {
+        // If the message has an array of content items
+        if (Array.isArray(msg.content)) {
+          return {
+            role: msg.role,
+            content: msg.content.map(contentItem => {
+              if (contentItem.type === 'document') {
+                // Preserve the exact document structure with source at root level
+                return {
+                  type: 'document',
+                  source: contentItem.source
+                };
+              }
+              return contentItem;
+            })
+          };
+        }
+        // If the message has a simple text content
+        return {
+          role: msg.role,
+          content: msg.content
+        };
+      });
+
       console.log('Claude Service: Sending message to Claude');
       console.log('Claude Service: Number of messages:', formattedMessages.length);
-      console.log('Claude Service: Last message length:', formattedMessages[formattedMessages.length - 1].content.length);
+      console.log('Claude Service: Last message content:', JSON.stringify(formattedMessages[formattedMessages.length - 1].content, null, 2));
+
       const requestParams = {
         model: 'claude-3-7-sonnet-20250219',
         system: systemPrompt,
         messages: formattedMessages,
         max_tokens: 4096,
       };
+
       if (files && files.length > 0) {
         requestParams.tools = tools;
       }
+
       const response = await anthropic.messages.create(requestParams);
       console.log('Claude Service: Response received');
       console.log('Claude Service: Response type:', response.content[0].type);
@@ -54,7 +79,7 @@ async function sendMessageToClaudeWithMCP(messages, files = [], systemPrompt = D
       console.error('Claude Service: Error communicating with Claude:', error);
       throw new Error(`Failed to communicate with AI: ${error.message}`);
     }
-  }
+}
 
 /**
  * Handles the tool calling loop

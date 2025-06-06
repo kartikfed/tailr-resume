@@ -41,6 +41,7 @@ import { theme } from './theme';
 import ApplicationDetails from './pages/ApplicationDetails';
 import { ResumeManager } from './components/ResumeManager';
 import JobDescriptionPage from './pages/JobDescriptionPage';
+import PdfHtmlTestPage from './pages/PdfHtmlTestPage';
 
 function PrivateRoute({ children }) {
   const { user } = useAuth();
@@ -95,6 +96,19 @@ function App() {
                       <Sidebar />
                       <Box ml={{ base: 0, md: '240px' }} p={4} minH="100vh">
                         <ApplicationDetails />
+                      </Box>
+                    </>
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/pdf-test"
+                element={
+                  <PrivateRoute>
+                    <>
+                      <Sidebar />
+                      <Box ml={{ base: 0, md: '240px' }} p={4} minH="100vh">
+                        <PdfHtmlTestPage />
                       </Box>
                     </>
                   </PrivateRoute>

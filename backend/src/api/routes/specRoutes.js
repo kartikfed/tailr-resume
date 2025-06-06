@@ -762,4 +762,190 @@ router.post('/scrape-job', async (req, res) => {
     }
 });
 
+/**
+ * Convert PDF to HTML using Claude
+ */
+router.post('/pdf-to-html', async (req, res) => {
+  try {
+    const { content } = req.body;
+    
+    if (!content) {
+      return res.status(400).json({ error: 'PDF content is required' });
+    }
+
+    // Create system prompt for Claude
+    const systemPrompt = `You are a document conversion specialist that transforms resume PDFs into pixel-perfect HTML representations with 100% accuracy and visual fidelity.
+Core Requirements
+1. Content Accuracy (CRITICAL)
+* NEVER hallucinate or modify content - reproduce ALL text and formatting exactly as written
+* ONLY include the html and nothing else (no prose, explanations, etc...)
+* Preserve original spelling, punctuation, numbers, dates, and formatting
+* Maintain exact line breaks, spacing, and paragraph structure
+* If text is unclear, indicate uncertainty rather than guessing
+2. Visual Analysis & Reproduction
+Systematically match these elements:
+* Typography: Font sizes, weights, styles, letter-spacing, alignment
+* Layout: Section spacing, bullet indentation, header positioning, margins
+* Colors: Text colors, accent colors, borders (use hex codes for precision)
+* Hierarchy: Visual emphasis patterns, section organization, formatting consistency
+3. HTML/CSS Implementation
+Structure:
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>[Name] Resume</title>
+    <style>
+        /* Base styles */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 8.5in;
+            margin: 0 auto;
+            padding: 1in;
+            background: white;
+        }
+        
+        /* Print styles */
+        @media print {
+            body {
+                padding: 0;
+                margin: 0;
+                width: 100%;
+            }
+        }
+        
+        /* Resume specific styles */
+        .resume-container {
+            position: relative;
+            width: 100%;
+        }
+        
+        .header {
+            margin-bottom: 1.5rem;
+        }
+        
+        .section {
+            margin-bottom: 1.5rem;
+        }
+        
+        .section-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 0.25rem;
+        }
+        
+        .job {
+            margin-bottom: 1rem;
+        }
+        
+        .job-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 0.5rem;
+        }
+        
+        .company {
+            font-weight: 600;
+        }
+        
+        .date {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .responsibilities {
+            margin-left: 1.5rem;
+        }
+        
+        .responsibilities li {
+            margin-bottom: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="resume-container">
+        <!-- Content will be inserted here -->
+    </div>
+</body>
+</html>
+
+Requirements:
+* Use semantic class names (.header, .section-title, .job, .responsibilities)
+* Implement responsive design with max-width containers
+* Include print-friendly media queries
+* Match font families (Arial, Calibri, Times, etc.) precisely
+* Use flexbox for complex alignments (company/date positioning)
+* Preserve exact spacing relationships with margin/padding
+4. Quality Checklist
+Before finalizing, verify:
+* Every word matches original exactly
+* Font hierarchy creates same visual impact
+* Colors and spacing are accurate
+* Layout structure is preserved
+* Professional appearance maintained
+* Responsive design functions properly
+Process
+1. Analyze: Read PDF carefully, note design patterns and hierarchy
+2. Extract: Transcribe all content with 100% accuracy
+3. Implement: Create CSS that matches visual design precisely
+4. Verify: Compare side-by-side with original for accuracy and fidelity
+Output
+Deliver a complete HTML document with embedded CSS that is visually indistinguishable from the original PDF while maintaining web standards and accessibility.
+Success Criteria: The HTML version should look identical to the PDF when viewed in a browser.`;
+
+    // Send to Claude with properly formatted message content
+    const messages = [
+      { 
+        role: 'user', 
+        content: [
+          {
+            type: 'text',
+            text: 'Please convert this PDF document to semantic HTML while preserving its visual structure and formatting.'
+          },
+          {
+            type: 'document',
+            source: {
+              type: 'base64',
+              media_type: 'application/pdf',
+              data: content
+            }
+          }
+        ]
+      }
+    ];
+
+    console.log('PDF to HTML: Sending request to Claude');
+    console.log('PDF to HTML: Message content:', JSON.stringify(messages[0].content, null, 2));
+
+    const claudeResponse = await sendMessageToClaudeWithMCP(messages, [], systemPrompt);
+    
+    if (!claudeResponse.content || claudeResponse.content.length === 0) {
+      throw new Error('No response from Claude');
+    }
+
+    // Extract HTML from Claude's response
+    const html = claudeResponse.content[0].text;
+
+    // Set proper headers for HTML content
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+
+    // Send the HTML response
+    res.send(html);
+  } catch (error) {
+    console.error('Error converting PDF to HTML:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;
