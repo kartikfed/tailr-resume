@@ -6,23 +6,13 @@ import {
   Text,
   useToast,
   Button,
-  List,
-  ListItem,
-  ListIcon,
   Flex,
-  Badge,
   Divider,
   Textarea,
   HStack,
-  SimpleGrid,
-  IconButton,
-  PopoverBody,
   useColorModeValue,
   Collapse,
-  useDisclosure,
-  Spinner
-} from '@chakra-ui/react';
-import { CheckCircleIcon, RepeatIcon, CloseIcon, ChevronDownIcon, ChevronUpIcon } from '@chakra-ui/icons';
+  useDisclosure} from '@chakra-ui/react';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import ReactDOM from 'react-dom';
@@ -42,11 +32,9 @@ const pulseKeyframes = `
 const SpecCanvas = ({
   resumeMarkdown = null,
   onAcceptRevision,
-  onRejectRevision,
   jobDescriptionProvided = false,
   jobDescription = '',
   highlightedText = null,
-  promptPresets = [],
   onRegeneratePrompts = null,
   writingTone = 'concise',
   conversationId,
@@ -305,7 +293,6 @@ const SpecCanvas = ({
         const rect = element.getBoundingClientRect();
         
         // Calculate the total height needed for the complete highlighted area
-        const totalHeight = rect.height + 40; // Base height + R key indicator height
         
         // Calculate the viewport height
         const viewportHeight = window.innerHeight;
@@ -349,7 +336,6 @@ const SpecCanvas = ({
   const [showReviseButton, setShowReviseButton] = useState(false);
   const canvasRef = useRef(null);
   const floatingRef = useRef(null);
-  const ignoreNextClickAway = useRef(false);
   const [isRevisionPopoverExpanded, setIsRevisionPopoverExpanded] = useState(true);
   const [userInstructions, setUserInstructions] = useState('');
   const [revisedText, setRevisedText] = useState('');
@@ -536,10 +522,6 @@ const SpecCanvas = ({
   };
 
   // Close popover
-  const handleClosePopover = () => {
-    setShowRevisionPopover(false);
-    setUserInstructions('');
-  };
 
   // Update handleSubmitRevision toast
   const handleSubmitRevision = async (prompt) => {
@@ -774,81 +756,11 @@ const SpecCanvas = ({
     }
   };
 
-  const handleAnalyzeJobDescription = async () => {
-    if (!selectedText || !jobDescription) return;
-    
-    try {
-      setIsAnalyzing(true);
-      
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/spec/analyze-job-description`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          content: jobDescription,
-          selectedText,
-          analysisType: 'full_analysis'
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to analyze job description');
-      }
-
-      const analysis = await response.json();
-      console.log('Job description analysis:', analysis);
-
-      // Update prompt presets if available
-      if (analysis.results?.prompt_presets && onRegeneratePrompts) {
-        onRegeneratePrompts(analysis.results.prompt_presets);
-      }
-
-      toast({
-        title: 'Analysis Complete',
-        description: 'Job description has been analyzed',
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-        position: 'top-right',
-        containerStyle: {
-          width: '320px',
-          maxWidth: '100%',
-        }
-      });
-
-      return analysis;
-    } catch (error) {
-      toast({
-        title: 'Analysis Failed',
-        description: 'Unable to analyze job description',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-        position: 'top-right',
-        containerStyle: {
-          width: '320px',
-          maxWidth: '100%',
-        }
-      });
-      throw error;
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
 
   // Add color mode values at the top of the component
-  const textColor = useColorModeValue('gray.900', 'gray.900');
-  const bgColor = useColorModeValue('gray.100', 'gray.100');
-  const borderColor = useColorModeValue('gray.300', 'gray.300');
-  const inputBgColor = useColorModeValue('gray.50', 'gray.50');
-  const headingColor = useColorModeValue('purple.500', 'purple.500');
-  const bulletColor = useColorModeValue('blue.400', 'blue.400');
-  const highlightColor = useColorModeValue('purple.700', 'purple.700');
   const selectedBulletBg = useColorModeValue('#ede9fe', '#ede9fe'); // light purple
   const selectedBulletBorder = useColorModeValue('#a78bfa', '#a78bfa'); // medium purple
   const recentlyRevisedBg = useColorModeValue('#d1fae5', '#d1fae5'); // light green
-  const recentlyRevisedTextColor = useColorModeValue('green.800', 'green.800');
 
   // Add the keyframes to the document head once
   React.useEffect(() => {

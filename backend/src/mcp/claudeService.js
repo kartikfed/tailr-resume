@@ -28,9 +28,6 @@ const DEFAULT_SYSTEM_PROMPT = `You are a resume formatting assistant. You will b
  */
 async function sendMessageToClaudeWithMCP(messages, files = [], systemPrompt = DEFAULT_SYSTEM_PROMPT) {
     try {
-      const { formatToolsForMCP } = require('./toolDefinitions');
-      const tools = formatToolsForMCP();
-      
       // Format messages properly for Claude API
       const formattedMessages = messages.map(msg => {
         // If the message has an array of content items
@@ -67,10 +64,6 @@ async function sendMessageToClaudeWithMCP(messages, files = [], systemPrompt = D
         max_tokens: 4096,
       };
 
-      if (files && files.length > 0) {
-        requestParams.tools = tools;
-      }
-
       const response = await anthropic.messages.create(requestParams);
       console.log('Claude Service: Response received');
       console.log('Claude Service: Response type:', response.content[0].type);
@@ -81,86 +74,6 @@ async function sendMessageToClaudeWithMCP(messages, files = [], systemPrompt = D
     }
 }
 
-/**
- * Handles the tool calling loop
- * @param {Object} response - Claude's initial response
- * @param {Array} messages - The conversation history
- * @param {Array} tools - The tools available to Claude
- * @param {Array} files - Any files uploaded by the user
- * @returns {Object} - Claude's final response after tool execution
- */
-async function handleToolCalls(response, messages, tools, files) {
-  let currentResponse = response;
-  let toolsUsed = [];
-  
-  // Keep processing tool calls until Claude returns a text response
-  while (currentResponse.content && 
-         currentResponse.content.length > 0 && 
-         currentResponse.content[0].type === 'tool_use') {
-    const toolCall = currentResponse.content[0];
-    
-    console.log(`Claude Service: Tool call - Name: ${toolCall.name}, Input:`, toolCall.input);
-    
-    // Execute the tool
-    let toolResult;
-    try {
-      // Call the appropriate tool handler and pass context
-      const toolHandlers = require('../tools/toolHandlers');
-      toolResult = await toolHandlers[toolCall.name](
-        toolCall.input, 
-        { files }  // Pass files and other context
-      );
-      console.log(`Claude Service: Tool result for ${toolCall.name}:`, toolResult);
-    } catch (error) {
-      // If the tool errors, return a helpful error message
-      toolResult = { 
-        error: `Error executing ${toolCall.name}: ${error.message}` 
-      };
-      console.error(`Claude Service: Tool execution error:`, error);
-    }
-    
-    // Track tools that have been used
-    toolsUsed.push({
-      name: toolCall.name,
-      input: toolCall.input,
-      result: toolResult
-    });
-    
-    // Create updated messages array with tool results
-    const updatedMessages = [
-      ...messages,
-      { role: 'assistant', content: currentResponse.content },
-      { role: 'user', content: [{ 
-        type: 'tool_result',
-        tool_use_id: toolCall.id,
-        content: JSON.stringify(toolResult)
-      }]}
-    ];
-    
-    console.log('Claude Service: Sending tool result back to Claude');
-    
-    // Send updated messages to Claude
-    currentResponse = await anthropic.messages.create({
-      model: 'claude-3-7-sonnet-20250219',
-      system: DEFAULT_SYSTEM_PROMPT,
-      messages: updatedMessages,
-      tools: tools,
-      max_tokens: 4096,
-    });
-    
-    console.log('Claude Service: Received follow-up response from Claude');
-  }
-  
-  // Add metadata about tools used to the response
-  return {
-    ...currentResponse,
-    meta: {
-      toolsUsed
-    }
-  };
-}
-
 module.exports = {
-  sendMessageToClaudeWithMCP,
-  handleToolCalls
+  sendMessageToClaudeWithMCP
 };

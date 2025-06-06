@@ -1,45 +1,20 @@
-import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import React, {  } from 'react';
 import {
   ChakraProvider,
   Box,
-  Container,
-  Heading,
-  Text,
-  VStack,
-  HStack,
-  Divider,
-  useToast,
-  Flex,
-  Spacer,
-  Button,
-  useColorModeValue,
-  IconButton,
-  Collapse,
-  Progress,
-  Input,
   ColorModeScript
 } from '@chakra-ui/react';
-import { sendMessage, uploadFiles, getConversation } from './services/apiService';
-import { CheckCircleIcon, ChevronLeftIcon, ChatIcon, LinkIcon } from '@chakra-ui/icons';
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Login } from './pages/Login';
 import { AuthCallback } from './pages/AuthCallback';
 import { EmailAuth } from './pages/EmailAuth';
 import { Register } from './pages/Register';
 import { Dashboard } from './pages/Dashboard';
-import { supabase } from './services/supabase';
 import { Sidebar } from './components/Sidebar';
 
-import ChatInput from './components/ChatInput';
-import FileUpload from './components/FileUpload';
-import MessageHistory from './components/MessageHistory';
-import SpecCanvas from './components/SpecCanvas';
-import ToneSelector from './components/ToneSelector';
-import TextInput from './components/TextInput';
 import { theme } from './theme';
 import ApplicationDetails from './pages/ApplicationDetails';
-import { ResumeManager } from './components/ResumeManager';
 import JobDescriptionPage from './pages/JobDescriptionPage';
 import PdfHtmlTestPage from './pages/PdfHtmlTestPage';
 

@@ -60,15 +60,14 @@ export const uploadFilesHtml = async (conversationId: string, files: File[]): Pr
 export const convertPdfToHtml = async (file: File): Promise<{ data: { html: string } | null; error: Error | null }> => {
   try {
     const content = await readFileContent(file, file.name);
-    // Remove the data URL prefix (e.g., "data:application/pdf;base64,")
-    const base64Content = content.split(',')[1];
+    console.log('base64Content', content);
 
     const response = await fetch(`${API_BASE_URL}/api/spec/pdf-to-html`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ content: base64Content }),
+      body: JSON.stringify({ content: content }),
     });
 
     if (!response.ok) {

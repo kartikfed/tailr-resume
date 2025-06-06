@@ -8,8 +8,7 @@
 const express = require('express');
 const router = express.Router();
 const { sendMessageToClaudeWithMCP } = require('../../mcp/claudeService');
-const { extractPdfText, extractPdfMarkdown } = require('../../../utils/pdfExtract');
-const sectionExtractorTool = require('../../mcp/tools/sectionExtractor');
+const { extractPdfText, extractPdfMarkdown } = require('../../utils/pdfExtract');
 const { extractJobDescription } = require('../../utils/jobScraper');
 
 // Simple in-memory storage for conversation history and files

@@ -20,7 +20,7 @@ import {
   Avatar,
   useColorModeValue,
 } from '@chakra-ui/react';
-import { TagInput } from '../Onboarding/TagInput';
+import { TagInput } from './TagInput';
 import { getUserProfile, saveUserProfile } from '../../services/userService';
 
 /**
