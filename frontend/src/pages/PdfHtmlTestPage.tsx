@@ -13,14 +13,17 @@ import { useDropzone } from 'react-dropzone';
 import { convertPdfToHtml } from '../services/api';
 import '../styles/pdf.css';
 
-const PdfHtmlTestPage = () => {
-  const [file, setFile] = useState(null);
-  const [html, setHtml] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
+/**
+ * Page for testing PDF to HTML conversion.
+ */
+const PdfHtmlTestPage: React.FC = () => {
+  const [file, setFile] = useState<File | null>(null);
+  const [html, setHtml] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const toast = useToast();
-  const iframeRef = useRef(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  const onDrop = async (acceptedFiles) => {
+  const onDrop = async (acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return;
     const selectedFile = acceptedFiles[0];
     if (selectedFile.type !== 'application/pdf') {
@@ -45,6 +48,9 @@ const PdfHtmlTestPage = () => {
       if (error) {
         throw error;
       }
+      if (!data || !data.html) {
+        throw new Error('No HTML returned from conversion');
+      }
       setHtml(data.html);
       toast({
         title: 'Success',
@@ -53,7 +59,7 @@ const PdfHtmlTestPage = () => {
         duration: 5000,
         isClosable: true,
       });
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: 'Error',
         description: error.message || 'Failed to convert PDF to HTML',

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, KeyboardEvent, ChangeEvent } from 'react';
 import {
   Box,
   Input,
@@ -10,18 +10,25 @@ import {
   Text
 } from '@chakra-ui/react';
 
+interface TagInputProps {
+  tags: string[];
+  onChange: (tags: string[]) => void;
+  placeholder?: string;
+  label?: string;
+}
+
 /**
  * A reusable component for inputting and managing tags
- * @param {Object} props - Component props
- * @param {string[]} props.tags - Current tags
- * @param {Function} props.onChange - Callback when tags change
- * @param {string} props.placeholder - Input placeholder
- * @param {string} props.label - Input label
  */
-export const TagInput = ({ tags = [], onChange, placeholder, label }) => {
+export const TagInput: React.FC<TagInputProps> = ({ 
+  tags = [], 
+  onChange, 
+  placeholder, 
+  label 
+}) => {
   const [inputValue, setInputValue] = useState('');
 
-  const handleKeyDown = (e) => {
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>): void => {
     if (e.key === 'Enter' && inputValue.trim()) {
       e.preventDefault();
       if (!tags.includes(inputValue.trim())) {
@@ -31,8 +38,12 @@ export const TagInput = ({ tags = [], onChange, placeholder, label }) => {
     }
   };
 
-  const handleRemoveTag = (tagToRemove) => {
+  const handleRemoveTag = (tagToRemove: string): void => {
     onChange(tags.filter(tag => tag !== tagToRemove));
+  };
+
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement>): void => {
+    setInputValue(e.target.value);
   };
 
   return (
@@ -64,7 +75,7 @@ export const TagInput = ({ tags = [], onChange, placeholder, label }) => {
           ))}
           <Input
             value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
+            onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             variant="unstyled"

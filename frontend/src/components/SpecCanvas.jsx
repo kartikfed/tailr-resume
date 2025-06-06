@@ -9,10 +9,9 @@ import {
   Flex,
   Divider,
   Textarea,
-  HStack,
   useColorModeValue,
-  Collapse,
-  useDisclosure} from '@chakra-ui/react';
+  HStack,
+  Collapse} from '@chakra-ui/react';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import ReactDOM from 'react-dom';
@@ -340,17 +339,12 @@ const SpecCanvas = ({
   const [userInstructions, setUserInstructions] = useState('');
   const [revisedText, setRevisedText] = useState('');
   const [revisedTextMarkdown, setRevisedTextMarkdown] = useState('');
-  const [showRevisionDialog, setShowRevisionDialog] = useState(false);
   const [hasSubmittedRevision, setHasSubmittedRevision] = useState(false);
-  const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRegeneratingPrompts, setIsRegeneratingPrompts] = useState(false);
   const [isAddingExplanation, setIsAddingExplanation] = useState(false);
   const toast = useToast();
   const [highlightTimeout, setHighlightTimeout] = useState(null);
-  const [localHighlightedText, setLocalHighlightedText] = useState(null);
-  const [highlightPosition, setHighlightPosition] = useState(null);
-  const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: true });
   const [isQuickRevisionsOpen, setIsQuickRevisionsOpen] = useState(false);
   const bulletPointsRef = useRef([]);
   const [lastRevisedText, setLastRevisedText] = useState(null);

@@ -3,7 +3,6 @@ import {
   Modal,
   ModalOverlay,
   ModalContent,
-  ModalHeader,
   ModalBody,
   ModalFooter,
   Button,
@@ -15,23 +14,35 @@ import {
   Text,
   IconButton,
   Box,
-  HStack,
   Divider,
   Avatar,
-  useColorModeValue,
 } from '@chakra-ui/react';
 import { TagInput } from './TagInput';
 import { getUserProfile, saveUserProfile } from '../../services/userService';
 
+interface ProfileFormData {
+  firstName: string;
+  lastName: string;
+  linkedinUrl: string;
+  roleTags: string[];
+  companyTags: string[];
+}
+
+interface ProfileEditModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  isOnboarding?: boolean;
+}
+
 /**
  * Modal component for editing user profile information
- * @param {Object} props - Component props
- * @param {boolean} props.isOpen - Whether the modal is open
- * @param {Function} props.onClose - Function to call when modal is closed
- * @param {boolean} props.isOnboarding - Whether this is being used for onboarding
  */
-export const ProfileEditModal = ({ isOpen, onClose, isOnboarding = false }) => {
-  const [formData, setFormData] = useState({
+export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  isOnboarding = false 
+}) => {
+  const [formData, setFormData] = useState<ProfileFormData>({
     firstName: '',
     lastName: '',
     linkedinUrl: '',
@@ -47,7 +58,7 @@ export const ProfileEditModal = ({ isOpen, onClose, isOnboarding = false }) => {
     }
   }, [isOpen, isOnboarding]);
 
-  const loadProfile = async () => {
+  const loadProfile = async (): Promise<void> => {
     try {
       setIsLoading(true);
       const profile = await getUserProfile();
@@ -63,7 +74,7 @@ export const ProfileEditModal = ({ isOpen, onClose, isOnboarding = false }) => {
     } catch (err) {
       toast({
         title: 'Error loading profile',
-        description: err.message,
+        description: (err as Error).message,
         status: 'error',
         duration: 5000,
         isClosable: true,
@@ -73,7 +84,7 @@ export const ProfileEditModal = ({ isOpen, onClose, isOnboarding = false }) => {
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     try {
       setIsLoading(true);
@@ -90,7 +101,7 @@ export const ProfileEditModal = ({ isOpen, onClose, isOnboarding = false }) => {
     } catch (err) {
       toast({
         title: 'Error saving profile',
-        description: err.message,
+        description: (err as Error).message,
         status: 'error',
         duration: 5000,
         isClosable: true,
@@ -100,7 +111,7 @@ export const ProfileEditModal = ({ isOpen, onClose, isOnboarding = false }) => {
     }
   };
 
-  const handleChange = (field, value) => {
+  const handleChange = (field: keyof ProfileFormData, value: string | string[]): void => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -118,7 +129,7 @@ export const ProfileEditModal = ({ isOpen, onClose, isOnboarding = false }) => {
     fontWeight: 700,
     color: sectionTitleColor,
     letterSpacing: '1px',
-    textTransform: 'uppercase',
+    textTransform: 'uppercase' as const,
     mb: 2,
   };
 

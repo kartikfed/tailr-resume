@@ -7,7 +7,7 @@ import { Box, Spinner, Text } from '@chakra-ui/react';
  * Handles Supabase OAuth/magic link callback. If hash fragment with tokens is present, sets session.
  * If no hash (e.g., email/password login), just navigates to dashboard.
  */
-export function AuthCallback() {
+export const AuthCallback: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -15,60 +15,38 @@ export function AuthCallback() {
       try {
         // Get the hash fragment from the URL
         const hash = window.location.hash;
-        console.log('Hash fragment:', hash); // Debug log
-
         if (hash) {
           // Parse the hash fragment
           const params = new URLSearchParams(hash.substring(1));
           const accessToken = params.get('access_token');
           const refreshToken = params.get('refresh_token');
-          
-          console.log('Access token:', accessToken ? 'Present' : 'Missing'); // Debug log
-          console.log('Refresh token:', refreshToken ? 'Present' : 'Missing'); // Debug log
-          
           if (accessToken && refreshToken) {
             // Set the session using the tokens
             const { error } = await supabase.auth.setSession({
               access_token: accessToken,
               refresh_token: refreshToken
             });
-            
-            if (error) {
-              console.error('Error setting session:', error); // Debug log
-              throw error;
-            }
-            
+            if (error) throw error;
             // Get the current session to verify
             const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-            
-            if (sessionError) {
-              console.error('Error getting session:', sessionError); // Debug log
-              throw sessionError;
-            }
-            
+            if (sessionError) throw sessionError;
             if (session) {
-              console.log('Session established successfully'); // Debug log
               navigate('/');
             } else {
-              console.error('No session established'); // Debug log
               throw new Error('No session established');
             }
           } else {
-            console.error('Missing tokens in hash fragment'); // Debug log
             throw new Error('Missing tokens in hash fragment');
           }
         } else {
           // No hash fragment: likely email/password login, just go to dashboard
-          console.log('No hash fragment found, redirecting to dashboard');
           navigate('/');
           return;
         }
       } catch (error) {
-        console.error('Error handling auth callback:', error);
         navigate('/login');
       }
     };
-
     handleAuthCallback();
   }, [navigate]);
 
@@ -80,4 +58,4 @@ export function AuthCallback() {
       </Box>
     </Box>
   );
-} 
+}; 

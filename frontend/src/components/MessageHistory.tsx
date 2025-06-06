@@ -11,9 +11,26 @@ import {
 import ReactMarkdown from 'react-markdown';
 
 /**
+ * Message object interface
+ */
+export interface Message {
+  role: 'user' | 'assistant' | 'system';
+  content: string | object;
+  timestamp?: string;
+  tools?: { name: string }[];
+}
+
+/**
+ * Props for MessageHistory component
+ */
+export interface MessageHistoryProps {
+  messages: Message[];
+}
+
+/**
  * Component for displaying message history between user and AI
  */
-const MessageHistory = ({ messages }) => {
+const MessageHistory: React.FC<MessageHistoryProps> = ({ messages }) => {
   // Dark theme colors
   const userBg = useColorModeValue('purple.900', 'blue.800');
   const userBorder = useColorModeValue('purple.700', 'blue.400');
@@ -183,4 +200,4 @@ const MessageHistory = ({ messages }) => {
   );
 };
 
-export default MessageHistory;
+export default MessageHistory; 

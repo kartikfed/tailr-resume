@@ -1,10 +1,76 @@
 import { supabase } from './supabase';
+import { UserProfile } from '../types';
+
+interface AuthResponse {
+  user: UserProfile | null;
+  error: Error | null;
+}
+
+interface ProfileFormData {
+  firstName: string;
+  lastName: string;
+  linkedinUrl: string;
+  roleTags: string[];
+  companyTags: string[];
+}
+
+export const userService = {
+
+  async getCurrentUser(): Promise<AuthResponse> {
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      
+      if (error || !user) throw error;
+
+      const { data: userProfile, error: userProfileError } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+      if (userProfileError) throw userProfileError;
+
+      return {
+        user: userProfile as UserProfile,
+        error: null,
+      };
+    } catch (error) {
+      return {
+        user: null,
+        error: error as Error,
+      };
+    }
+  },
+
+  async updateProfile(updates: Partial<UserProfile>): Promise<AuthResponse> {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', (await this.getCurrentUser()).user?.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return {
+        user: data as UserProfile,
+        error: null,
+      };
+    } catch (error) {
+      return {
+        user: null,
+        error: error as Error,
+      };
+    }
+  }
+};
 
 /**
  * Fetches the user's profile from the database
- * @returns {Promise<Object>} The user's profile data
+ * @returns {Promise<UserProfile>} The user's profile data
  */
-export const getUserProfile = async () => {
+export const getUserProfile = async (): Promise<UserProfile> => {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('No authenticated user');
@@ -25,10 +91,10 @@ export const getUserProfile = async () => {
 
 /**
  * Creates or updates a user's profile
- * @param {Object} profileData - The profile data to save
- * @returns {Promise<Object>} The saved profile data
+ * @param {ProfileFormData} profileData - The profile data to save
+ * @returns {Promise<UserProfile>} The saved profile data
  */
-export const saveUserProfile = async (profileData) => {
+export const saveUserProfile = async (profileData: ProfileFormData): Promise<UserProfile> => {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('No authenticated user');
@@ -80,12 +146,12 @@ export const saveUserProfile = async (profileData) => {
  * Checks if a user has completed their profile
  * @returns {Promise<boolean>} Whether the user has completed their profile
  */
-export const hasCompletedProfile = async () => {
+export const hasCompletedProfile = async (): Promise<boolean> => {
   try {
     const profile = await getUserProfile();
     return !!profile;
   } catch (error) {
-    if (error.code === 'PGRST116') {
+    if ((error as { code?: string }).code === 'PGRST116') {
       // No profile found
       return false;
     }

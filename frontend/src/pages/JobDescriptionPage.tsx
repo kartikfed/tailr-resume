@@ -2,18 +2,13 @@ import React, { useState, useEffect } from 'react';
 import {
   Box,
   Container,
-  VStack,
   Heading,
   Text,
   Button,
   useToast,
-  useColorModeValue,
   Textarea,
   Input,
-  FormControl,
   FormLabel,
-  FormHelperText,
-  Spinner,
   HStack,
   IconButton,
 } from '@chakra-ui/react';
@@ -21,36 +16,51 @@ import { ChevronLeftIcon } from '@chakra-ui/icons';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { ResumeManager } from '../components/ResumeManager';
-import { uploadFiles } from '../services/apiService';
+import { apiService } from '../services/apiService';
 import { readFileContent } from '../utils/fileReader';
 
-const JobDescriptionPage = () => {
-  const [jobDescription, setJobDescription] = useState('');
-  const [jobTitle, setJobTitle] = useState('');
-  const [companyName, setCompanyName] = useState('');
-  const [selectedResumeId, setSelectedResumeId] = useState('');
-  const [jobDescriptionSaved, setJobDescriptionSaved] = useState(false);
-  const [jobDescriptionProvided, setJobDescriptionProvided] = useState(false);
-  const [isSavingJobDescription, setIsSavingJobDescription] = useState(false);
-  const [resumeEmphasis, setResumeEmphasis] = useState(null);
-  const [promptPresets, setPromptPresets] = useState([]);
-  const [writingTone, setWritingTone] = useState('concise');
-  const [jobUrl, setJobUrl] = useState('');
-  const [isScraping, setIsScraping] = useState(false);
-  const [progressValue, setProgressValue] = useState(0);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisStage, setAnalysisStage] = useState('');
-  const [error, setError] = useState('');
-  const [processedResumeContent, setProcessedResumeContent] = useState('');
-  const [isProcessingResume, setIsProcessingResume] = useState(false);
+
+interface JobAnalysisResult {
+  required_skills?: string[];
+  preferred_qualifications?: string[];
+  experience_level?: string;
+  key_responsibilities?: string[];
+  company_info?: Record<string, unknown>;
+  keywords?: string[];
+  resume_emphasis?: string | null;
+}
+
+interface JobAnalysisResponse {
+  results?: JobAnalysisResult;
+}
+
+// Type for uploadFiles payload
+interface UploadFilePayload {
+  name: string;
+  type: string;
+  size: number;
+  content: string;
+  isPdf: boolean;
+  useClaude: boolean;
+}
+
+/**
+ * Page for creating a new job application with resume and job description analysis
+ */
+const JobDescriptionPage: React.FC = () => {
+  const [jobDescription, setJobDescription] = useState<string>('');
+  const [jobTitle, setJobTitle] = useState<string>('');
+  const [companyName, setCompanyName] = useState<string>('');
+  const [selectedResumeId, setSelectedResumeId] = useState<string>('');
+  const [isSavingJobDescription, setIsSavingJobDescription] = useState<boolean>(false);
+  const [jobUrl, setJobUrl] = useState<string>('');
+  const [isScraping, setIsScraping] = useState<boolean>(false);
+  const [progressValue, setProgressValue] = useState<number>(0);
+  const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
+  const [analysisStage, setAnalysisStage] = useState<string>('');
+  const [error, setError] = useState<string>('');
   const toast = useToast();
   const navigate = useNavigate();
-
-  const bgColor = useColorModeValue('gray.900', 'gray.900');
-  const borderColor = useColorModeValue('gray.700', 'gray.700');
-  const textColor = useColorModeValue('gray.100', 'gray.100');
-  const chatPaneBgColor = useColorModeValue('purple.900', 'purple.900');
-  const chatInputBgColor = useColorModeValue('purple.800', 'purple.800');
 
   // Fetch most recent resume on component mount
   useEffect(() => {
@@ -63,7 +73,6 @@ const JobDescriptionPage = () => {
           .limit(1);
 
         if (error) throw error;
-        
         if (data && data.length > 0) {
           setSelectedResumeId(data[0].id);
         }
@@ -78,16 +87,16 @@ const JobDescriptionPage = () => {
         });
       }
     };
-
     fetchMostRecentResume();
   }, [toast]);
 
-  const handleSaveJobDescription = async () => {
-    console.log('handleSaveJobDescription: started');
+  /**
+   * Handles saving the job description and creating a new job application
+   */
+  const handleSaveJobDescription = async (): Promise<void> => {
     if (jobDescription.trim()) {
       try {
         if (!jobTitle.trim() || !companyName.trim()) {
-          console.warn('Missing job title or company name');
           toast({
             title: 'Missing Information',
             description: 'Please provide both job title and company name',
@@ -96,12 +105,9 @@ const JobDescriptionPage = () => {
             isClosable: true,
             position: 'top-right'
           });
-          console.log('Exiting: missing job title or company name');
           return;
         }
-
         if (!selectedResumeId) {
-          console.warn('Missing selectedResumeId', { selectedResumeId });
           toast({
             title: 'Missing Resume',
             description: 'Please select a resume to use for this application',
@@ -110,24 +116,18 @@ const JobDescriptionPage = () => {
             isClosable: true,
             position: 'top-right'
           });
-          console.log('Exiting: missing selectedResumeId');
           return;
         }
-
         setIsSavingJobDescription(true);
         setIsAnalyzing(true);
         setProgressValue(0);
         setAnalysisStage('Initializing analysis...');
-        console.log('Step: after initial validation');
 
         // Get the current user
         const { data: { user }, error: userError } = await supabase.auth.getUser();
         if (userError || !user) {
-          console.error('User fetch error:', userError);
-          console.log('Exiting: user fetch error');
           throw userError || new Error('No user found');
         }
-        console.log('Fetched user:', user);
 
         // Fetch resume file metadata
         const { data: resumeFile, error: fileError } = await supabase
@@ -136,94 +136,62 @@ const JobDescriptionPage = () => {
           .eq('id', selectedResumeId)
           .single();
         if (fileError || !resumeFile) {
-          console.error('Resume file fetch error:', fileError);
-          console.log('Exiting: resume file fetch error');
           throw fileError || new Error('No resume file found');
         }
-        console.log('Fetched resume file metadata:', resumeFile);
 
         // Download file from Supabase Storage
         const { data: fileData, error: downloadError } = await supabase.storage
           .from('resumes')
           .download(resumeFile.file_path);
         if (downloadError || !fileData) {
-          console.error('Resume file download error:', downloadError);
-          console.log('Exiting: resume file download error');
           throw downloadError || new Error('Failed to download resume file');
         }
-        console.log('Downloaded file from Supabase Storage:', fileData);
 
-        // Convert Blob to File object to match the working flow
-        let file;
+        // Convert Blob to File object
+        let file: File;
         try {
           file = new File([
             fileData
           ], resumeFile.file_name, { type: resumeFile.file_type });
         } catch (e) {
-          console.error('Failed to create File object from Blob:', e);
-          console.log('Exiting: failed to create File object');
           throw new Error('Failed to process resume file');
         }
-        console.log('Created File object:', {
-          name: file.name,
-          type: file.type,
-          size: file.size
-        });
 
         // Read file as base64 or text using shared utility
-        let fileContent;
+        let fileContent: string;
         try {
           fileContent = await readFileContent(file, resumeFile.file_name);
         } catch (e) {
-          console.error('Failed to read file content:', e);
-          console.log('Exiting: failed to read file content');
           throw new Error('Failed to read resume file content');
         }
         if (!fileContent) {
-          console.error('File content is empty after reading');
-          console.log('Exiting: file content is empty after reading');
           throw new Error('Resume file content is empty');
         }
-        console.log('Read file content:', fileContent?.slice(0, 100));
 
         // Process resume through /upload endpoint
-        let uploadResponse;
+        let uploadResponse: any;
         try {
           const conversationId = `resume-${selectedResumeId}`;
-          console.log('About to call uploadFiles', {
-            conversationId,
-            fileMeta: {
-              name: resumeFile.file_name,
-              type: resumeFile.file_type,
-              size: resumeFile.file_size
-            },
-            fileContentPreview: fileContent?.slice(0, 100)
-          });
-          uploadResponse = await uploadFiles(conversationId, [{
+          const uploadPayload: UploadFilePayload = {
             name: resumeFile.file_name,
             type: resumeFile.file_type,
             size: resumeFile.file_size,
             content: fileContent,
             isPdf: resumeFile.file_type === 'application/pdf' || resumeFile.file_name.endsWith('.pdf'),
             useClaude: true,
-          }]);
-          console.log('uploadFiles response:', uploadResponse);
+          };
+          uploadResponse = await apiService.uploadFiles(conversationId, [uploadPayload]);
         } catch (e) {
-          console.error('Failed to process resume through /upload endpoint:', e);
-          console.log('Exiting: failed to process resume through /upload endpoint');
           throw new Error('Resume processing failed');
         }
-        const processedContent = uploadResponse?.files?.[0]?.content || '';
+        const processedContent: string = uploadResponse?.data?.files?.[0]?.content || '';
         if (!processedContent) {
-          console.error('Processed resume content is empty:', uploadResponse);
-          console.log('Exiting: processed resume content is empty');
           throw new Error('Processed resume content is empty');
         }
-        console.log('Processed resume content from /upload:', processedContent?.slice(0, 100));
 
         // Process job description through /analyze-job-description endpoint
         setAnalysisStage('Analyzing job description...');
-        let jobAnalysis;
+        let jobAnalysis: JobAnalysisResponse;
         try {
           const jobAnalysisResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/spec/analyze-job-description`, {
             method: 'POST',
@@ -236,19 +204,15 @@ const JobDescriptionPage = () => {
             }),
           });
           if (!jobAnalysisResponse.ok) {
-            console.log('Exiting: job description analysis response not ok');
             throw new Error('Failed to analyze job description');
           }
           jobAnalysis = await jobAnalysisResponse.json();
         } catch (e) {
-          console.error('Job description analysis failed:', e);
-          console.log('Exiting: job description analysis failed');
           throw new Error('Job description analysis failed');
         }
-        console.log('Job description analysis:', jobAnalysis);
 
         // Save to job_applications table
-        let jobApplication;
+        let jobApplication: { id: string };
         try {
           const { data, error: jobError } = await supabase
             .from('job_applications')
@@ -273,22 +237,15 @@ const JobDescriptionPage = () => {
             .select()
             .single();
           if (jobError || !data) {
-            console.error('Job application insert error:', jobError);
-            console.log('Exiting: job application insert error');
             throw jobError || new Error('Failed to create job application');
           }
           jobApplication = data;
         } catch (e) {
-          console.error('Failed to insert job application:', e);
-          console.log('Exiting: failed to insert job application');
           throw new Error('Failed to create job application');
         }
         if (!jobApplication?.id) {
-          console.error('No job application ID returned after insert:', jobApplication);
-          console.log('Exiting: no job application ID returned');
           throw new Error('No job application ID returned');
         }
-        console.log('Job application created:', jobApplication);
 
         // Save processed resume content to resume_versions table
         try {
@@ -304,14 +261,9 @@ const JobDescriptionPage = () => {
             .select()
             .single();
           if (resumeError || !resumeVersionData) {
-            console.error('Resume version insert error:', resumeError);
-            console.log('Exiting: resume version insert error');
             throw resumeError || new Error('Failed to save resume version');
           }
-          console.log('Resume version created:', resumeVersionData);
         } catch (e) {
-          console.error('Failed to insert resume version:', e);
-          console.log('Exiting: failed to insert resume version');
           throw new Error('Failed to save resume version');
         }
 
@@ -323,12 +275,8 @@ const JobDescriptionPage = () => {
           isClosable: true,
           position: 'top-right'
         });
-
-        // Navigate to the application details page
         navigate(`/applications/${jobApplication.id}`);
-        console.log('handleSaveJobDescription: completed successfully');
-      } catch (error) {
-        console.error('Error in handleSaveJobDescription:', error);
+      } catch (error: any) {
         toast({
           title: 'Error',
           description: error.message || 'Failed to create job application',
@@ -337,21 +285,19 @@ const JobDescriptionPage = () => {
           isClosable: true,
           position: 'top-right'
         });
-        console.log('Exiting: caught error in main try/catch');
       } finally {
         setIsSavingJobDescription(false);
         setIsAnalyzing(false);
         setProgressValue(0);
         setAnalysisStage('');
-        console.log('handleSaveJobDescription: finally block');
       }
-    } else {
-      console.warn('Job description is empty');
-      console.log('Exiting: job description is empty');
     }
   };
 
-  const handleScrapeJob = async () => {
+  /**
+   * Handles scraping job details from a provided URL
+   */
+  const handleScrapeJob = async (): Promise<void> => {
     if (!jobUrl.trim()) return;
     try {
       setIsScraping(true);
@@ -376,7 +322,7 @@ const JobDescriptionPage = () => {
           position: 'top-right'
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       setError(error.message);
       toast({
         title: 'Scraping Failed',
@@ -416,7 +362,6 @@ const JobDescriptionPage = () => {
             New Job Application
           </Heading>
         </HStack>
-
         {/* Glassmorphism Card */}
         <Box
           className="form-container"
@@ -437,7 +382,6 @@ const JobDescriptionPage = () => {
               Choose which resume to use for this application
             </Text>
           </Box>
-
           {/* Resume Selector */}
           <Box
             className="resume-selector"
@@ -454,7 +398,6 @@ const JobDescriptionPage = () => {
               selectedResumeId={selectedResumeId}
             />
           </Box>
-
           {/* Form */}
           <form onSubmit={e => { e.preventDefault(); handleSaveJobDescription(); }}>
             {/* Job Title */}
@@ -480,7 +423,6 @@ const JobDescriptionPage = () => {
                 _focus={{ borderColor: '#8B5CF6', bg: 'rgba(255,255,255,0.95)', boxShadow: '0 0 0 3px rgba(139,92,246,0.1)' }}
               />
             </Box>
-
             {/* Company Name */}
             <Box mb={6} className="form-group">
               <FormLabel className="form-label" htmlFor="companyName" fontSize="14px" fontWeight={600} color="#1a1a1a" mb={2} letterSpacing="-0.01em">
@@ -504,7 +446,6 @@ const JobDescriptionPage = () => {
                 _focus={{ borderColor: '#8B5CF6', bg: 'rgba(255,255,255,0.95)', boxShadow: '0 0 0 3px rgba(139,92,246,0.1)' }}
               />
             </Box>
-
             {/* Job URL */}
             <Box mb={6} className="form-group">
               <FormLabel className="form-label" htmlFor="jobUrl" fontSize="14px" fontWeight={600} color="#1a1a1a" mb={2} letterSpacing="-0.01em">
@@ -554,7 +495,6 @@ const JobDescriptionPage = () => {
                 If provided, we'll try to scrape the job description automatically
               </Text>
             </Box>
-
             {/* Job Description */}
             <Box mb={6} className="form-group">
               <FormLabel className="form-label" htmlFor="jobDescription" fontSize="14px" fontWeight={600} color="#1a1a1a" mb={2} letterSpacing="-0.01em">
@@ -579,7 +519,6 @@ const JobDescriptionPage = () => {
                 required
               />
             </Box>
-
             {/* Submit Button */}
             <Button
               type="submit"

@@ -1,4 +1,4 @@
-import React, {  } from 'react';
+import React, { ReactNode } from 'react';
 import {
   ChakraProvider,
   Box,
@@ -18,15 +18,19 @@ import ApplicationDetails from './pages/ApplicationDetails';
 import JobDescriptionPage from './pages/JobDescriptionPage';
 import PdfHtmlTestPage from './pages/PdfHtmlTestPage';
 
-function PrivateRoute({ children }) {
-  const { user } = useAuth();
-  return user ? children : <Navigate to="/login" />;
+interface PrivateRouteProps {
+  children: ReactNode;
 }
 
-function App() {
+const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
+  const { user } = useAuth();
+  return user ? <>{children}</> : <Navigate to="/login" />;
+};
+
+const App: React.FC = () => {
   return (
     <ChakraProvider theme={theme}>
-      <ColorModeScript initialColorMode={theme.config.initialColorMode} />
+      <ColorModeScript initialColorMode={theme.config?.initialColorMode || 'light'} />
       <AuthProvider>
         <Router>
           {/* Make the purple gradient background fill the entire viewport */}
@@ -95,6 +99,6 @@ function App() {
       </AuthProvider>
     </ChakraProvider>
   );
-}
+};
 
-export default App;
+export default App; 

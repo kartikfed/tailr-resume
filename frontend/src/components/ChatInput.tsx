@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, FormEvent, ChangeEvent } from 'react';
 import {
   Input,
   Button,
@@ -8,10 +8,20 @@ import {
 } from '@chakra-ui/react';
 
 /**
+ * Props for ChatInput component
+ */
+export interface ChatInputProps {
+  onSendMessage: (message: string) => void;
+  isLoading?: boolean;
+  bg?: string;
+  color?: string;
+}
+
+/**
  * Component for entering messages to the AI Spec Assistant
  */
-const ChatInput = ({ onSendMessage, isLoading, bg, color }) => {
-  const [message, setMessage] = useState('');
+const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading = false, bg, color }) => {
+  const [message, setMessage] = useState<string>('');
   
   // Dark theme colors
   const inputBg = useColorModeValue('gray.800', 'gray.800');
@@ -22,7 +32,7 @@ const ChatInput = ({ onSendMessage, isLoading, bg, color }) => {
   const buttonHoverBg = useColorModeValue('purple.500', 'purple.500');
   const buttonActiveBg = useColorModeValue('purple.700', 'purple.700');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (message.trim()) {
       onSendMessage(message);
@@ -30,12 +40,16 @@ const ChatInput = ({ onSendMessage, isLoading, bg, color }) => {
     }
   };
 
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setMessage(e.target.value);
+  };
+
   return (
     <Box
       as="form"
       onSubmit={handleSubmit}
       p={4}
-      bg="gray.900"
+      bg={bg || 'gray.900'}
       borderRadius="lg"
       border="2px solid"
       borderColor="purple.500"
@@ -49,11 +63,11 @@ const ChatInput = ({ onSendMessage, isLoading, bg, color }) => {
       <HStack spacing={3}>
         <Input
           value={message}
-          onChange={(e) => setMessage(e.target.value)}
+          onChange={handleInputChange}
           placeholder="Type your message..."
           size="md"
           bg={inputBg}
-          color={inputText}
+          color={color || inputText}
           borderColor={inputBorder}
           borderWidth="1px"
           borderRadius="md"
@@ -107,4 +121,4 @@ const ChatInput = ({ onSendMessage, isLoading, bg, color }) => {
   );
 };
 
-export default ChatInput;
+export default ChatInput; 

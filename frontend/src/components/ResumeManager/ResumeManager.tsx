@@ -1,19 +1,15 @@
-import React, { FC, useState, useEffect, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import {
   Box,
   VStack,
-  Heading,
   Text,
-  Button,
   useToast,
-  Input,
   HStack,
-  IconButton,
   Spinner,
   Icon,
   Flex,
 } from '@chakra-ui/react';
-import { FiUpload, FiTrash2, FiFile } from 'react-icons/fi';
+import { FiFile } from 'react-icons/fi';
 import { supabase } from '../../services/supabase';
 import { ElementType } from 'react';
 
@@ -50,13 +46,7 @@ export const ResumeManager = forwardRef<any, ResumeManagerProps>(({ mode = 'list
   const [isUploading, setIsUploading] = useState(false);
   const toast = useToast();
 
-  // Design colors
-  const cardBg = '#232734';
   const borderColor = 'rgba(255,255,255,0.08)';
-  const fileNameColor = 'white';
-  const fileMetaColor = '#b0b6c3';
-  const uploadBtnBg = 'linear-gradient(135deg, #8B5CF6 0%, #A855F7 100%)';
-  const uploadBtnHover = 'linear-gradient(135deg, #A855F7 0%, #8B5CF6 100%)';
 
   // Design colors for list mode
   const rowBg = 'white';

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState, ChangeEvent, FormEvent } from 'react';
 import { supabase } from '../services/supabase';
 import {
   Box,
@@ -20,15 +20,17 @@ import {
 import { FcGoogle } from 'react-icons/fc';
 import { useNavigate } from 'react-router-dom';
 
-// Use environment variable for base URL (works for local and production)
 const BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:3000';
 
-export function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [error, setError] = useState('');
+/**
+ * Login and registration page
+ */
+export const Login: React.FC = () => {
+  const [email, setEmail] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(false);
+  const [isSignUp, setIsSignUp] = useState<boolean>(false);
+  const [error, setError] = useState<string>('');
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -37,7 +39,7 @@ export function Login() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${BASE_URL}/auth/callback`, // Use env-based callback
+        redirectTo: `${BASE_URL}/auth/callback`,
         skipBrowserRedirect: false
       }
     });
@@ -53,7 +55,8 @@ export function Login() {
     setLoading(false);
   };
 
-  const handleAuth = async () => {
+  const handleAuth = async (e?: FormEvent) => {
+    if (e) e.preventDefault();
     setLoading(true);
     setError('');
     let result;
@@ -62,7 +65,7 @@ export function Login() {
         email,
         password,
         options: {
-          redirectTo: `${BASE_URL}/auth/callback` // Use env-based callback
+          emailRedirectTo: `${BASE_URL}/auth/callback`
         }
       });
     } else {
@@ -115,14 +118,14 @@ export function Login() {
               <Heading size="lg" mb={1} color="gray.800">{isSignUp ? 'Create an account' : 'Welcome back'}</Heading>
               <Text color="gray.500">{isSignUp ? 'Sign up to get started' : 'Sign in to your account to continue'}</Text>
             </Box>
-            <form onSubmit={e => { e.preventDefault(); handleAuth(); }}>
+            <form onSubmit={handleAuth}>
               <VStack spacing={4} align="stretch">
                 <FormControl isInvalid={!!error}>
                   <FormLabel color="gray.700">Email or Username</FormLabel>
                   <Input
                     placeholder="Enter your email or username"
                     value={email}
-                    onChange={e => setEmail(e.target.value)}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
                     type="email"
                     autoComplete="email"
                     isDisabled={loading}
@@ -137,7 +140,7 @@ export function Login() {
                   <Input
                     placeholder="Enter your password"
                     value={password}
-                    onChange={e => setPassword(e.target.value)}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
                     type="password"
                     autoComplete={isSignUp ? 'new-password' : 'current-password'}
                     isDisabled={loading}
@@ -193,4 +196,4 @@ export function Login() {
       </Container>
     </Box>
   );
-} 
+}; 

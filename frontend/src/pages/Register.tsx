@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, ChangeEvent, FormEvent } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
   Box,
@@ -20,56 +20,63 @@ import {
 import { ViewIcon, ViewOffIcon } from '@chakra-ui/icons';
 import { supabase } from '../services/supabase';
 
-export function Register() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [errors, setErrors] = useState({});
+interface RegisterErrors {
+  email?: string;
+  password?: string;
+  confirmPassword?: string;
+}
+
+/**
+ * Registration page for new users
+ */
+export const Register: React.FC = () => {
+  const [email, setEmail] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
+  const [confirmPassword, setConfirmPassword] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(false);
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
+  const [errors, setErrors] = useState<RegisterErrors>({});
   const navigate = useNavigate();
   const toast = useToast();
 
-  const validateForm = () => {
-    const newErrors = {};
-    
+  /**
+   * Validates the registration form fields
+   */
+  const validateForm = (): boolean => {
+    const newErrors: RegisterErrors = {};
     if (!email) {
       newErrors.email = 'Email is required';
     } else if (!/\S+@\S+\.\S+/.test(email)) {
       newErrors.email = 'Email is invalid';
     }
-    
     if (!password) {
       newErrors.password = 'Password is required';
     } else if (password.length < 8) {
       newErrors.password = 'Password must be at least 8 characters';
     }
-    
     if (password !== confirmPassword) {
       newErrors.confirmPassword = 'Passwords do not match';
     }
-    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e) => {
+  /**
+   * Handles form submission for registration
+   */
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
     if (!validateForm()) {
       return;
     }
-    
     try {
       setLoading(true);
       const { error } = await supabase.auth.signUp({
         email,
         password,
       });
-
       if (error) throw error;
-
       toast({
         title: 'Registration successful',
         description: 'Please check your email to verify your account.',
@@ -77,9 +84,8 @@ export function Register() {
         duration: 5000,
         isClosable: true,
       });
-
       navigate('/login');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error registering:', error);
       toast({
         title: 'Registration failed',
@@ -106,7 +112,6 @@ export function Register() {
               </Link>
             </Text>
           </VStack>
-
           <Box
             p={8}
             bg="gray.800"
@@ -116,12 +121,12 @@ export function Register() {
           >
             <form onSubmit={handleSubmit}>
               <VStack spacing={4}>
-                <FormControl isInvalid={errors.email}>
+                <FormControl isInvalid={!!errors.email}>
                   <FormLabel color="white">Email</FormLabel>
                   <Input
                     type="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
                     bg="gray.700"
                     color="white"
                     borderColor="gray.600"
@@ -130,14 +135,13 @@ export function Register() {
                   />
                   <FormErrorMessage>{errors.email}</FormErrorMessage>
                 </FormControl>
-
-                <FormControl isInvalid={errors.password}>
+                <FormControl isInvalid={!!errors.password}>
                   <FormLabel color="white">Password</FormLabel>
                   <InputGroup>
                     <Input
                       type={showPassword ? 'text' : 'password'}
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
                       bg="gray.700"
                       color="white"
                       borderColor="gray.600"
@@ -157,14 +161,13 @@ export function Register() {
                   </InputGroup>
                   <FormErrorMessage>{errors.password}</FormErrorMessage>
                 </FormControl>
-
-                <FormControl isInvalid={errors.confirmPassword}>
+                <FormControl isInvalid={!!errors.confirmPassword}>
                   <FormLabel color="white">Confirm Password</FormLabel>
                   <InputGroup>
                     <Input
                       type={showConfirmPassword ? 'text' : 'password'}
                       value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) => setConfirmPassword(e.target.value)}
                       bg="gray.700"
                       color="white"
                       borderColor="gray.600"
@@ -184,7 +187,6 @@ export function Register() {
                   </InputGroup>
                   <FormErrorMessage>{errors.confirmPassword}</FormErrorMessage>
                 </FormControl>
-
                 <Button
                   type="submit"
                   colorScheme="purple"

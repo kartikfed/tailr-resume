@@ -26,17 +26,6 @@ const ResumeViewer: React.FC<ResumeViewerProps> = ({ html, className = '' }) => 
       'id', 'name', 'type', 'content', 'charset',
       'media', 'lang'
     ],
-    ALLOWED_STYLES: [
-      'color', 'background-color', 'font-size', 'font-family',
-      'font-weight', 'text-align', 'margin', 'padding',
-      'border', 'width', 'height', 'display', 'position',
-      'line-height', 'letter-spacing', 'text-decoration',
-      'text-transform', 'white-space', 'overflow',
-      'text-overflow', 'word-wrap', 'word-break',
-      'box-sizing', 'flex', 'flex-direction', 'justify-content',
-      'align-items', 'gap', 'grid', 'grid-template-columns',
-      'grid-template-rows', 'grid-gap'
-    ],
     PARSER_MEDIA_TYPE: 'text/html'
   });
 

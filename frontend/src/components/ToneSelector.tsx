@@ -11,7 +11,14 @@ import {
 } from '@chakra-ui/react';
 import { ChevronDownIcon } from '@chakra-ui/icons';
 
-const TONE_OPTIONS = [
+export interface ToneOption {
+  value: string;
+  label: string;
+  description: string;
+  example: string;
+}
+
+const TONE_OPTIONS: ToneOption[] = [
   {
     value: 'concise',
     label: 'Concise & Punchy',
@@ -32,10 +39,20 @@ const TONE_OPTIONS = [
   }
 ];
 
-const ToneSelector = ({ value, onChange, label = 'Writing Style', labelColor }) => {
+export interface ToneSelectorProps {
+  value: string;
+  onChange: (value: string) => void;
+  label?: string;
+  labelColor?: string;
+}
+
+/**
+ * Dropdown selector for writing tone/style
+ */
+const ToneSelector: React.FC<ToneSelectorProps> = ({ value, onChange, label = 'Writing Style', labelColor }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedOption, setSelectedOption] = useState(TONE_OPTIONS.find(opt => opt.value === value) || TONE_OPTIONS[0]);
-  const dropdownRef = useRef(null);
+  const [selectedOption, setSelectedOption] = useState<ToneOption>(TONE_OPTIONS.find(opt => opt.value === value) || TONE_OPTIONS[0]);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const textColor = useColorModeValue('gray.600', 'gray.200');
   const descriptionColor = useColorModeValue('gray.500', 'gray.300');
   const bgColor = useColorModeValue('gray.700', 'gray.700');
@@ -51,7 +68,7 @@ const ToneSelector = ({ value, onChange, label = 'Writing Style', labelColor }) 
     setSelectedOption(TONE_OPTIONS.find(opt => opt.value === value) || TONE_OPTIONS[0]);
   }, [value]);
 
-  const handleSelect = (option) => {
+  const handleSelect = (option: ToneOption) => {
     setSelectedOption(option);
     onChange(option.value);
     setIsOpen(false);

@@ -1,29 +1,36 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import {
   Box,
-  Container,
   Heading,
   Text,
   Button,
-  VStack,
   SimpleGrid,
   useToast,
   Spinner,
   Flex,
-  useColorModeValue,
-  Badge,
 } from '@chakra-ui/react';
 import { AddIcon, ArrowUpIcon } from '@chakra-ui/icons';
 import { ResumeManager } from '../components/ResumeManager';
 
-export function Dashboard() {
-  const [jobApplications, setJobApplications] = useState([]);
-  const [loading, setLoading] = useState(true);
+interface JobApplication {
+  id: string;
+  job_title: string;
+  company_name: string;
+  status: string;
+  created_at: string;
+}
+
+/**
+ * Dashboard page for managing resumes and job applications
+ */
+export const Dashboard: React.FC = () => {
+  const [jobApplications, setJobApplications] = useState<JobApplication[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const navigate = useNavigate();
   const toast = useToast();
-  const resumeManagerRef = useRef(null);
+  const resumeManagerRef = useRef<any>(null);
 
   // Design colors
   const gradientBg = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
@@ -68,7 +75,7 @@ export function Dashboard() {
     navigate('/job-description');
   };
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (status: string) => {
     if (status === 'submitted') {
       return { label: 'SUBMITTED', className: 'status-submitted', color: '#22c55e', bg: 'rgba(34,197,94,0.1)', border: '0.5px solid rgba(34,197,94,0.2)' };
     }
@@ -76,7 +83,7 @@ export function Dashboard() {
   };
 
   // Upload logic (copied from ResumeManager)
-  const handleFileUpload = async (event) => {
+  const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
     try {
@@ -113,7 +120,7 @@ export function Dashboard() {
       if (resumeManagerRef.current && resumeManagerRef.current.refresh) {
         resumeManagerRef.current.refresh();
       }
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: 'Error uploading resumes',
         description: (error && error.message) || 'Unknown error',
@@ -321,4 +328,4 @@ export function Dashboard() {
       </Box>
     </Box>
   );
-} 
+}; 

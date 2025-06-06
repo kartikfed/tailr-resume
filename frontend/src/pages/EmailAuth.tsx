@@ -1,12 +1,15 @@
-import { useState } from 'react';
+import React, { useState, ChangeEvent } from 'react';
 import { supabase } from '../services/supabase';
 import { Button, Input, VStack, Heading, Text, useToast, Container } from '@chakra-ui/react';
 
-export function EmailAuth() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [loading, setLoading] = useState(false);
+/**
+ * Email/password authentication page
+ */
+export const EmailAuth: React.FC = () => {
+  const [email, setEmail] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
+  const [isSignUp, setIsSignUp] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
   const toast = useToast();
 
   const handleAuth = async () => {
@@ -47,13 +50,13 @@ export function EmailAuth() {
         <Input
           placeholder="Email"
           value={email}
-          onChange={e => setEmail(e.target.value)}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
           type="email"
         />
         <Input
           placeholder="Password"
           value={password}
-          onChange={e => setPassword(e.target.value)}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
           type="password"
         />
         <Button
@@ -73,4 +76,4 @@ export function EmailAuth() {
       </VStack>
     </Container>
   );
-} 
+}; 

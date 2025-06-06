@@ -1,13 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, ChangeEvent, FocusEvent, ForwardedRef } from 'react';
 import {
   Box,
   Textarea,
   Text,
-  useColorModeValue,
-  forwardRef
+  useColorModeValue
 } from '@chakra-ui/react';
 
-const TextInput = forwardRef(({
+/**
+ * Props for TextInput component
+ */
+export interface TextInputProps {
+  id?: string;
+  value: string;
+  onChange: (e: ChangeEvent<HTMLTextAreaElement>) => void;
+  placeholder?: string;
+  label?: string;
+  error?: string;
+  locked?: boolean;
+  rows?: number;
+}
+
+/**
+ * A styled textarea input with label and error display
+ */
+const TextInput = React.forwardRef<HTMLTextAreaElement, TextInputProps>(({
   id,
   value,
   onChange,
@@ -15,8 +31,7 @@ const TextInput = forwardRef(({
   label,
   error,
   locked = false,
-  rows = 3,
-  ...props
+  rows = 3
 }, ref) => {
   const [isFocused, setIsFocused] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -28,13 +43,13 @@ const TextInput = forwardRef(({
   const focusBorderColor = useColorModeValue('blue.400', 'blue.400');
   const errorColor = useColorModeValue('red.400', 'red.400');
 
-  const handleFocus = () => {
+  const handleFocus = (e: FocusEvent<HTMLTextAreaElement>) => {
     if (!locked) {
       setIsFocused(true);
     }
   };
 
-  const handleBlur = () => {
+  const handleBlur = (e: FocusEvent<HTMLTextAreaElement>) => {
     if (!locked) {
       setIsFocused(false);
     }
@@ -95,7 +110,6 @@ const TextInput = forwardRef(({
             backgroundColor: 'transparent',
           },
         }}
-        {...props}
       />
       {(isFocused || value) && (
         <Text
