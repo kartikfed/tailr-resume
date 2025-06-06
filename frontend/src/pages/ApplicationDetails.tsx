@@ -57,9 +57,6 @@ const ApplicationDetails: React.FC = () => {
   const [jobDescriptionAnalysis, setJobDescriptionAnalysis] = useState<JobDescriptionAnalysis | null>(null);
   const [promptPresets, setPromptPresets] = useState<Record<string, any>>({});
 
-  // Generate a unique conversationId for this application
-  const conversationId = id ? `app-${id}` : undefined;
-
   // Helper to reload resume after upload
   const fetchResume = async (appId: string) => {
     const { data: resumes, error: resumeError } = await supabase
@@ -300,7 +297,6 @@ const ApplicationDetails: React.FC = () => {
             )}
             <SpecCanvas 
               resumeMarkdown={resume?.content || ''} 
-              emphasisAreas={emphasisAreas}
               jobDescription={application.job_description}
               jobDescriptionProvided={!!application.job_description}
               onAcceptRevision={handleAcceptRevision}

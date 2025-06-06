@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Box,
   VStack,
@@ -11,11 +11,41 @@ import {
   Textarea,
   useColorModeValue,
   HStack,
-  Collapse} from '@chakra-ui/react';
+  Collapse
+} from '@chakra-ui/react';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import ReactDOM from 'react-dom';
 import EmphasisAreas from './EmphasisAreas';
+
+// Types for bullet points
+interface BulletPoint {
+  index: number;
+  text: string;
+  line: string;
+  id: string;
+}
+
+// Types for quick revisions
+interface QuickRevision {
+  title: string;
+  prompt: string;
+}
+
+// Props interface
+interface SpecCanvasProps {
+  resumeMarkdown?: string | null;
+  onAcceptRevision?: (selectedText: string, revisedText: string) => void;
+  jobDescriptionProvided?: boolean;
+  jobDescription?: string;
+  highlightedText?: string | null;
+  onRegeneratePrompts?: (selectedText: string, forceRegenerate: boolean) => Promise<void>;
+  writingTone?: 'concise' | 'detailed' | 'professional' | 'casual';
+  conversationId?: string;
+  onUpdateMessages?: (callback: (prevMessages: any[]) => any[]) => void;
+  resumeEmphasis?: any; // TODO: Define proper type for resumeEmphasis
+  getQuickRevisionsForBullet?: (text: string) => QuickRevision[];
+}
 
 // Add at the very top of the file, before the component definition
 const pulseKeyframes = `
@@ -28,7 +58,7 @@ const pulseKeyframes = `
 /**
  * Component for rendering resume content with text selection and revision support
  */
-const SpecCanvas = ({
+const SpecCanvas: React.FC<SpecCanvasProps> = ({
   resumeMarkdown = null,
   onAcceptRevision,
   jobDescriptionProvided = false,
@@ -41,6 +71,9 @@ const SpecCanvas = ({
   resumeEmphasis = null,
   getQuickRevisionsForBullet = null
 }) => {
+  // Initialize toast
+  const toast = useToast();
+
   // Debug logging
   console.log('SpecCanvas received props:', {
     resumeMarkdown,
@@ -50,7 +83,7 @@ const SpecCanvas = ({
   });
 
   // Check if any content is available
-  const hasContent = () => {
+  const hasContent = (): boolean => {
     console.log('Checking content:', {
       hasMarkdown: !!resumeMarkdown
     });
@@ -59,7 +92,7 @@ const SpecCanvas = ({
   };
 
   // Helper function to render content with proper line breaks and allow fine-grained selection
-  const renderContent = (content) => {
+  const renderContent = (content: string) => {
     if (!content) return null;
     
     console.log('SpecCanvas: Rendering content:', {
@@ -203,14 +236,14 @@ const SpecCanvas = ({
   };
 
   // Helper function to unescape Markdown special characters
-  function unescapeMarkdown(text) {
+  const unescapeMarkdown = (text: string): string => {
     if (!text) return text;
     // Unescape common Markdown characters: \\* \\# \\_ \\` \\~ \\> \\- \\! \\[ \\] \\( \\) \\{ \\} \\< \\> \\| \\.
     return text.replace(/\\([#*_[\]()`~>\-!{}<>|.])/g, '$1');
-  }
+  };
 
   // Function to find all bullet points in the markdown content
-  const findBulletPoints = (content) => {
+  const findBulletPoints = (content: string): BulletPoint[] => {
     if (!content) return [];
     const lines = content.split('\n');
     return lines
@@ -227,131 +260,40 @@ const SpecCanvas = ({
         }
         return null;
       })
-      .filter(Boolean);
+      .filter((bullet): bullet is BulletPoint => bullet !== null);
   };
 
-  const [currentBulletIndex, setCurrentBulletIndex] = useState(-1);
-  const [showRevisionPopover, setShowRevisionPopover] = useState(false);
-  const [reviseButtonPosition, setReviseButtonPosition] = useState({ top: 0, left: 0 });
-  const [selectedText, setSelectedText] = useState('');
+  // State variables
+  const [currentBulletIndex, setCurrentBulletIndex] = useState<number>(-1);
+  const [showRevisionPopover, setShowRevisionPopover] = useState<boolean>(false);
+  const [reviseButtonPosition, setReviseButtonPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [selectedText, setSelectedText] = useState<string>('');
+  const [showReviseButton, setShowReviseButton] = useState<boolean>(false);
+  const [isRevisionPopoverExpanded, setIsRevisionPopoverExpanded] = useState<boolean>(true);
+  const [userInstructions, setUserInstructions] = useState<string>('');
+  const [revisedText, setRevisedText] = useState<string>('');
+  const [revisedTextMarkdown, setRevisedTextMarkdown] = useState<string>('');
+  const [hasSubmittedRevision, setHasSubmittedRevision] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isRegeneratingPrompts, setIsRegeneratingPrompts] = useState<boolean>(false);
+  const [isAddingExplanation, setIsAddingExplanation] = useState<boolean>(false);
+  const [highlightTimeout, setHighlightTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [isQuickRevisionsOpen, setIsQuickRevisionsOpen] = useState<boolean>(false);
+  const [lastRevisedText, setLastRevisedText] = useState<string | null>(null);
+  const [hasUserNavigated, setHasUserNavigated] = useState<boolean>(false);
 
-  // Add useEffect to update popover position when current bullet changes
-  React.useEffect(() => {
-    if (currentBulletIndex !== -1) {
-      const element = document.getElementById(`bullet-${currentBulletIndex}`);
-      if (element) {
-        const rect = element.getBoundingClientRect();
-        const newPosition = {
-          top: rect.top + window.scrollY,
-          left: rect.right + window.scrollX + 8
-        };
-        setReviseButtonPosition(newPosition);
-        setShowRevisionPopover(true);
-      }
-    }
-  }, [currentBulletIndex]);
+  // Refs
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const floatingRef = useRef<HTMLDivElement>(null);
+  const bulletPointsRef = useRef<BulletPoint[]>([]);
 
-  // Add scroll event listener to update popover position
-  React.useEffect(() => {
-    if (currentBulletIndex === -1) return;
-
-    const handleScroll = () => {
-      const element = document.getElementById(`bullet-${currentBulletIndex}`);
-      if (element) {
-        const rect = element.getBoundingClientRect();
-        setReviseButtonPosition({
-          top: rect.top + window.scrollY,
-          left: rect.right + window.scrollX + 8
-        });
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [currentBulletIndex]);
-
-  // Function to highlight a bullet point
-  const highlightBulletPoint = (index) => {
-    if (index >= 0 && index < bulletPointsRef.current.length) {
-      setCurrentBulletIndex(index);
-      const bullet = bulletPointsRef.current[index];
-      setSelectedText(bullet.text);
-      setShowRevisionPopover(true);
-      setHasUserNavigated(true); // Mark as user navigated
-      // Clear any previous revision state when changing bullets
-      setRevisedText('');
-      setRevisedTextMarkdown('');
-      setHasSubmittedRevision(false);
-      // Use setTimeout to ensure the highlight styles are applied before scrolling
-      setTimeout(() => {
-        // Find the actual highlighted element (Box component with id)
-        const element = document.getElementById(`bullet-${index}`);
-        if (!element) return;
-
-        // Get the element's bounding rectangle
-        const rect = element.getBoundingClientRect();
-        
-        // Calculate the total height needed for the complete highlighted area
-        
-        // Calculate the viewport height
-        const viewportHeight = window.innerHeight;
-        
-        // Calculate the element's position relative to the viewport
-        const elementTop = rect.top;
-        const elementBottom = rect.bottom;
-        
-        // Add padding to prevent the highlight from touching viewport edges
-        const viewportPadding = 20;
-        
-        // Calculate the scroll position needed to show the complete highlighted area
-        let scrollAmount = 0;
-        
-        // If the element is partially above the viewport
-        if (elementTop < viewportPadding) {
-          scrollAmount = elementTop - viewportPadding;
-        }
-        // If the element is partially below the viewport
-        else if (elementBottom > viewportHeight - viewportPadding) {
-          scrollAmount = elementBottom - (viewportHeight - viewportPadding);
-        }
-        
-        // If we need to scroll
-        if (scrollAmount !== 0) {
-          window.scrollBy({
-            top: scrollAmount,
-            behavior: 'smooth'
-          });
-        }
-        
-        // Update popover position
-        setReviseButtonPosition({
-          top: rect.top + window.scrollY,
-          left: rect.right + window.scrollX + 8
-        });
-      }, 0);
-    }
-  };
-
-  const [showReviseButton, setShowReviseButton] = useState(false);
-  const canvasRef = useRef(null);
-  const floatingRef = useRef(null);
-  const [isRevisionPopoverExpanded, setIsRevisionPopoverExpanded] = useState(true);
-  const [userInstructions, setUserInstructions] = useState('');
-  const [revisedText, setRevisedText] = useState('');
-  const [revisedTextMarkdown, setRevisedTextMarkdown] = useState('');
-  const [hasSubmittedRevision, setHasSubmittedRevision] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isRegeneratingPrompts, setIsRegeneratingPrompts] = useState(false);
-  const [isAddingExplanation, setIsAddingExplanation] = useState(false);
-  const toast = useToast();
-  const [highlightTimeout, setHighlightTimeout] = useState(null);
-  const [isQuickRevisionsOpen, setIsQuickRevisionsOpen] = useState(false);
-  const bulletPointsRef = useRef([]);
-  const [lastRevisedText, setLastRevisedText] = useState(null);
-  const [hasUserNavigated, setHasUserNavigated] = useState(false);
+  // Color mode values
+  const selectedBulletBg = useColorModeValue('#ede9fe', '#ede9fe'); // light purple
+  const selectedBulletBorder = useColorModeValue('#a78bfa', '#a78bfa'); // medium purple
+  const recentlyRevisedBg = useColorModeValue('#d1fae5', '#d1fae5'); // light green
 
   // Add useEffect to monitor prop changes
-  React.useEffect(() => {
+  useEffect(() => {
     console.log('SpecCanvas: Props changed:', {
       highlightedText,
       resumeMarkdownLength: resumeMarkdown?.length,
@@ -361,7 +303,7 @@ const SpecCanvas = ({
   }, [highlightedText, resumeMarkdown]);
 
   // Update bullet points when markdown content changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (resumeMarkdown) {
       const bullets = findBulletPoints(resumeMarkdown);
       bulletPointsRef.current = bullets;
@@ -370,7 +312,7 @@ const SpecCanvas = ({
   }, [resumeMarkdown]);
 
   // On first render, highlight only the first bullet but don't show popover
-  React.useEffect(() => {
+  useEffect(() => {
     if (!hasUserNavigated && bulletPointsRef.current.length > 0) {
       const firstBullet = bulletPointsRef.current[0];
       setCurrentBulletIndex(0);
@@ -380,7 +322,7 @@ const SpecCanvas = ({
   }, [resumeMarkdown, hasUserNavigated]);
 
   // Add useEffect to update selected text when current bullet changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (currentBulletIndex >= 0 && currentBulletIndex < bulletPointsRef.current.length) {
       const bullet = bulletPointsRef.current[currentBulletIndex];
       setSelectedText(bullet.text);
@@ -388,9 +330,9 @@ const SpecCanvas = ({
   }, [currentBulletIndex]);
 
   // Handle keyboard events
-  const handleKeyDown = (e) => {
+  const handleKeyDown = (e: KeyboardEvent) => {
     // Ignore keyboard shortcuts if user is typing in an input field
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+    if (e.target instanceof HTMLElement && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
       return;
     }
 
@@ -428,7 +370,7 @@ const SpecCanvas = ({
     // Handle R key for expanding/collapsing revision dialog
     if (e.code === 'KeyR' && !e.repeat) {
       // Only handle R if we're not in an input or textarea
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+      if (e.target instanceof HTMLElement && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
         return;
       }
       // If a bullet point is selected
@@ -440,7 +382,7 @@ const SpecCanvas = ({
     }
     // Handle Down Arrow for next bullet
     if (e.code === 'ArrowDown' && !e.repeat) {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.target instanceof HTMLElement && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
       e.preventDefault();
       if (currentBulletIndex === -1) {
         highlightBulletPoint(0);
@@ -456,7 +398,7 @@ const SpecCanvas = ({
     }
     // Handle Up Arrow for previous bullet
     if (e.code === 'ArrowUp' && !e.repeat) {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.target instanceof HTMLElement && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
       e.preventDefault();
       if (currentBulletIndex === -1) {
         highlightBulletPoint(bulletPointsRef.current.length - 1);
@@ -473,7 +415,7 @@ const SpecCanvas = ({
   };
 
   // Add keyboard event listener
-  React.useEffect(() => {
+  useEffect(() => {
     if (bulletPointsRef.current.length > 0) {
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
@@ -481,14 +423,15 @@ const SpecCanvas = ({
   }, [currentBulletIndex, bulletPointsRef.current.length]);
 
   // Remove onMouseUp from the canvas and use selectionchange event
-  React.useEffect(() => {
+  useEffect(() => {
     function handleSelectionChange() {
       if (showRevisionPopover) return; // Ignore selection changes while popover is open
       const selection = window.getSelection();
-      const text = selection.toString().trim();
+      const text = selection?.toString().trim() || '';
       if (
         text.length > 0 &&
         canvasRef.current &&
+        selection?.rangeCount &&
         selection.rangeCount > 0 &&
         canvasRef.current.contains(selection.anchorNode)
       ) {
@@ -515,10 +458,8 @@ const SpecCanvas = ({
     setShowRevisionPopover(true);
   };
 
-  // Close popover
-
   // Update handleSubmitRevision toast
-  const handleSubmitRevision = async (prompt) => {
+  const handleSubmitRevision = async (prompt: string) => {
     if (!selectedText || !jobDescription) {
       toast({
         title: 'Missing Information',
@@ -601,14 +542,14 @@ const SpecCanvas = ({
   };
 
   // Update handleAcceptRevision to handle version management
-  const handleAcceptRevision = async (selectedText, revisedTextMarkdown) => {
+  const handleAcceptRevision = async (selectedText: string, revisedTextMarkdown: string) => {
     console.log('handleAcceptRevision called with:', {
       selectedText,
       revisedTextMarkdown
     });
 
     // Clear any text selection
-    window.getSelection().removeAllRanges();
+    window.getSelection()?.removeAllRanges();
     setShowReviseButton(false);
     setHasUserNavigated(true); // Mark as user navigated after accepting
     // Set the recently revised text to trigger highlight
@@ -634,7 +575,7 @@ const SpecCanvas = ({
     
     // Call the parent's onAcceptRevision to create a new version
     if (onAcceptRevision) {
-      await onAcceptRevision(selectedText, revisedTextMarkdown);
+      onAcceptRevision(selectedText, revisedTextMarkdown);
     }
     
     // Add the explanation to the chat history
@@ -692,7 +633,7 @@ const SpecCanvas = ({
   };
 
   // Clean up timeout on unmount
-  React.useEffect(() => {
+  useEffect(() => {
     return () => {
       if (highlightTimeout) {
         clearTimeout(highlightTimeout);
@@ -726,7 +667,9 @@ const SpecCanvas = ({
     try {
       setIsRegeneratingPrompts(true);
       // Force regenerate and update cache
-      await onRegeneratePrompts(selectedText, true);
+      if (onRegeneratePrompts) {
+        await onRegeneratePrompts(selectedText, true);
+      }
       toast({
         title: "Prompts Updated",
         description: "New revision suggestions are ready",
@@ -750,14 +693,8 @@ const SpecCanvas = ({
     }
   };
 
-
-  // Add color mode values at the top of the component
-  const selectedBulletBg = useColorModeValue('#ede9fe', '#ede9fe'); // light purple
-  const selectedBulletBorder = useColorModeValue('#a78bfa', '#a78bfa'); // medium purple
-  const recentlyRevisedBg = useColorModeValue('#d1fae5', '#d1fae5'); // light green
-
   // Add the keyframes to the document head once
-  React.useEffect(() => {
+  useEffect(() => {
     if (!document.getElementById('pulse-keyframes')) {
       const style = document.createElement('style');
       style.id = 'pulse-keyframes';
@@ -765,6 +702,68 @@ const SpecCanvas = ({
       document.head.appendChild(style);
     }
   }, []);
+
+  // Function to highlight a bullet point
+  const highlightBulletPoint = (index: number) => {
+    if (index >= 0 && index < bulletPointsRef.current.length) {
+      setCurrentBulletIndex(index);
+      const bullet = bulletPointsRef.current[index];
+      setSelectedText(bullet.text);
+      setShowRevisionPopover(true);
+      setHasUserNavigated(true); // Mark as user navigated
+      // Clear any previous revision state when changing bullets
+      setRevisedText('');
+      setRevisedTextMarkdown('');
+      setHasSubmittedRevision(false);
+      // Use setTimeout to ensure the highlight styles are applied before scrolling
+      setTimeout(() => {
+        // Find the actual highlighted element (Box component with id)
+        const element = document.getElementById(`bullet-${index}`);
+        if (!element) return;
+
+        // Get the element's bounding rectangle
+        const rect = element.getBoundingClientRect();
+        
+        // Calculate the total height needed for the complete highlighted area
+        
+        // Calculate the viewport height
+        const viewportHeight = window.innerHeight;
+        
+        // Calculate the element's position relative to the viewport
+        const elementTop = rect.top;
+        const elementBottom = rect.bottom;
+        
+        // Add padding to prevent the highlight from touching viewport edges
+        const viewportPadding = 20;
+        
+        // Calculate the scroll position needed to show the complete highlighted area
+        let scrollAmount = 0;
+        
+        // If the element is partially above the viewport
+        if (elementTop < viewportPadding) {
+          scrollAmount = elementTop - viewportPadding;
+        }
+        // If the element is partially below the viewport
+        else if (elementBottom > viewportHeight - viewportPadding) {
+          scrollAmount = elementBottom - (viewportHeight - viewportPadding);
+        }
+        
+        // If we need to scroll
+        if (scrollAmount !== 0) {
+          window.scrollBy({
+            top: scrollAmount,
+            behavior: 'smooth'
+          });
+        }
+        
+        // Update popover position
+        setReviseButtonPosition({
+          top: rect.top + window.scrollY,
+          left: rect.right + window.scrollX + 8
+        });
+      }, 0);
+    }
+  };
 
   if (!hasContent()) {
     return (
@@ -1081,4 +1080,4 @@ const SpecCanvas = ({
   );
 };
 
-export default SpecCanvas;
+export default SpecCanvas; 
