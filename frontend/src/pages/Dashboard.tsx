@@ -248,7 +248,7 @@ export const Dashboard: React.FC = () => {
           </Flex>
           <Box className="applications-grid" px={0} py={0}>
             <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6} p={{ base: 4, md: 8 }}>
-              {jobApplications.map((application, idx) => {
+              {jobApplications.map((application) => {
                 const badge = getStatusBadge(application.status);
                 return (
                   <Box

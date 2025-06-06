@@ -100,7 +100,7 @@ export const saveUserProfile = async (profileData: ProfileFormData): Promise<Use
     if (!user) throw new Error('No authenticated user');
 
     // First check if a profile already exists
-    const { data: existingProfile, error: fetchError } = await supabase
+    const { error: fetchError } = await supabase
       .from('user_profiles')
       .select('id')
       .eq('id', user.id)

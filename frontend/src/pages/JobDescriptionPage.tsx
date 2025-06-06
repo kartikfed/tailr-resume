@@ -55,10 +55,6 @@ const JobDescriptionPage: React.FC = () => {
   const [isSavingJobDescription, setIsSavingJobDescription] = useState<boolean>(false);
   const [jobUrl, setJobUrl] = useState<string>('');
   const [isScraping, setIsScraping] = useState<boolean>(false);
-  const [progressValue, setProgressValue] = useState<number>(0);
-  const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
-  const [analysisStage, setAnalysisStage] = useState<string>('');
-  const [error, setError] = useState<string>('');
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -119,9 +115,6 @@ const JobDescriptionPage: React.FC = () => {
           return;
         }
         setIsSavingJobDescription(true);
-        setIsAnalyzing(true);
-        setProgressValue(0);
-        setAnalysisStage('Initializing analysis...');
 
         // Get the current user
         const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -190,7 +183,6 @@ const JobDescriptionPage: React.FC = () => {
         }
 
         // Process job description through /analyze-job-description endpoint
-        setAnalysisStage('Analyzing job description...');
         let jobAnalysis: JobAnalysisResponse;
         try {
           const jobAnalysisResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/spec/analyze-job-description`, {
@@ -287,9 +279,6 @@ const JobDescriptionPage: React.FC = () => {
         });
       } finally {
         setIsSavingJobDescription(false);
-        setIsAnalyzing(false);
-        setProgressValue(0);
-        setAnalysisStage('');
       }
     }
   };
@@ -301,7 +290,6 @@ const JobDescriptionPage: React.FC = () => {
     if (!jobUrl.trim()) return;
     try {
       setIsScraping(true);
-      setError('');
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/spec/scrape-job`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -323,7 +311,6 @@ const JobDescriptionPage: React.FC = () => {
         });
       }
     } catch (error: any) {
-      setError(error.message);
       toast({
         title: 'Scraping Failed',
         description: error.message,

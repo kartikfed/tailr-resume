@@ -11,7 +11,6 @@ import {
   Divider,
   Link,
   useToast,
-  Avatar,
   HStack,
   FormControl,
   FormLabel,

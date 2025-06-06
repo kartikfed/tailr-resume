@@ -7,7 +7,6 @@ import {
   Text,
   useToast,
   Button,
-  Spinner,
 } from '@chakra-ui/react';
 import { useDropzone } from 'react-dropzone';
 import { convertPdfToHtml } from '../services/api';

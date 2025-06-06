@@ -4,7 +4,6 @@ import {
   Text,
   VStack,
   useColorModeValue,
-  IconButton,
   Collapse,
   Flex,
   useOutsideClick
@@ -42,19 +41,15 @@ const TONE_OPTIONS: ToneOption[] = [
 export interface ToneSelectorProps {
   value: string;
   onChange: (value: string) => void;
-  label?: string;
-  labelColor?: string;
 }
 
 /**
  * Dropdown selector for writing tone/style
  */
-const ToneSelector: React.FC<ToneSelectorProps> = ({ value, onChange, label = 'Writing Style', labelColor }) => {
+const ToneSelector: React.FC<ToneSelectorProps> = ({ value, onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedOption, setSelectedOption] = useState<ToneOption>(TONE_OPTIONS.find(opt => opt.value === value) || TONE_OPTIONS[0]);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const textColor = useColorModeValue('gray.600', 'gray.200');
-  const descriptionColor = useColorModeValue('gray.500', 'gray.300');
   const bgColor = useColorModeValue('gray.700', 'gray.700');
   const hoverBgColor = useColorModeValue('purple.700', 'purple.700');
   const borderColor = useColorModeValue('purple.700', 'purple.700');

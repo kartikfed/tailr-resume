@@ -1,4 +1,4 @@
-import React, { useState, ChangeEvent, FocusEvent, ForwardedRef } from 'react';
+import React, { useState, ChangeEvent, FocusEvent } from 'react';
 import {
   Box,
   Textarea,
@@ -43,13 +43,13 @@ const TextInput = React.forwardRef<HTMLTextAreaElement, TextInputProps>(({
   const focusBorderColor = useColorModeValue('blue.400', 'blue.400');
   const errorColor = useColorModeValue('red.400', 'red.400');
 
-  const handleFocus = (e: FocusEvent<HTMLTextAreaElement>) => {
+  const handleFocus = () => {
     if (!locked) {
       setIsFocused(true);
     }
   };
 
-  const handleBlur = (e: FocusEvent<HTMLTextAreaElement>) => {
+  const handleBlur = () => {
     if (!locked) {
       setIsFocused(false);
     }
