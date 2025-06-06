@@ -12,8 +12,9 @@ import {
   useToast,
   Skeleton,
 } from '@chakra-ui/react';
-import { FiHome } from 'react-icons/fi';
+import { FiHome, FiUser } from 'react-icons/fi';
 import { supabase } from '../../services/supabase';
+import { ProfileEditModal } from '../Profile';
 
 interface SidebarProps {
   className?: string;
@@ -30,6 +31,7 @@ export const Sidebar: FC<SidebarProps> = ({ className }) => {
   const toast = useToast();
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [isProfileModalOpen, setProfileModalOpen] = useState(false);
 
   // Glassmorphic background
   const sidebarBg = 'rgba(255,255,255,0.85)';
@@ -108,16 +110,17 @@ export const Sidebar: FC<SidebarProps> = ({ className }) => {
       w={{ base: 'full', md: '240px' }}
       h="100vh"
       bg={sidebarBg}
-      borderRadius="0 16px 16px 0"
-      borderWidth="0.5px"
-      borderColor={borderColor}
-      boxShadow="0 8px 32px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.05)"
-      p={0}
-      position="relative"
-      zIndex={10}
+      borderRightWidth="1.5px"
+      borderRightColor={borderColor}
+      boxShadow="2px 0 16px rgba(139,92,246,0.06)"
+      position="fixed"
+      top={0}
+      left={0}
+      zIndex={20}
       display="flex"
       flexDirection="column"
       overflow="hidden"
+      borderRadius="0 16px 16px 0"
     >
       {/* Logo Section */}
       <Box px={6} pt={8} pb={6} borderBottomWidth="0.5px" borderBottomColor="rgba(0,0,0,0.06)">
@@ -170,6 +173,28 @@ export const Sidebar: FC<SidebarProps> = ({ className }) => {
         >
           Dashboard
         </Button>
+        {/* Edit Profile Button */}
+        <Button
+          leftIcon={<Icon as={FiUser as any} fontSize="16px" />}
+          variant="ghost"
+          color="#8B5CF6"
+          fontWeight={600}
+          fontSize="14px"
+          justifyContent="flex-start"
+          borderRadius="8px"
+          px={3}
+          py={2.5}
+          w="full"
+          mt={2}
+          _hover={{ bg: 'rgba(0,0,0,0.03)', color: '#1a1a1a' }}
+          _active={{ bg: activeBg }}
+          aria-label="Edit Profile"
+          onClick={() => setProfileModalOpen(true)}
+          position="relative"
+          boxShadow="none"
+        >
+          Edit Profile
+        </Button>
       </Box>
 
       <Spacer />
@@ -215,6 +240,9 @@ export const Sidebar: FC<SidebarProps> = ({ className }) => {
           Sign Out
         </Button>
       </Box>
+
+      {/* Profile Edit Modal */}
+      <ProfileEditModal isOpen={isProfileModalOpen} onClose={() => setProfileModalOpen(false)} isOnboarding={false} />
     </Box>
   );
 };

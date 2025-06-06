@@ -53,7 +53,9 @@ function App() {
       <ColorModeScript initialColorMode={theme.config.initialColorMode} />
       <AuthProvider>
         <Router>
-          <Box minH="100vh" bg={useColorModeValue('gray.50', 'gray.900')}>
+          {/* Make the purple gradient background fill the entire viewport */}
+          <Box minH="100vh" minW="100vw" w="100vw" h="100vh" position="fixed" top={0} left={0} zIndex={-1} bg="linear-gradient(135deg, #667eea 0%, #764ba2 100%)" />
+          <Box minH="100vh" minW="100vw" w="100vw" h="100vh" position="relative">
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/auth/callback" element={<AuthCallback />} />
@@ -63,12 +65,12 @@ function App() {
                 path="/"
                 element={
                   <PrivateRoute>
-                    <Flex direction="row" align="stretch" minH="100vh" bg="linear-gradient(135deg, #667eea 0%, #764ba2 100%)">
+                    <>
                       <Sidebar />
-                      <Box ml="0" flex={1} p={0}>
+                      <Box ml={{ base: 0, md: '240px' }} p={0} minH="100vh">
                         <Dashboard />
                       </Box>
-                    </Flex>
+                    </>
                   </PrivateRoute>
                 }
               />
@@ -76,12 +78,12 @@ function App() {
                 path="/job-description"
                 element={
                   <PrivateRoute>
-                    <Flex direction="row" align="stretch" minH="100vh" bg="linear-gradient(135deg, #667eea 0%, #764ba2 100%)">
+                    <>
                       <Sidebar />
-                      <Box ml="0" flex={1} p={4}>
+                      <Box ml={{ base: 0, md: '240px' }} p={4} minH="100vh">
                         <JobDescriptionPage />
                       </Box>
-                    </Flex>
+                    </>
                   </PrivateRoute>
                 }
               />
@@ -89,12 +91,12 @@ function App() {
                 path="/applications/:id"
                 element={
                   <PrivateRoute>
-                    <Flex direction="row" align="stretch" minH="100vh" bg="linear-gradient(135deg, #667eea 0%, #764ba2 100%)">
+                    <>
                       <Sidebar />
-                      <Box ml="0" flex={1} p={4}>
+                      <Box ml={{ base: 0, md: '240px' }} p={4} minH="100vh">
                         <ApplicationDetails />
                       </Box>
-                    </Flex>
+                    </>
                   </PrivateRoute>
                 }
               />

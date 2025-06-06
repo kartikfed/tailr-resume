@@ -3,6 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { Box, Spinner, Text } from '@chakra-ui/react';
 
+/**
+ * Handles Supabase OAuth/magic link callback. If hash fragment with tokens is present, sets session.
+ * If no hash (e.g., email/password login), just navigates to dashboard.
+ */
 export function AuthCallback() {
   const navigate = useNavigate();
 
@@ -54,8 +58,10 @@ export function AuthCallback() {
             throw new Error('Missing tokens in hash fragment');
           }
         } else {
-          console.error('No hash fragment found'); // Debug log
-          throw new Error('No hash fragment found');
+          // No hash fragment: likely email/password login, just go to dashboard
+          console.log('No hash fragment found, redirecting to dashboard');
+          navigate('/');
+          return;
         }
       } catch (error) {
         console.error('Error handling auth callback:', error);

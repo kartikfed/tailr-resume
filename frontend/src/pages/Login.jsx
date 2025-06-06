@@ -20,6 +20,9 @@ import {
 import { FcGoogle } from 'react-icons/fc';
 import { useNavigate } from 'react-router-dom';
 
+// Use environment variable for base URL (works for local and production)
+const BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:3000';
+
 export function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -34,7 +37,7 @@ export function Login() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: 'https://tailr.onrender.com/auth/callback',
+        redirectTo: `${BASE_URL}/auth/callback`, // Use env-based callback
         skipBrowserRedirect: false
       }
     });
@@ -55,7 +58,13 @@ export function Login() {
     setError('');
     let result;
     if (isSignUp) {
-      result = await supabase.auth.signUp({ email, password });
+      result = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          redirectTo: `${BASE_URL}/auth/callback` // Use env-based callback
+        }
+      });
     } else {
       result = await supabase.auth.signInWithPassword({ email, password });
     }

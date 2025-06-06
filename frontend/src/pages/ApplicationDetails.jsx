@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { Box, Container, Heading, Spinner, Text, VStack, useToast, Button, HStack, Badge, Flex } from '@chakra-ui/react';
 import SpecCanvas from '../components/SpecCanvas';
-import ChatWrapper from '../components/ChatWrapper';
 import EmphasisAreas from '../components/EmphasisAreas';
 import { Sidebar } from '../components/Sidebar';
 
@@ -23,28 +22,16 @@ export default function ApplicationDetailsWrapper() {
 
 function ApplicationDetails() {
   const { id } = useParams();
-  /** @type {[boolean, Function]} */
-  const [loading, setLoading] = useState(true);
-  /** @type {[string, Function]} */
-  const [error, setError] = useState('');
-  /** @type {[object|null, Function]} */
-  const [application, setApplication] = useState(null);
-  /** @type {[object|null, Function]} */
-  const [resume, setResume] = useState(null);
-  /** @type {[string[], Function]} */
-  const [emphasisAreas, setEmphasisAreas] = useState([]);
-  /** @type {[object|null, Function]} */
-  const [jobDescriptionAnalysis, setJobDescriptionAnalysis] = useState(null);
-  /** @type {[Array, Function]} */
-  const [messages, setMessages] = useState([]);
-  /** @type {[boolean, Function]} */
-  const [isSendingMessage, setIsSendingMessage] = useState(false);
-  const toast = useToast();
   const navigate = useNavigate();
-  /** @type {[object, Function]} */
-  const [promptPresets, setPromptPresets] = useState({});
-  /** @type {[string|null, Function]} */
+  const toast = useToast();
+  const [application, setApplication] = useState(null);
+  const [resume, setResume] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [unsavedResumeContent, setUnsavedResumeContent] = useState(null);
+  const [emphasisAreas, setEmphasisAreas] = useState([]);
+  const [jobDescriptionAnalysis, setJobDescriptionAnalysis] = useState(null);
+  const [promptPresets, setPromptPresets] = useState({});
 
   // Generate a unique conversationId for this application
   const conversationId = id ? `app-${id}` : undefined;
@@ -101,66 +88,6 @@ function ApplicationDetails() {
       });
       throw error;
     }
-  };
-
-  // Handle sending a message
-  const handleSendMessage = async (message) => {
-    setIsSendingMessage(true);
-    try {
-      const newMessage = {
-        role: 'user',
-        content: message,
-        timestamp: new Date().toISOString()
-      };
-      setMessages(prev => [...prev, newMessage]);
-      
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/spec/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message,
-          conversationId,
-          jobDescription: application?.job_description,
-          resumeContent: resume?.content
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to get response');
-      }
-
-      const data = await response.json();
-      
-      const assistantMessage = {
-        role: 'assistant',
-        content: data.response,
-        timestamp: new Date().toISOString()
-      };
-      
-      setMessages(prev => [...prev, assistantMessage]);
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to get response from assistant',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
-    } finally {
-      setIsSendingMessage(false);
-    }
-  };
-
-  /**
-   * Returns quick revision prompts for a given bullet (selected text)
-   * @param {string} selectedText
-   * @returns {Array<{title: string, prompt: string}>}
-   */
-  const getQuickRevisionsForBullet = (selectedText) => {
-    if (!selectedText) return [];
-    return promptPresets[selectedText] || [];
   };
 
   // Update promptPresets when jobDescriptionAnalysis changes
@@ -318,6 +245,16 @@ function ApplicationDetails() {
     }
   };
 
+  /**
+   * Returns quick revision prompts for a given bullet (selected text)
+   * @param {string} selectedText
+   * @returns {Array<{title: string, prompt: string}>}
+   */
+  const getQuickRevisionsForBullet = (selectedText) => {
+    if (!selectedText) return [];
+    return promptPresets[selectedText] || [];
+  };
+
   if (loading) {
     return (
       <Box minH="100vh" display="flex" alignItems="center" justifyContent="center">
@@ -351,8 +288,19 @@ function ApplicationDetails() {
   return (
     <Container maxW="container.xl">
       <VStack spacing={8} align="stretch">
-        <Heading color="gray.100">{application.job_title || 'Untitled Position'}</Heading>
-        <Text color="gray.400">{application.company_name}</Text>
+        <Flex justify="space-between" align="center">
+          <Box>
+            <Heading color="gray.100">{application.job_title || 'Untitled Position'}</Heading>
+            <Text color="gray.400">{application.company_name}</Text>
+          </Box>
+          <Button
+            colorScheme="purple"
+            onClick={handleSaveResume}
+            isDisabled={!unsavedResumeContent}
+          >
+            Save
+          </Button>
+        </Flex>
         <Box display="flex" gap={8}>
           <Box flex="1">
             {/* Show EmphasisAreas above the canvas if available */}
@@ -365,28 +313,9 @@ function ApplicationDetails() {
               jobDescription={application.job_description}
               jobDescriptionProvided={!!application.job_description}
               onAcceptRevision={handleAcceptRevision}
-              conversationId={conversationId}
-              onUpdateMessages={setMessages}
               resumeEmphasis={jobDescriptionAnalysis?.results?.emphasis_areas}
               getQuickRevisionsForBullet={getQuickRevisionsForBullet}
               onRegeneratePrompts={onRegeneratePrompts}
-            />
-            <Button
-              mt={4}
-              colorScheme="purple"
-              onClick={handleSaveResume}
-              isDisabled={!unsavedResumeContent}
-            >
-              Save
-            </Button>
-          </Box>
-          <Box width="400px">
-            <ChatWrapper
-              messages={messages}
-              onSendMessage={handleSendMessage}
-              isLoading={isSendingMessage}
-              inputBg="gray.800"
-              inputColor="gray.100"
             />
           </Box>
         </Box>
