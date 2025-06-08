@@ -4,7 +4,7 @@ import { supabase } from '../services/supabase';
 import { Box, Container, Heading, Spinner, Text, VStack, useToast, Button, Flex, Tabs, TabList, TabPanels, Tab, TabPanel, Grid } from '@chakra-ui/react';
 import EmphasisAreas from '../components/EmphasisAreas';
 import ResumeHtmlCanvas from '../components/ResumeHtmlCanvas';
-import ChatInterface from '../components/ChatInterface';
+import FloatingChat from '../components/FloatingChat';
 import { useChat } from '../hooks/useChat';
 import { contextService } from '../services/contextService';
 
@@ -345,58 +345,14 @@ const ApplicationDetails: React.FC = () => {
             </TabPanels>
           </Tabs>
 
-          {/* Floating chat interface */}
-          <Box 
-            position="fixed"
-            right="4"
-            top="50%"
-            transform="translateY(-50%)"
-            width="600px"
-            height="calc(100vh - 200px)"
-            bg="white"
-            borderRadius="lg"
-            boxShadow="2xl"
-            overflow="hidden"
-            zIndex={10}
-            display={{ base: 'none', lg: 'block' }}
-            css={{
-              '&::-webkit-scrollbar': {
-                width: '4px',
-              },
-              '&::-webkit-scrollbar-track': {
-                width: '6px',
-              },
-              '&::-webkit-scrollbar-thumb': {
-                background: 'gray.200',
-                borderRadius: '24px',
-              },
+          {/* Replace the existing ChatInterface Box with FloatingChat */}
+          <FloatingChat 
+            conversationId={conversationId}
+            onUpdateMessages={(messages) => {
+              console.log('Messages updated:', messages);
             }}
-          >
-            <Box 
-              height="100%" 
-              overflowY="auto"
-              css={{
-                '&::-webkit-scrollbar': {
-                  width: '4px',
-                },
-                '&::-webkit-scrollbar-track': {
-                  width: '6px',
-                },
-                '&::-webkit-scrollbar-thumb': {
-                  background: 'gray.200',
-                  borderRadius: '24px',
-                },
-              }}
-            >
-              <ChatInterface 
-                conversationId={conversationId}
-                onUpdateMessages={(messages) => {
-                  console.log('Messages updated:', messages);
-                }}
-                onToolResponse={handleToolResponse}
-              />
-            </Box>
-          </Box>
+            onToolResponse={handleToolResponse}
+          />
         </Box>
       </VStack>
     </Container>
