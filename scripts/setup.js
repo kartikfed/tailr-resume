@@ -25,8 +25,6 @@ const ensureDirectoryExists = (dirPath) => {
 // Directories to ensure exist
 const directories = [
   'backend/src/api/routes',
-  'backend/src/mcp',
-  'backend/src/tools',
   'frontend/src/components',
   'frontend/src/services',
   'scripts'

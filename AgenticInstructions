@@ -1,0 +1,352 @@
+### Content Intelligence  
+- **Semantic Understanding**: Parse HTML to extract meaningful sections and relationships
+- **Fuzzy Matching**: Identify content from partial user descriptions ("my last job", "the React bullet")
+- **Context Preservation**: Maintain formatting, styling, and document structure during edits#### 5. `optimizeForJob(section?, focus?)`
+**Purpose**: Apply job-specific optimizations
+**Parameters**: 
+```javascript
+{
+  section?: "summary" | "experience" | "skills" | "all",
+  focus?: "keywords" | "relevance" | "ats" | "impact"
+}
+```
+**Returns**: List of applied changes with job-relevance explanations# AI Resume Editor - Product Requirements Document
+
+## Overview
+An intelligent, chat-first resume editing experience that allows users to optimize their resume for a specific job opportunity through natural language conversations. The system acts as an AI resume consultant that understands the target job requirements, compares the resume against job criteria, and provides targeted optimization suggestions.
+
+## Core Architecture
+
+### Job Context System
+- **Target Job**: Pre-stored job description with extracted requirements
+- **Keyword Database**: Identified skills, qualifications, and key phrases from job posting  
+- **Match Analysis**: Real-time comparison between resume content and job requirements
+- **Optimization Engine**: Targeted suggestions based on job-specific criteria
+### Tool-Based LLM System
+- **Primary Interface**: Chat conversation with job-aware LLM agent
+- **Backend Tools**: Function calling system for content manipulation and job matching
+- **Rendering**: Live HTML preview in iframe that updates in real-time
+- **State Management**: Maintains conversation context, change history, and job alignment tracking
+
+### Required Tools/Functions
+
+#### 1. `getResumeContent(includeJobAnalysis = true)`
+**Purpose**: Retrieve current resume state with job-specific analysis
+**Returns**:
+```javascript
+{
+  htmlContent: string,
+  sections: {
+    summary: { 
+      content: string, 
+      wordCount: number,
+      jobAlignment: {
+        matchScore: number, // 0-100
+        missingKeywords: string[],
+        suggestions: string[]
+      }
+    },
+    experience: [
+      {
+        company: string,
+        role: string,
+        duration: string,
+        bullets: string[],
+        id: string,
+        relevanceScore: number, // 0-100 based on job requirements
+        keywordMatches: string[],
+        improvementOpportunities: string[]
+      }
+    ],
+    skills: {
+      content: string[],
+      jobRequiredSkills: {
+        present: string[],
+        missing: string[],
+        priority: string[] // High-priority missing skills
+      }
+    }
+    // ... other sections
+  },
+  jobMatchAnalysis: {
+    overallScore: number,
+    criticalGaps: string[],
+    strengths: string[],
+    quickWins: string[] // Easy improvements for big impact
+  },
+  metadata: {
+    totalWordCount: number,
+    atsScore: number,
+    jobFitScore: number
+  }
+}
+```
+
+#### 2. `applyChange(changeRequest)`
+**Purpose**: Apply specific modifications to resume content
+**Parameters**:
+```javascript
+{
+  type: "update" | "add" | "remove" | "reorder",
+  targetSection: string,
+  targetId?: string,
+  newContent: string,
+  explanation: string
+}
+```
+**Behavior**: 
+- Finds target content using fuzzy matching
+- Updates HTML representation
+- Triggers iframe re-render
+- Returns success confirmation with explanation
+
+#### 3. `analyzeJobFit()`
+**Purpose**: Comprehensive analysis of resume alignment with target job
+**Returns**: 
+```javascript
+{
+  overallFitScore: number,
+  sectionAnalysis: {
+    summary: {
+      score: number,
+      issues: string[],
+      recommendations: string[]
+    },
+    experience: {
+      score: number,
+      relevantRoles: string[],
+      gapAreas: string[],
+      keywordOpportunities: string[]
+    },
+    skills: {
+      matchedSkills: string[],
+      missingCritical: string[],
+      missingPreferred: string[],
+      suggestionPriority: string[]
+    }
+  },
+  competitiveAnalysis: {
+    strongPoints: string[],
+    weaknesses: string[],
+    differentiators: string[]
+  },
+  actionItems: [
+    {
+      priority: "high" | "medium" | "low",
+      type: "add" | "modify" | "emphasize",
+      section: string,
+      description: string,
+      impact: string
+    }
+  ]
+}
+
+#### 4. `getJobRequirements()`
+**Purpose**: Access stored job description analysis
+**Returns**:
+```javascript
+{
+  jobTitle: string,
+  company: string,
+  requiredSkills: {
+    technical: string[],
+    soft: string[],
+    certifications: string[]
+  },
+  preferredSkills: string[],
+  experience: {
+    yearsRequired: number,
+    industries: string[],
+    roles: string[]
+  },
+  keywords: {
+    critical: string[], // Must-have terms
+    important: string[], // Strong signals
+    nice_to_have: string[]
+  },
+  responsibilities: string[],
+  qualifications: string[]
+}
+
+## Supported Interaction Patterns
+
+### Basic Content Editing
+```
+User: "Make my summary more professional"
+Agent: [Analyzes current summary, applies improvements, explains changes]
+
+User: "Add a bullet point about my React experience to my last job"
+Agent: [Identifies target role, adds relevant bullet, explains placement]
+
+User: "Remove the second bullet point from my first job"
+Agent: [Locates and removes specified content, confirms action]
+```
+
+### Job-Targeted Optimization
+```
+User: "Optimize my resume for this job"
+Agent: [Analyzes job fit, identifies top 3 critical gaps, applies targeted improvements]
+
+User: "I'm missing some key skills they want"
+Agent: [Reviews job requirements, suggests how to highlight relevant experience or recommend skill additions]
+
+User: "Make my experience more relevant to this role"
+Agent: [Reframes experience bullets to emphasize job-relevant aspects, adds missing keywords]
+
+User: "How well does my resume match this job?"
+Agent: [Provides detailed fit analysis with scores, identifies strengths and gaps]
+```
+
+### Keyword and Phrase Integration
+```
+User: "Add more keywords from the job description"
+Agent: [Identifies missing critical keywords, integrates them naturally into existing content]
+
+User: "They mention 'cross-functional collaboration' a lot"
+Agent: [Finds relevant experience, rephrases bullets to include this specific phrase]
+
+User: "I need to emphasize my leadership experience"
+Agent: [Highlights leadership aspects based on job requirements, uses job-specific leadership terminology]
+```
+
+### Proactive Job-Specific Consultation
+```
+Agent: "I see this job requires 'agile methodology' experience, but you haven't mentioned it. You worked at [Company] - did you use agile there?"
+
+Agent: "This role emphasizes 'stakeholder management.' Your bullets focus on technical work, but I bet you interfaced with business teams. Want me to highlight that?"
+
+Agent: "They're looking for someone with 'startup experience' and you worked at [Startup]. Should I emphasize the fast-paced, multi-role aspects of that job?"
+
+Agent: "Your skills section is missing 3 technologies they specifically mention: React, TypeScript, and AWS. Do you have experience with these?"
+```
+
+### Multi-turn Refinement
+```
+User: "Make my experience section stronger"
+Agent: [Analyzes experience, applies improvements, explains changes]
+User: "The second bullet point is too long now"
+Agent: [Shortens specific bullet while maintaining impact]
+User: "Can you make it more quantitative?"
+Agent: [Adds metrics and specific numbers to the bullet]
+```
+
+### Quality Assessment
+```
+User: "How well does this match the job?"
+Agent: [Provides job-specific fit score, identifies critical gaps and strong matches]
+
+User: "Will this get past their ATS?"
+Agent: [Analyzes against job-specific ATS requirements, suggests keyword and formatting improvements]
+
+User: "What are my chances with this resume?"
+Agent: [Provides competitive analysis based on job requirements and market standards]
+```
+
+## Technical Requirements
+
+### Job-Aware Intelligence
+- **Requirement Mapping**: Automatically match resume content to job requirements
+- **Keyword Integration**: Natural incorporation of job-specific terminology
+- **Gap Analysis**: Identify missing skills, experience, or qualifications
+- **Competitive Positioning**: Understand how resume stacks against job criteria
+
+### Conversation Management
+- **Job Context**: Maintain awareness of target role requirements throughout conversation
+- **Memory**: Track conversation history, user goals, and job-specific optimizations
+- **State Persistence**: Remember previous changes, job alignment improvements, and user preferences
+- **Intent Recognition**: Distinguish between general improvements and job-specific optimization requests
+
+### Real-time Updates
+- **Incremental Rendering**: Update only changed sections in iframe
+- **Change Tracking**: Maintain undo/redo capability
+- **Visual Feedback**: Highlight recent changes in the preview
+
+### Data Structures
+```javascript
+// Conversation Context
+{
+  targetJob: {
+    title: string,
+    company: string,
+    requirements: JobRequirements,
+    userGoals: string[]
+  },
+  resumeJobFit: {
+    currentScore: number,
+    improvedScore: number,
+    criticalGaps: string[],
+    addressedGaps: string[]
+  },
+  optimizationProgress: {
+    completedActions: string[],
+    pendingActions: string[],
+    userPriorities: string[]
+  },
+  changeHistory: [
+    {
+      timestamp: Date,
+      type: string,
+      content: string,
+      explanation: string,
+      jobRelevance: string, // How this change improves job fit
+      impactScore: number
+    }
+  ]
+}
+
+// Job-Aware Content Mapping
+{
+  sectionMap: {
+    [sectionId]: {
+      type: string,
+      content: any,
+      htmlElement: string,
+      lastModified: Date,
+      jobRelevance: {
+        score: number,
+        matchedKeywords: string[],
+        improvementSuggestions: string[]
+      }
+    }
+  }
+}
+```
+
+## User Experience Flows
+
+### Initial Setup
+1. User uploads resume PDF for specific job opportunity
+2. System converts to HTML, analyzes structure, and loads job requirements
+3. Agent performs initial job-fit analysis and introduces optimization opportunity
+4. User begins job-targeted editing conversation
+
+### Typical Job Optimization Session
+1. User requests job-specific improvement or agent identifies critical gap
+2. Agent analyzes current resume against job requirements
+3. Agent asks clarifying questions about user's relevant experience
+4. Agent applies targeted changes with job-relevance explanations  
+5. User provides feedback or requests further job-specific modifications
+6. Agent refines changes and tracks job-fit score improvement
+7. Process repeats until optimal job alignment achieved
+
+### Advanced Workflows
+- **Critical Gap Closure**: Agent prioritizes missing job requirements and guides user through addressing them
+- **Keyword Optimization**: Strategic integration of job-specific terminology while maintaining natural flow
+- **Experience Reframing**: Repositioning existing experience to highlight job-relevant aspects
+- **Competitive Differentiation**: Emphasizing unique qualifications that set user apart for this specific role
+- **ATS Optimization**: Ensuring resume passes applicant tracking systems for the target company
+
+## Success Metrics
+- **Job Fit Improvement**: Measurable increase in resume-job alignment score
+- **Keyword Integration**: Natural incorporation of job-required terminology
+- **Gap Resolution**: Successful addressing of critical missing requirements
+- **Conversation Fluency**: Users can express job-specific optimization needs in natural language
+- **Change Accuracy**: Agent correctly prioritizes and implements job-relevant improvements
+
+## Implementation Notes
+- Prioritize job-relevance in all suggestions and modifications
+- Ensure keyword integration feels natural and contextually appropriate  
+- Maintain document formatting while optimizing for target job requirements
+- Focus on addressing critical job gaps before nice-to-have improvements
+- Build conversation flow around job-specific optimization rather than generic resume improvement
+- Track and display job-fit score improvements to show tangible progress

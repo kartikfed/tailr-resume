@@ -1,6 +1,8 @@
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import { ApiResponse, Conversation, UploadResponse } from '../types';
+import { VersionedMessage, ContextUpdate } from '../types/chat';
+import { contextService } from './contextService';
 
 // Type for uploadFiles payload
 export interface UploadFilePayload {
@@ -12,23 +14,105 @@ export interface UploadFilePayload {
   useClaude: boolean;
 }
 
+/**
+ * API service for making HTTP requests
+ */
 export const apiService = {
+  /**
+   * Sends a POST request to the specified endpoint
+   * @param {string} endpoint - The API endpoint
+   * @param {any} data - The data to send
+   * @returns {Promise<ApiResponse<any>>} The response data
+   */
+  async post(endpoint: string, data: any): Promise<ApiResponse<any>> {
+    try {
+      const response = await axios.post(`${API_BASE_URL}${endpoint}`, data);
+      return { data: response.data, error: null };
+    } catch (error) {
+      console.error('API request failed:', error);
+      if (axios.isAxiosError(error)) {
+        return { 
+          data: null, 
+          error: new Error(error.response?.data?.message || error.message || 'API request failed')
+        };
+      }
+      return { data: null, error: error as Error };
+    }
+  },
+
+  /**
+   * Sends a GET request to the specified endpoint
+   * @param {string} endpoint - The API endpoint
+   * @returns {Promise<ApiResponse<any>>} The response data
+   */
+  async get(endpoint: string): Promise<ApiResponse<any>> {
+    try {
+      const response = await axios.get(`${API_BASE_URL}${endpoint}`);
+      return { data: response.data, error: null };
+    } catch (error) {
+      console.error('API request failed:', error);
+      if (axios.isAxiosError(error)) {
+        return { 
+          data: null, 
+          error: new Error(error.response?.data?.message || error.message || 'API request failed')
+        };
+      }
+      return { data: null, error: error as Error };
+    }
+  },
+
   async sendMessage(
     conversationId: string,
     message: string,
     files: File[] = []
   ): Promise<ApiResponse<{ response: string }>> {
     try {
-      const formData = new FormData();
-      formData.append('conversationId', conversationId);
-      formData.append('message', message);
-      
-      files.forEach(file => {
-        formData.append('files', file);
-      });
+      // Get current context
+      const context = await contextService.getContext(conversationId);
+      const currentContent = await contextService.getCurrentContent(conversationId);
 
-      const response = await axios.post(`${API_BASE_URL}/chat`, formData);
+      const response = await axios.post(`${API_BASE_URL}/chat`, {
+        conversationId,
+        message,
+        context: {
+          resumeVersion: context.resumeVersion,
+          jobDescriptionVersion: context.jobDescriptionVersion,
+          analysisVersion: context.analysisVersion,
+          content: currentContent
+        }
+      });
       return { data: response.data, error: null };
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        return { 
+          data: null, 
+          error: new Error(error.response?.data?.message || error.message || 'Failed to send message')
+        };
+      }
+      return { data: null, error: error as Error };
+    }
+  },
+
+  async updateContext(
+    conversationId: string,
+    update: ContextUpdate
+  ): Promise<ApiResponse<void>> {
+    try {
+      await contextService.updateContent(conversationId, update);
+      return { data: undefined, error: null };
+    } catch (error) {
+      return { data: null, error: error as Error };
+    }
+  },
+
+  async getContext(conversationId: string): Promise<ApiResponse<{
+    resume: string;
+    jobDescription: string;
+    analysis: string;
+  }>> {
+    try {
+      const content = await contextService.getCurrentContent(conversationId);
+      return { data: content, error: null };
     } catch (error) {
       return { data: null, error: error as Error };
     }
@@ -39,13 +123,18 @@ export const apiService = {
     files: UploadFilePayload[]
   ): Promise<ApiResponse<UploadResponse>> {
     try {
-      // Send as JSON payload
       const response = await axios.post(`${API_BASE_URL}/upload`, {
         conversationId,
         files
       });
       return { data: response.data, error: null };
     } catch (error) {
+      if (axios.isAxiosError(error)) {
+        return { 
+          data: null, 
+          error: new Error(error.response?.data?.message || error.message || 'Failed to upload files')
+        };
+      }
       return { data: null, error: error as Error };
     }
   },
@@ -55,6 +144,12 @@ export const apiService = {
       const response = await axios.get(`${API_BASE_URL}/conversation/${conversationId}`);
       return { data: response.data, error: null };
     } catch (error) {
+      if (axios.isAxiosError(error)) {
+        return { 
+          data: null, 
+          error: new Error(error.response?.data?.message || error.message || 'Failed to get conversation')
+        };
+      }
       return { data: null, error: error as Error };
     }
   }

@@ -8,6 +8,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.53.0",
     "@chakra-ui/icons": "^2.1.1",
     "@chakra-ui/react": "^2.8.2",
     "@emotion/react": "^11.11.1",
@@ -23,7 +24,7 @@
     "react-dom": "^18.2.0",
     "react-dropzone": "^14.3.8",
     "react-icons": "^5.5.0",
-    "react-markdown": "^10.1.0",
+    "react-markdown": "^8.0.0",
     "react-router-dom": "^6.20.1",
     "rehype-raw": "^7.0.0",
     "vite": "^5.0.5"

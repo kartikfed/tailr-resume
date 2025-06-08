@@ -55,14 +55,14 @@ export const uploadFilesHtml = async (conversationId: string, files: File[]): Pr
 /**
  * Convert PDF to HTML
  * @param {File} file - The PDF file to convert
- * @returns {Promise<{data: {html: string}, error: Error}>} - The converted HTML or error
+ * @returns {Promise<{data: {html: string, validation?: any}, error: Error}>} - The converted HTML or error
  */
-export const convertPdfToHtml = async (file: File): Promise<{ data: { html: string } | null; error: Error | null }> => {
+export const convertPdfToHtml = async (file: File): Promise<{ data: { html: string, validation?: any } | null; error: Error | null }> => {
   try {
     const content = await readFileContent(file, file.name);
     console.log('base64Content', content);
 
-    const response = await fetch(`${API_BASE_URL}/api/spec/pdf-to-html`, {
+    const response = await fetch(`${API_BASE_URL}/pdf-to-html`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -74,9 +74,18 @@ export const convertPdfToHtml = async (file: File): Promise<{ data: { html: stri
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    // Get the HTML content as text
-    const html = await response.text();
-    return { data: { html }, error: null };
+    // Get the response content
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      // Handle validation results
+      const data = await response.json();
+      console.log('PDF to HTML: Received validation results:', data.validation);
+      return { data, error: null };
+    } else {
+      // Handle plain HTML response
+      const html = await response.text();
+      return { data: { html }, error: null };
+    }
   } catch (error) {
     console.error('Error converting PDF to HTML:', error);
     return { data: null, error: error as Error };

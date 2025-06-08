@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
-import { Box, Container, Heading, Spinner, Text, VStack, useToast, Button, Flex } from '@chakra-ui/react';
-import SpecCanvas from '../components/SpecCanvas';
+import { Box, Container, Heading, Spinner, Text, VStack, useToast, Button, Flex, Tabs, TabList, TabPanels, Tab, TabPanel, Grid } from '@chakra-ui/react';
 import EmphasisAreas from '../components/EmphasisAreas';
+import ResumeHtmlCanvas from '../components/ResumeHtmlCanvas';
+import ChatInterface from '../components/ChatInterface';
+import { useChat } from '../hooks/useChat';
+import { contextService } from '../services/contextService';
 
 interface Application {
   id: string;
@@ -23,6 +26,7 @@ interface ResumeVersion {
   id: string;
   job_application_id: string;
   content: string;
+  html_content: string | null;
   version_number: number;
 }
 
@@ -30,9 +34,15 @@ interface JobDescriptionAnalysis {
   results: Record<string, any>;
 }
 
+interface ToolResponse {
+  success: boolean;
+  newHtml?: string;
+  explanation?: string;
+}
+
 /**
  * ApplicationDetails page displays a job application and its latest resume version.
- * Shows emphasis areas and resume content in the SpecCanvas.
+ * Shows emphasis areas and resume content in the SpecCanvas or ResumeHtmlCanvas.
  */
 const ApplicationDetailsWrapper: React.FC = () => {
   return (
@@ -55,7 +65,8 @@ const ApplicationDetails: React.FC = () => {
   const [unsavedResumeContent, setUnsavedResumeContent] = useState<string | null>(null);
   const [emphasisAreas, setEmphasisAreas] = useState<any[]>([]);
   const [jobDescriptionAnalysis, setJobDescriptionAnalysis] = useState<JobDescriptionAnalysis | null>(null);
-  const [promptPresets, setPromptPresets] = useState<Record<string, any>>({});
+  const conversationId = `app-${id}`;
+  const { updateContext } = useChat(conversationId);
 
   // Helper to reload resume after upload
   const fetchResume = async (appId: string) => {
@@ -77,13 +88,6 @@ const ApplicationDetails: React.FC = () => {
     }
     setResume(resumes && resumes.length > 0 ? resumes[0] : null);
   };
-
-  // Update promptPresets when jobDescriptionAnalysis changes
-  useEffect(() => {
-    if (jobDescriptionAnalysis?.results?.prompt_presets) {
-      setPromptPresets(jobDescriptionAnalysis.results.prompt_presets);
-    }
-  }, [jobDescriptionAnalysis]);
 
   useEffect(() => {
     if (!id) return;
@@ -143,21 +147,31 @@ const ApplicationDetails: React.FC = () => {
     // eslint-disable-next-line
   }, [id, toast]);
 
-  // Modified handleAcceptRevision: only update local state
-  const handleAcceptRevision = (selectedText: string, revisedText: string) => {
-    if (!resume) return;
-    // Replace selectedText with revisedText in the current resume content
-    const updatedContent = resume.content.replace(selectedText, revisedText);
-    setUnsavedResumeContent(updatedContent);
-    setResume(prev => prev ? { ...prev, content: updatedContent } : null);
-    toast({
-      title: 'Revision applied',
-      description: 'Your revision has been applied. Click Save to persist changes.',
-      status: 'info',
-      duration: 3000,
-      isClosable: true,
+  // Initialize chat context after data is loaded
+  useEffect(() => {
+    if (!conversationId || !resume || !application || !jobDescriptionAnalysis) return;
+    
+    // Update resume content
+    contextService.updateContent(conversationId, {
+      type: 'resume',
+      content: resume.html_content || '',
+      version: resume.version_number
     });
-  };
+
+    // Update job description content
+    contextService.updateContent(conversationId, {
+      type: 'jobDescription',
+      content: application.job_description || '',
+      version: 1
+    });
+
+    // Update analysis content
+    contextService.updateContent(conversationId, {
+      type: 'analysis',
+      content: JSON.stringify(jobDescriptionAnalysis) || '',
+      version: 1
+    });
+  }, [conversationId, resume, application, jobDescriptionAnalysis]);
 
   // Save button handler: persist to DB
   const handleSaveResume = async () => {
@@ -172,13 +186,15 @@ const ApplicationDetails: React.FC = () => {
         .limit(1);
       if (versionError) throw versionError;
       const nextVersion = versions && versions.length > 0 ? versions[0].version_number + 1 : 1;
-      // Insert new resume version
+
+      // Insert new resume version with both HTML and Markdown content
       const { error: insertError } = await supabase
         .from('resume_versions')
         .insert([
           {
             job_application_id: id,
-            content: unsavedResumeContent,
+            content: resume?.content || '',  // Keep the original Markdown content
+            html_content: unsavedResumeContent,  // Save the HTML content
             version_number: nextVersion,
           },
         ]);
@@ -204,43 +220,43 @@ const ApplicationDetails: React.FC = () => {
     }
   };
 
-  /**
-   * Regenerates quick revision prompts for a given bullet (selected text)
-   * @param {string} selectedText
-   * @param {boolean} force
-   */
-  const onRegeneratePrompts = async (selectedText: string, force = false) => {
-    if (!selectedText || !application?.job_description) return;
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/spec/generate-prompts`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          selectedText,
-          jobDescription: application.job_description,
-          writingTone: 'concise',
-        }),
-      });
-      if (!response.ok) {
-        throw new Error('Failed to generate prompts');
-      }
-      const data = await response.json();
-      setPromptPresets(prev => ({ ...prev, [selectedText]: data.prompts }));
-    } catch (error) {
-      throw error;
-    }
-  };
+  // Handle tool responses from chat
+  const handleToolResponse = (response: ToolResponse) => {
+    console.log('🔍 handleToolResponse called with:', response);
+    console.log('📥 Tool response received in ApplicationDetails:', {
+      success: response.success,
+      newHtmlLength: response.newHtml?.length,
+      explanation: response.explanation,
+      resume: resume,  // Log the entire resume object
+      resumeExists: !!resume,
+      currentHtmlContent: resume?.html_content?.substring(0, 100) + '...',
+      newHtmlPreview: response.newHtml?.substring(0, 100) + '...'
+    });
 
-  /**
-   * Returns quick revision prompts for a given bullet (selected text)
-   * @param {string} selectedText
-   * @returns {Array<{title: string, prompt: string}>}
-   */
-  const getQuickRevisionsForBullet = (selectedText: string) => {
-    if (!selectedText) return [];
-    return promptPresets[selectedText] || [];
+    if (response.success && response.newHtml && resume) {
+      console.log('🔄 Updating resume state with new HTML');
+      // Update the HTML content
+      setUnsavedResumeContent(response.newHtml);
+      setResume(prevResume => {
+        if (!prevResume) return null;
+        console.log('📝 Previous resume state:', {
+          hasHtmlContent: !!prevResume.html_content,
+          htmlContentLength: prevResume.html_content?.length,
+          newHtmlLength: response.newHtml?.length
+        });
+        return {
+          ...prevResume,
+          html_content: response.newHtml || null
+        };
+      });
+    } else {
+      console.log('⚠️ Skipping resume update:', {
+        success: response.success,
+        hasNewHtml: !!response.newHtml,
+        hasResume: !!resume,
+        newHtmlPreview: response.newHtml?.substring(0, 100) + '...'
+      });
+    }
   };
 
   if (loading) {
@@ -274,36 +290,112 @@ const ApplicationDetails: React.FC = () => {
   }
 
   return (
-    <Container maxW="container.xl">
+    <Container maxW="container.xl" p={0} position="relative">
       <VStack spacing={8} align="stretch">
-        <Flex justify="space-between" align="center">
+        <Flex justify="space-between" align="center" px={4}>
           <Box>
             <Heading color="gray.100">{application.job_title || 'Untitled Position'}</Heading>
             <Text color="gray.400">{application.company_name}</Text>
           </Box>
-          <Button
-            colorScheme="purple"
-            onClick={handleSaveResume}
-            isDisabled={!unsavedResumeContent}
-          >
-            Save
-          </Button>
+          <Flex gap={2}>
+            <Button
+              colorScheme="purple"
+              onClick={handleSaveResume}
+              isDisabled={!unsavedResumeContent}
+            >
+              Save
+            </Button>
+          </Flex>
         </Flex>
-        <Box display="flex" gap={8}>
-          <Box flex="1">
-            {/* Show EmphasisAreas above the canvas if available */}
-            {application?.resume_emphasis && (
-              <EmphasisAreas emphasis={typeof application.resume_emphasis === 'string' ? JSON.parse(application.resume_emphasis) : application.resume_emphasis} />
-            )}
-            <SpecCanvas 
-              resumeMarkdown={resume?.content || ''} 
-              jobDescription={application.job_description}
-              jobDescriptionProvided={!!application.job_description}
-              onAcceptRevision={handleAcceptRevision}
-              resumeEmphasis={jobDescriptionAnalysis?.results?.emphasis_areas}
-              getQuickRevisionsForBullet={getQuickRevisionsForBullet}
-              onRegeneratePrompts={onRegeneratePrompts}
-            />
+        {/* Show EmphasisAreas above the canvas in both views */}
+        {application?.resume_emphasis && (
+          <Box px={4}>
+            <EmphasisAreas emphasis={typeof application.resume_emphasis === 'string' ? JSON.parse(application.resume_emphasis) : application.resume_emphasis} />
+          </Box>
+        )}
+        
+        {/* Main content area */}
+        <Box px={4} position="relative">
+          <Tabs
+            index={0}
+            variant="enclosed"
+            colorScheme="purple"
+          >
+            <TabList>
+              <Tab>HTML</Tab>
+            </TabList>
+            <TabPanels>
+              <TabPanel p={0} position="relative">
+                <Box>
+                  <ResumeHtmlCanvas 
+                    htmlContent={resume?.html_content || null} 
+                    conversationId={conversationId}
+                    onUpdate={(newHtml) => {
+                      setUnsavedResumeContent(newHtml);
+                      if (resume) {
+                        setResume({
+                          ...resume,
+                          html_content: newHtml
+                        });
+                      }
+                    }}
+                  />
+                </Box>
+              </TabPanel>
+            </TabPanels>
+          </Tabs>
+
+          {/* Floating chat interface */}
+          <Box 
+            position="fixed"
+            right="4"
+            top="50%"
+            transform="translateY(-50%)"
+            width="600px"
+            height="calc(100vh - 200px)"
+            bg="white"
+            borderRadius="lg"
+            boxShadow="2xl"
+            overflow="hidden"
+            zIndex={10}
+            display={{ base: 'none', lg: 'block' }}
+            css={{
+              '&::-webkit-scrollbar': {
+                width: '4px',
+              },
+              '&::-webkit-scrollbar-track': {
+                width: '6px',
+              },
+              '&::-webkit-scrollbar-thumb': {
+                background: 'gray.200',
+                borderRadius: '24px',
+              },
+            }}
+          >
+            <Box 
+              height="100%" 
+              overflowY="auto"
+              css={{
+                '&::-webkit-scrollbar': {
+                  width: '4px',
+                },
+                '&::-webkit-scrollbar-track': {
+                  width: '6px',
+                },
+                '&::-webkit-scrollbar-thumb': {
+                  background: 'gray.200',
+                  borderRadius: '24px',
+                },
+              }}
+            >
+              <ChatInterface 
+                conversationId={conversationId}
+                onUpdateMessages={(messages) => {
+                  console.log('Messages updated:', messages);
+                }}
+                onToolResponse={handleToolResponse}
+              />
+            </Box>
           </Box>
         </Box>
       </VStack>

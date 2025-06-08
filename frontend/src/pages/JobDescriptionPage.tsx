@@ -18,6 +18,7 @@ import { supabase } from '../services/supabase';
 import { ResumeManager } from '../components/ResumeManager';
 import { apiService } from '../services/apiService';
 import { readFileContent } from '../utils/fileReader';
+import { convertPdfToHtml } from '../services/api';
 
 
 interface JobAnalysisResult {
@@ -161,6 +162,22 @@ const JobDescriptionPage: React.FC = () => {
           throw new Error('Resume file content is empty');
         }
 
+        // Convert PDF to HTML if it's a PDF file
+        let htmlContent: string | null = null;
+        if (resumeFile.file_type === 'application/pdf' || resumeFile.file_name.endsWith('.pdf')) {
+          try {
+            const { data: htmlData, error: htmlError } = await convertPdfToHtml(file);
+            if (htmlError) {
+              console.warn('Failed to convert PDF to HTML:', htmlError);
+            } else if (htmlData?.html) {
+              htmlContent = htmlData.html;
+              console.log('Successfully converted PDF to HTML');
+            }
+          } catch (e) {
+            console.warn('Error converting PDF to HTML:', e);
+          }
+        }
+
         // Process resume through /upload endpoint
         let uploadResponse: any;
         try {
@@ -247,6 +264,7 @@ const JobDescriptionPage: React.FC = () => {
               {
                 job_application_id: jobApplication.id,
                 content: processedContent,
+                html_content: htmlContent,
                 version_number: 1
               }
             ])

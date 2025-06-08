@@ -1,15 +1,15 @@
 /**
- * API Routes for Spec Generation
+ * API Routes for Tailr, an AI resume assistant
  * 
- * This file defines the API endpoints for interacting with the
- * AI Spec Assistant, using Claude with MCP.
+ * This file defines the API endpoints for interacting with Tailr.
  */
 
 const express = require('express');
 const router = express.Router();
-const { sendMessageToClaudeWithMCP } = require('../../mcp/claudeService');
+const { sendMessageToClaude, sendChatMessage, DEFAULT_SYSTEM_PROMPT } = require('../../services/claudeService');
 const { extractPdfText, extractPdfMarkdown } = require('../../utils/pdfExtract');
 const { extractJobDescription } = require('../../utils/jobScraper');
+const { handleUpdateResumeContent, resumeStore } = require('../../services/toolHandlers');
 
 // Simple in-memory storage for conversation history and files
 // In production, use a database
@@ -25,172 +25,152 @@ function unescapeMarkdown(text) {
 }
 
 /**
- * Start or continue a conversation with Tailr
+ * Start or continue a conversation with Claude
  */
 router.post('/chat', async (req, res) => {
-    try {
-      const { conversationId, message, files = [] } = req.body;
-      
-      if (!message) {
-        return res.status(400).json({ error: 'Message is required' });
-      }
-      
-      if (!conversationId) {
-        return res.status(400).json({ error: 'Conversation ID is required' });
-      }
-      
-      // Initialize or retrieve conversation history
-      if (!conversations[conversationId]) {
-        conversations[conversationId] = [];
-      }
-      
-      // Always use ALL files for this conversation (filter out files without content)
-      const conversationFiles = (uploadedFiles[conversationId] || []).filter(file => 
-        file.content && file.content.length > 0
-      );
-      
-      console.log(`Backend Chat: Processing message in conversation ${conversationId}`);
-      console.log(`Backend Chat: Message: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"`);
-      console.log(`Backend Chat: Available files with content:`, 
-        conversationFiles.map(f => ({ 
-          id: f.id, 
-          name: f.name, 
-          contentLength: f.content ? f.content.length : 0
-        }))
-      );
-      
-      let finalMessage = message;
-      let contextAdded = false;
-      
-      // Add job analysis results to context if available
-      const jobAnalysis = jobAnalysisResults[conversationId];
-      if (jobAnalysis) {
-        console.log('Backend Chat: Adding job analysis results to context');
-        const analysisContext = `JOB ANALYSIS CONTEXT:
-Required Skills: ${jobAnalysis.required_skills.join(', ')}
-Preferred Qualifications: ${jobAnalysis.preferred_qualifications.join(', ')}
-Experience Level: ${jobAnalysis.experience_level}
-Key Responsibilities: ${jobAnalysis.key_responsibilities.join('\n')}
-Company Info: ${jobAnalysis.company_info.description}
-Industry: ${jobAnalysis.company_info.industry}
-Keywords: ${jobAnalysis.keywords.join(', ')}
+  try {
+    const { conversationId, message, context } = req.body;
+    
+    console.log('Chat request received:', {
+      conversationId,
+      messageLength: message?.length,
+      hasContext: !!context,
+      contextContent: context ? {
+        resumeLength: context.content?.resume?.length,
+        jobDescriptionLength: context.content?.jobDescription?.length,
+        analysisLength: context.content?.analysis?.length
+      } : null
+    });
+    
+    if (!message) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+    
+    if (!conversationId) {
+      return res.status(400).json({ error: 'Conversation ID is required' });
+    }
 
-Please use this job analysis to tailor the resume content to match the requirements and highlight relevant experience.`;
-        
-        finalMessage = `${message}\n\n${analysisContext}`;
-        contextAdded = true;
-        console.log('Backend Chat: Added job analysis context');
-      }
-      
-      // If we have files, always include their content as context
-      if (conversationFiles.length > 0) {
-        console.log('Backend Chat: Files available, adding resume-focused context');
-        
-        // Get the full resume content from the first file
-        const resumeFile = conversationFiles[0];
-        let resumeContent = '';
-        
-        try {
-          if (resumeFile.content.startsWith('{')) {
-            // If it's JSON (Affinda structured data), convert to markdown
-            const structuredData = JSON.parse(resumeFile.content);
-            resumeContent = `RESUME CONTENT:
-${structuredData.metadata.name}
-${structuredData.metadata.email}
-${structuredData.metadata.phone}
-${structuredData.metadata.location}
-
-${structuredData.sections.map(section => {
-  if (section.type === 'list') {
-    return `${section.title}\n${section.items.map(item => {
-      if (item.type === 'experience') {
-        return `${item.title} at ${item.company}\n${item.location}\n${item.dates}\n${item.bullets.map(bullet => `• ${bullet}`).join('\n')}`;
-      } else if (item.type === 'education') {
-        return `${item.degree} at ${item.institution}\n${item.dates}\n${item.content}`;
-      }
-      return item.content;
-    }).join('\n\n')}`;
-  }
-  return `${section.title}\n${section.content}`;
-}).join('\n\n')}`;
-          } else {
-            // If it's already markdown, use it directly
-            resumeContent = `RESUME CONTENT:\n${resumeFile.content}`;
-          }
-        } catch (error) {
-          console.error('Error processing resume content:', error);
-          resumeContent = `RESUME CONTENT:\n${resumeFile.content}`;
-        }
-        
-        finalMessage = `${message}\n\n${resumeContent}`;
-        contextAdded = true;
-        console.log('Backend Chat: Added resume content');
-      }
-      
-      // Add the (possibly enhanced) message to history
-      conversations[conversationId].push({
-        role: 'user',
-        content: finalMessage
+    // Store resume content in resumeStore if available
+    if (context?.content?.resume) {
+      resumeStore[conversationId] = context.content.resume;
+      console.log('📝 Stored resume content in resumeStore:', {
+        conversationId,
+        contentLength: context.content.resume.length,
+        hasContent: !!resumeStore[conversationId],
+        contentPreview: context.content.resume.substring(0, 100) + '...'
       });
-      
-      console.log(`Backend Chat: Sending enhanced message to Claude${contextAdded ? ' (with context)' : ''}`);
-      
-      // Convert any system messages to assistant messages for Claude API compatibility
-      const formattedMessages = conversations[conversationId].map(msg => ({
-        role: msg.role === 'system' ? 'assistant' : msg.role,
-        content: msg.content
-      }));
-      
-      // Add a system message at the start of the conversation to provide context
-      if (conversationFiles.length > 0) {
-        formattedMessages.unshift({
-          role: 'assistant',
-          content: `I am reviewing your resume and will provide feedback based on the content you've shared. I will always give an explanation that meets your request. I can see your resume content and will use it to answer your questions.I will always respond to your direct question or prompt. My goal is to always prioritize meeting your request. I will use everything I have available to me as context. As a resume support expert, my goal is to help you improve your resume in the best way possible, otherwise I have failed. I will never just spit out content without explaining exactly how i am attempting to answer your question or meet your request.`
+    } else {
+      console.log('⚠️ No resume content in context for conversation:', conversationId);
+    }
+    
+    // Initialize or retrieve conversation history
+    if (!conversations[conversationId]) {
+      conversations[conversationId] = [];
+    }
+    
+    // Add user message to history
+    conversations[conversationId].push({
+      role: 'user',
+      content: message
+    });
+    
+    // Format messages for Claude
+    const formattedMessages = conversations[conversationId].map(msg => ({
+      role: msg.role === 'system' ? 'assistant' : msg.role,
+      content: msg.content
+    }));
+    
+    // Send to Claude using the new chat-specific method
+    const claudeResponse = await sendChatMessage(formattedMessages, context);
+    
+    // Check for tool_use in Claude's response
+    const toolUseBlock = claudeResponse.content && claudeResponse.content.find && claudeResponse.content.find(block => block.type === 'tool_use');
+    
+    if (claudeResponse.stop_reason === 'tool_use' && toolUseBlock) {
+      console.log('🛠️ Tool use detected:', {
+        toolName: toolUseBlock.name,
+        toolId: toolUseBlock.id,
+        input: toolUseBlock.input
+      });
+
+      // Execute the tool
+      let toolResult;
+      if (toolUseBlock.name === 'updateResumeContent') {
+        toolResult = await handleUpdateResumeContent({
+          conversationId,
+          ...toolUseBlock.input
         });
+      } else {
+        toolResult = {
+          success: false,
+          summary: `Unknown tool: ${toolUseBlock.name}`,
+          error: `Tool ${toolUseBlock.name} not implemented`
+        };
       }
-      
-      // Send to Claude with MCP - pass empty files array since we've included context in message
-      const claudeResponse = await sendMessageToClaudeWithMCP(
-        formattedMessages,
-        []  // No files needed - context is in the message
-      );
-      
-      console.log('Backend Chat: Received response from Claude');
-      
-      // Extract the response text and filter out thinking tags
+
+      // Prepare the assistant message with the tool_use block
+      const toolUseAssistantMessage = {
+        role: 'assistant',
+        content: claudeResponse.content
+      };
+
+      // Prepare the tool_result message
+      const toolResultMessage = {
+        role: 'user',
+        content: [{
+          type: 'tool_result',
+          tool_use_id: toolUseBlock.id,
+          content: JSON.stringify(toolResult)
+        }]
+      };
+
+      // Continue the conversation with only the tool_use and tool_result messages
+      const finalResponse = await sendChatMessage([
+        toolUseAssistantMessage,
+        toolResultMessage
+      ], context);
+
       let responseText = '';
-      if (claudeResponse.content && claudeResponse.content.length > 0) {
-        if (claudeResponse.content[0].type === 'text') {
-          responseText = claudeResponse.content[0].text;
+      if (finalResponse.content && finalResponse.content.length > 0) {
+        if (finalResponse.content[0].type === 'text') {
+          responseText = finalResponse.content[0].text;
         }
       }
-      
-      // Filter out thinking tags and other internal content
-      responseText = responseText.replace(/<thinking>[\s\S]*?<\/thinking>/g, '');
-      responseText = responseText.trim();
-      
-      // Add assistant response to history
+
       conversations[conversationId].push({
         role: 'assistant',
         content: responseText
       });
-      
-      // Return response to client
-      res.json({
-        conversationId,
-        response: responseText,
-        meta: { 
-          ...(claudeResponse.meta || {}),
-          contextAdded,
-          filesUsed: conversationFiles.length,
-          resumeFocused: true
-        }
-      });
-    } catch (error) {
-      console.error('Backend Chat: Error in chat endpoint:', error);
-      res.status(500).json({ error: error.message, stack: error.stack });
+
+      // Handle tool response
+      if (toolResult) {
+        return res.json({ 
+          response: responseText, 
+          toolResponse: {
+            ...toolResult,
+            newHtml: toolResult.newHtml || resumeStore[conversationId]
+          }
+        });
+      }
     }
-  });
+    // Extract response text (no tool use)
+    let responseText = '';
+    if (claudeResponse.content && claudeResponse.content.length > 0) {
+      if (claudeResponse.content[0].type === 'text') {
+        responseText = claudeResponse.content[0].text;
+      }
+    }
+    // Add Claude's response to conversation history
+    conversations[conversationId].push({
+      role: 'assistant',
+      content: responseText
+    });
+    res.json({ response: responseText });
+  } catch (error) {
+    console.error('❌ Chat route error:', error);
+    res.status(500).json({ error: 'Failed to process chat message' });
+  }
+});
 
 /**
  * Upload files for context
@@ -199,10 +179,10 @@ router.post('/upload', async (req, res) => {
     try {
       const { conversationId, files } = req.body;
       
-      console.log('Backend: Received upload request');
-      console.log('Backend: Raw request body keys:', Object.keys(req.body));
-      console.log('Backend: Conversation ID:', conversationId);
-      console.log('Backend: Files array:', files);
+      // console.log('Backend: Received upload request');
+      // console.log('Backend: Raw request body keys:', Object.keys(req.body));
+      // console.log('Backend: Conversation ID:', conversationId);
+      // console.log('Backend: Files array:', files);
       
       if (!conversationId || !files || !Array.isArray(files)) {
         console.log('Backend: Invalid request format');
@@ -231,7 +211,7 @@ router.post('/upload', async (req, res) => {
             const messages = [
               { role: 'user', content: rawText }
             ];
-            const claudeResponse = await sendMessageToClaudeWithMCP(messages, [], systemPrompt);
+            const claudeResponse = await sendMessageToClaude(messages, [], systemPrompt);
             let markdown = '';
             if (claudeResponse.content && claudeResponse.content.length > 0 && claudeResponse.content[0].type === 'text') {
               markdown = claudeResponse.content[0].text;
@@ -432,7 +412,7 @@ Keywords: ${jobAnalysis.keywords.join(', ')}`;
     const messages = [
       { role: 'user', content: userContent }
     ];
-    const claudeResponse = await sendMessageToClaudeWithMCP(messages, [], systemPrompt);
+    const claudeResponse = await sendMessageToClaude(messages, [], systemPrompt);
     let revisedText = '';
     let explanation = '';
     if (claudeResponse.content && claudeResponse.content.length > 0 && claudeResponse.content[0].type === 'text') {
@@ -563,7 +543,7 @@ Your response must be in the following JSON format:
     console.log('Message content length:', messages[0].content.length);
     
     // Send to Claude for analysis
-    const claudeResponse = await sendMessageToClaudeWithMCP(messages, [], systemPrompt);
+    const claudeResponse = await sendMessageToClaude(messages,systemPrompt);
     
     console.log('Received response from Claude');
     console.log('Response type:', typeof claudeResponse);
@@ -667,7 +647,7 @@ Your response should be a JSON object with the following structure:
       }
     ];
 
-    const claudeResponse = await sendMessageToClaudeWithMCP(messages, [], systemPrompt);
+    const claudeResponse = await sendMessageToClaude(messages, [], systemPrompt);
     let prompts = [];
 
     if (claudeResponse.content && claudeResponse.content.length > 0 && claudeResponse.content[0].type === 'text') {
@@ -773,131 +753,42 @@ router.post('/pdf-to-html', async (req, res) => {
     }
 
     // Create system prompt for Claude
-    const systemPrompt = `You are a document conversion specialist that transforms resume PDFs into pixel-perfect HTML representations with 100% accuracy and visual fidelity.
-Core Requirements
-1. Content Accuracy (CRITICAL)
-* NEVER hallucinate or modify content - reproduce ALL text and formatting exactly as written
-* ONLY include the html and nothing else (no prose, explanations, etc...)
-* Preserve original spelling, punctuation, numbers, dates, and formatting
-* Maintain exact line breaks, spacing, and paragraph structure
-* If text is unclear, indicate uncertainty rather than guessing
-2. Visual Analysis & Reproduction
-Systematically match these elements:
-* Typography: Font sizes, weights, styles, letter-spacing, alignment
-* Layout: Section spacing, bullet indentation, header positioning, margins
-* Colors: Text colors, accent colors, borders (use hex codes for precision)
-* Hierarchy: Visual emphasis patterns, section organization, formatting consistency
-3. HTML/CSS Implementation
-Structure:
+    const systemPrompt = `You are a document conversion specialist that transforms resume PDFs into semantic, AI-friendly HTML with perfect visual fidelity and structured data attributes.
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>[Name] Resume</title>
-    <style>
-        /* Base styles */
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 8.5in;
-            margin: 0 auto;
-            padding: 1in;
-            background: white;
-        }
-        
-        /* Print styles */
-        @media print {
-            body {
-                padding: 0;
-                margin: 0;
-                width: 100%;
-            }
-        }
-        
-        /* Resume specific styles */
-        .resume-container {
-            position: relative;
-            width: 100%;
-        }
-        
-        .header {
-            margin-bottom: 1.5rem;
-        }
-        
-        .section {
-            margin-bottom: 1.5rem;
-        }
-        
-        .section-title {
-            font-size: 1.2rem;
-            font-weight: 600;
-            margin-bottom: 0.75rem;
-            border-bottom: 1px solid #ccc;
-            padding-bottom: 0.25rem;
-        }
-        
-        .job {
-            margin-bottom: 1rem;
-        }
-        
-        .job-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: baseline;
-            margin-bottom: 0.5rem;
-        }
-        
-        .company {
-            font-weight: 600;
-        }
-        
-        .date {
-            color: #666;
-            font-size: 0.9rem;
-        }
-        
-        .responsibilities {
-            margin-left: 1.5rem;
-        }
-        
-        .responsibilities li {
-            margin-bottom: 0.25rem;
-        }
-    </style>
-</head>
-<body>
-    <div class="resume-container">
-        <!-- Content will be inserted here -->
-    </div>
-</body>
-</html>
+Core Requirements:
 
-Requirements:
-* Use semantic class names (.header, .section-title, .job, .responsibilities)
-* Implement responsive design with max-width containers
-* Include print-friendly media queries
-* Match font families (Arial, Calibri, Times, etc.) precisely
-* Use flexbox for complex alignments (company/date positioning)
-* Preserve exact spacing relationships with margin/padding
-4. Quality Checklist
+CRITICAL: The html must be visually indistinguishable from the original PDF.
+
+1. Editable Elements
+* Every editable element MUST have be generated in a way to make it easy for the AI to make targeted edits
+
+2. Visual Fidelity
+* Match original PDF exactly:
+  - Typography (font sizes, weights, styles)
+  - Layout (spacing, alignment, indentation)
+  - Colors (text, accents, borders)
+  - Visual hierarchy
+
+3. Quality Checklist
 Before finalizing, verify:
-* Every word matches original exactly
-* Font hierarchy creates same visual impact
-* Colors and spacing are accurate
-* Layout structure is preserved
-* Professional appearance maintained
-* Responsive design functions properly
-Process
-1. Analyze: Read PDF carefully, note design patterns and hierarchy
-2. Extract: Transcribe all content with 100% accuracy
-3. Implement: Create CSS that matches visual design precisely
-4. Verify: Compare side-by-side with original for accuracy and fidelity
-Output
-Deliver a complete HTML document with embedded CSS that is visually indistinguishable from the original PDF while maintaining web standards and accessibility.
-Success Criteria: The HTML version should look identical to the PDF when viewed in a browser.`;
+* Every editable element is generated in a way to make it easy for the AI to make targeted edits
+* All content is properly grouped
+* No duplicate IDs exist
+* All required attributes are present
+
+Process:
+1. Analyze content structure
+2. Generate html that is easy for the AI to make targeted edits
+3. Validate all requirements
+
+Output:
+Deliver HTML that:
+- Has unique, semantic identifiers
+- Includes rich context for AI targeting
+- Preserves original content
+- Groups related information
+- Maintains visual structure
+- Has embedded CSS that is visually indistinguishable from the original PDF;`
 
     // Send to Claude with properly formatted message content
     const messages = [
@@ -923,7 +814,7 @@ Success Criteria: The HTML version should look identical to the PDF when viewed 
     console.log('PDF to HTML: Sending request to Claude');
     console.log('PDF to HTML: Message content:', JSON.stringify(messages[0].content, null, 2));
 
-    const claudeResponse = await sendMessageToClaudeWithMCP(messages, [], systemPrompt);
+    const claudeResponse = await sendMessageToClaude(messages, [], systemPrompt);
     
     if (!claudeResponse.content || claudeResponse.content.length === 0) {
       throw new Error('No response from Claude');

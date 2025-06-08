@@ -18,6 +18,7 @@ import ApplicationDetails from './pages/ApplicationDetails';
 import JobDescriptionPage from './pages/JobDescriptionPage';
 import PdfHtmlTestPage from './pages/PdfHtmlTestPage';
 
+
 interface PrivateRouteProps {
   children: ReactNode;
 }
