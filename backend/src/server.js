@@ -23,6 +23,7 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors({
   origin: [
+    'https://tailrapp.onrender.com',
     'https://tailr.onrender.com',
     'https://tailr-frontend.onrender.com',
     'http://localhost:5173',  // Local development
