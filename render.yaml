@@ -1,6 +1,19 @@
 services:
   - type: web
-    name: tailr-frontend
+    name: ai-spec-assistant-backend
+    env: node
+    nodeVersion: 18.17.0
+    buildCommand: cd backend && npm install && npm run build
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ANTHROPIC_API_KEY
+        sync: false
+    healthCheckPath: /api/health
+
+  - type: web
+    name: ai-spec-assistant-frontend
     env: node
     nodeVersion: 18.17.0
     buildCommand: cd frontend && npm install && npm run build
@@ -8,6 +21,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: VITE_API_URL
+        value: https://ai-spec-assistant-backend.onrender.com
     routes:
       - type: rewrite
         source: /auth/callback

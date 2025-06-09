@@ -4,8 +4,9 @@
   "description": "Backend for AI Spec Assistant",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js",
+    "start": "node dist/server.js",
     "dev": "nodemon src/server.js",
+    "build": "mkdir -p dist && cp -r src/* dist/",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
