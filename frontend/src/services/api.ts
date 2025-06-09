@@ -1,6 +1,7 @@
 import { API_BASE_URL } from '../config';
 import { ApiResponse, UploadResponse } from '../types';
 import { readFileContent } from '../utils/fileReader';
+import { extractHtmlContent } from '../utils/htmlUtils';
 
 /**
  * Helper function to read file as base64
@@ -83,7 +84,8 @@ export const convertPdfToHtml = async (file: File): Promise<{ data: { html: stri
       return { data, error: null };
     } else {
       // Handle plain HTML response
-      const html = await response.text();
+      const rawHtml = await response.text();
+      const html = extractHtmlContent(rawHtml);
       return { data: { html }, error: null };
     }
   } catch (error) {

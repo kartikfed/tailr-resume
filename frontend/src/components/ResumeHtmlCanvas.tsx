@@ -52,7 +52,7 @@ export const ResumeHtmlCanvas: React.FC<ResumeHtmlCanvasProps> = ({
       width="100%"
       border="1px solid"
       borderColor="gray.200"
-      borderRadius="md"
+      borderRadius="20px"
       overflow="hidden"
     >
       <iframe
@@ -63,7 +63,7 @@ export const ResumeHtmlCanvas: React.FC<ResumeHtmlCanvasProps> = ({
           minHeight: '1100px',
           border: 'none',
           background: 'white',
-          borderRadius: '0 0 8px 8px',
+          borderRadius: '20px',
         }}
         sandbox="allow-same-origin allow-scripts allow-forms"
         title="Resume Preview"

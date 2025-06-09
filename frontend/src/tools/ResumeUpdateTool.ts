@@ -1,10 +1,12 @@
 import { ToolContext, ToolResponse } from './index';
 import { UpdateResumeContentInput, UpdateResumeContentResult } from '../types/tools';
+import { generateChangeId } from '../utils/animationUtils';
 
 interface LLMAnalysis {
   targetElement: string;
   newContent: string;
   explanation: string;
+  elementSelector: string;
 }
 
 /**
@@ -38,7 +40,8 @@ ${context ? JSON.stringify(context, null, 2) : 'No additional context provided'}
 Return JSON: {
   "targetElement": "exact HTML of element to replace",
   "newContent": "revised content",
-  "explanation": "what you identified"
+  "explanation": "what you identified",
+  "elementSelector": "CSS selector to identify the element (e.g., #summary, .experience-item:nth-child(2))"
 }`;
 
     // Call LLM API here to get analysis
@@ -59,6 +62,10 @@ Return JSON: {
     if (!targetElement) {
       throw new Error('Target element not found in resume');
     }
+
+    // Generate a unique change ID
+    const changeId = generateChangeId();
+    targetElement.setAttribute('data-change-id', changeId);
 
     // Create temporary container for new content
     const tempContainer = doc.createElement('div');
@@ -124,7 +131,8 @@ Return JSON: {
         changes: [{
           type: 'update',
           location: analysis.explanation,
-          content: analysis.newContent
+          content: analysis.newContent,
+          elementSelector: analysis.elementSelector
         }],
         newHtml
       };

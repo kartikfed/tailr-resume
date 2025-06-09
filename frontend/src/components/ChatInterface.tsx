@@ -8,28 +8,44 @@ import {
   Text,
   Flex,
   Spinner,
-  useColorModeValue
+  useColorModeValue,
+  IconButton,
+  HStack,
+  Avatar
 } from '@chakra-ui/react';
 import ReactMarkdown from 'react-markdown';
-import { ChatProps } from '../types/chat';
+import { ChatProps, Message } from '../types/chat';
 import { useChat } from '../hooks/useChat';
+import { ChevronDownIcon } from '@chakra-ui/icons';
 
 /**
  * ChatInterface component for displaying and managing chat conversations
  */
-const ChatInterface: React.FC<ChatProps> = ({ conversationId, onUpdateMessages, onToolResponse }) => {
+interface ChatInterfaceProps {
+  conversationId: string;
+  onUpdateMessages?: (callback: (prevMessages: Message[]) => Message[]) => void;
+  onToolResponse?: (response: any) => void;
+  onCollapse?: () => void;
+}
+
+const ChatInterface: React.FC<ChatInterfaceProps> = ({ conversationId, onUpdateMessages, onToolResponse, onCollapse }) => {
   const [input, setInput] = React.useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const toast = useToast();
   const { messages, isLoading, error, sendMessage } = useChat(conversationId, onUpdateMessages);
 
-  // Color mode values
-  const bgColor = useColorModeValue('white', 'gray.800');
-  const userMessageBg = useColorModeValue('blue.500', 'blue.400');
-  const assistantMessageBg = useColorModeValue('gray.100', 'gray.700');
-  const userMessageColor = useColorModeValue('white', 'white');
-  const assistantMessageColor = useColorModeValue('gray.800', 'white');
-  const borderColor = useColorModeValue('gray.200', 'gray.600');
+  // Glassy, modern color values
+  const bgGradient = 'linear-gradient(135deg, #f8f6ff 0%, #ece9fe 100%)';
+  const borderColor = 'rgba(160, 132, 238, 0.18)';
+  const shadow = '0 8px 32px 0 rgba(160, 132, 238, 0.18), 0 2px 8px 0 rgba(160, 132, 238, 0.10)';
+  const assistantBubble = 'white';
+  const userBubble = 'linear-gradient(135deg, #a084ee 0%, #a259e6 100%)';
+  const userText = 'white';
+  const assistantText = '#1a1a1a';
+  const inputBg = 'rgba(255,255,255,0.85)';
+  const inputBorder = 'rgba(160, 132, 238, 0.18)';
+  const inputShadow = '0 2px 8px rgba(160, 132, 238, 0.10)';
+  const sendBtnBg = 'linear-gradient(135deg, #a084ee 0%, #a259e6 100%)';
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -53,23 +69,10 @@ const ChatInterface: React.FC<ChatProps> = ({ conversationId, onUpdateMessages, 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
-
     try {
-      console.log('🤖 Sending message to Claude:', input);
       const response = await sendMessage(input);
-      
-      // Check if the response contains a tool call
       if (response?.toolResponse) {
         const toolResponse = response.toolResponse;
-        console.log('🛠️ Tool response received in ChatInterface:', {
-          success: toolResponse.success,
-          hasNewHtml: !!toolResponse.newHtml,
-          newHtmlLength: toolResponse.newHtml?.length,
-          explanation: toolResponse.explanation,
-          changes: toolResponse.changes
-        });
-        
-        // Notify parent component about the update
         if (onUpdateMessages) {
           onUpdateMessages(prevMessages => [
             ...prevMessages,
@@ -80,28 +83,12 @@ const ChatInterface: React.FC<ChatProps> = ({ conversationId, onUpdateMessages, 
             }
           ]);
         }
-
-        // Call the tool response callback regardless of changes type
         if (onToolResponse) {
-          console.log('📤 Forwarding tool response to parent', {
-            hasCallback: !!onToolResponse,
-            toolResponse: {
-              success: toolResponse.success,
-              hasNewHtml: !!toolResponse.newHtml,
-              newHtmlLength: toolResponse.newHtml?.length
-            }
-          });
           onToolResponse(toolResponse);
-        } else {
-          console.log('⚠️ No onToolResponse callback provided');
         }
-      } else {
-        console.log('📥 Regular response received (no tool response)');
       }
-      
       setInput('');
     } catch (err) {
-      console.error('❌ Error in ChatInterface:', err);
       toast({
         title: 'Error',
         description: 'Failed to send message',
@@ -114,78 +101,161 @@ const ChatInterface: React.FC<ChatProps> = ({ conversationId, onUpdateMessages, 
   };
 
   return (
-    <Box h="100%" display="flex" flexDirection="column" bg={bgColor} borderRadius="lg" boxShadow="sm">
+    <Box
+      bg={bgGradient}
+      borderRadius="2xl"
+      border={`1.5px solid ${borderColor}`}
+      boxShadow={shadow}
+      width="100%"
+      height="100%"
+      display="flex"
+      flexDirection="column"
+      position="relative"
+      overflow="hidden"
+    >
+      {/* Header */}
+      <Flex align="center" px={6} py={4} borderBottom={`1px solid ${borderColor}`} bg="rgba(255,255,255,0.85)" zIndex={1} position="relative">
+        <Avatar name="Talir AI Assistant" bgGradient="linear(135deg, #a084ee 0%, #a259e6 100%)" color="white" size="md" mr={4} />
+        <Box flex="1">
+          <Text fontWeight={700} fontSize="lg" color="#1a1a1a" mb={0} letterSpacing="-0.01em">Talir AI Assistant</Text>
+          <Text fontSize="sm" color="#8b5cf6" fontWeight={500} mt={-1}>Resume & Career Optimization</Text>
+        </Box>
+        {onCollapse && (
+          <IconButton
+            aria-label="Collapse chat"
+            icon={<ChevronDownIcon boxSize={6} />}
+            variant="ghost"
+            colorScheme="gray"
+            onClick={onCollapse}
+            borderRadius="full"
+            size="sm"
+            _hover={{ bg: 'gray.100' }}
+            ml={2}
+          />
+        )}
+      </Flex>
       {/* Messages Container */}
-      <VStack 
-        flex="1" 
-        overflowY="auto" 
-        spacing={4} 
-        p={4}
+      <Box
+        flex="1"
+        overflowY="auto"
+        px={{ base: 2, md: 6 }}
+        py={4}
+        display="flex"
+        flexDirection="column"
+        gap={4}
         css={{
           '&::-webkit-scrollbar': {
             width: '4px',
           },
-          '&::-webkit-scrollbar-track': {
-            width: '6px',
-          },
           '&::-webkit-scrollbar-thumb': {
-            background: 'gray.200',
+            background: '#e0e7ff',
             borderRadius: '24px',
           },
         }}
+        bg="transparent"
       >
-        {messages.map((message, index) => (
-          <Box
-            key={index}
-            alignSelf={message.role === 'user' ? 'flex-end' : 'flex-start'}
-            maxW="70%"
-            bg={message.role === 'user' ? userMessageBg : assistantMessageBg}
-            color={message.role === 'user' ? userMessageColor : assistantMessageColor}
-            p={3}
-            borderRadius="lg"
-            boxShadow="sm"
-          >
-           {message.content}
-          </Box>
-        ))}
+        {messages.map((message, index) => {
+          const isUser = message.role === 'user';
+          return (
+            <Flex
+              key={index}
+              alignSelf={isUser ? 'flex-end' : 'flex-start'}
+              maxW="85%"
+              direction="row"
+              mb={1}
+            >
+              {!isUser && (
+                <Avatar
+                  name="Talir"
+                  size="sm"
+                  bgGradient="linear(135deg, #a084ee 0%, #a259e6 100%)"
+                  color="white"
+                  mr={2}
+                  mt={1}
+                />
+              )}
+              <Box
+                bg={isUser ? userBubble : assistantBubble}
+                color={isUser ? userText : assistantText}
+                px={isUser ? 5 : 5}
+                py={isUser ? 3 : 3}
+                borderRadius={isUser ? '18px 18px 6px 18px' : '18px 18px 18px 6px'}
+                boxShadow={isUser ? '0 2px 8px rgba(160, 132, 238, 0.10)' : '0 2px 8px rgba(160, 132, 238, 0.06)'}
+                fontSize="16px"
+                fontWeight={isUser ? 500 : 400}
+                whiteSpace="pre-line"
+                wordBreak="break-word"
+                minW="0"
+                maxW="100%"
+              >
+                <ReactMarkdown>{message.content}</ReactMarkdown>
+              </Box>
+            </Flex>
+          );
+        })}
         {isLoading && (
           <Flex alignSelf="flex-start" p={3}>
-            <Spinner size="sm" color="blue.500" />
+            <Spinner size="sm" color="#a084ee" />
           </Flex>
         )}
         <div ref={messagesEndRef} />
-      </VStack>
-      
+      </Box>
       {/* Input Container */}
-      <Box p={4} borderTop="1px" borderColor={borderColor}>
-        <form onSubmit={handleSubmit}>
-          <Input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Type your message..."
-            disabled={isLoading}
-            mb={2}
-            size="lg"
-            borderRadius="lg"
-            bg={useColorModeValue('white', 'gray.700')}
-            color={useColorModeValue('gray.800', 'white')}
-            _placeholder={{ color: useColorModeValue('gray.500', 'gray.400') }}
-            _focus={{
-              borderColor: 'blue.500',
-              boxShadow: '0 0 0 1px var(--chakra-colors-blue-500)',
-            }}
-          />
-          <Button
-            type="submit"
-            colorScheme="blue"
-            isLoading={isLoading}
-            width="100%"
-            size="lg"
-            borderRadius="lg"
-          >
-            Send
-          </Button>
-        </form>
+      <Box
+        as="form"
+        onSubmit={handleSubmit}
+        px={{ base: 2, md: 6 }}
+        py={4}
+        bg="rgba(255,255,255,0.92)"
+        borderTop={`1px solid ${borderColor}`}
+        position="relative"
+        zIndex={1}
+        display="flex"
+        alignItems="center"
+        gap={3}
+      >
+        <Input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Type your message..."
+          disabled={isLoading}
+          size="lg"
+          borderRadius="2xl"
+          bg={inputBg}
+          color="#1a1a1a"
+          border={`1.5px solid ${inputBorder}`}
+          boxShadow={inputShadow}
+          _placeholder={{ color: '#b5aee0' }}
+          _focus={{
+            borderColor: '#a084ee',
+            boxShadow: '0 0 0 1.5px #a084ee',
+            bg: 'white',
+          }}
+          pr="60px"
+          fontSize="16px"
+        />
+        <Button
+          type="submit"
+          isLoading={isLoading}
+          borderRadius="full"
+          minW="48px"
+          minH="48px"
+          px={0}
+          py={0}
+          bg={sendBtnBg}
+          color="white"
+          fontSize="2xl"
+          boxShadow="0 2px 8px rgba(160, 132, 238, 0.10)"
+          _hover={{ bg: '#a259e6' }}
+          _active={{ bg: '#a084ee' }}
+          position="absolute"
+          right={{ base: 4, md: 8 }}
+          top="50%"
+          transform="translateY(-50%)"
+          zIndex={2}
+        >
+          <Box as="span" fontWeight={700} fontSize="2xl">&#8594;</Box>
+        </Button>
       </Box>
     </Box>
   );

@@ -14,6 +14,7 @@ export interface UpdateResumeContentResult {
     type: 'update' | 'add' | 'remove' | 'reorder';
     location: string;
     content: string;
+    elementSelector?: string;
   }>;
   newHtml: string;
 }
