@@ -73,17 +73,17 @@ export const ResumeHtmlCanvas: React.FC<ResumeHtmlCanvasProps> = ({
     style.textContent = `
       .content-changed {
         position: relative;
+        display: inline;
         animation: rippleGlow 2.5s ease-out forwards;
         isolation: isolate;
+        white-space: normal;
+        word-wrap: break-word;
       }
 
       .content-changed::before {
         content: '';
         position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
+        inset: 0; /* Shorthand for top/right/bottom/left: 0 */
         background: linear-gradient(90deg,
           transparent 0%,
           rgba(139, 92, 246, 0.1) 25%,
@@ -96,6 +96,13 @@ export const ResumeHtmlCanvas: React.FC<ResumeHtmlCanvasProps> = ({
         z-index: 1;
         pointer-events: none;
         will-change: transform, opacity;
+        transform: translateX(-100%);
+      }
+
+      /* Ensure child elements stay above the animation */
+      .content-changed * {
+        position: relative;
+        z-index: 2;
       }
 
       @keyframes rippleGlow {
@@ -115,9 +122,8 @@ export const ResumeHtmlCanvas: React.FC<ResumeHtmlCanvasProps> = ({
 
       @keyframes waveMove {
         0% { 
-          left: -100%; 
+          transform: translateX(-100%);
           opacity: 0;
-          transform: translateX(0);
         }
         10% { 
           opacity: 1;
@@ -126,9 +132,8 @@ export const ResumeHtmlCanvas: React.FC<ResumeHtmlCanvasProps> = ({
           opacity: 1;
         }
         100% { 
-          left: 100%; 
+          transform: translateX(100%);
           opacity: 0;
-          transform: translateX(0);
         }
       }
     `;
@@ -141,6 +146,8 @@ export const ResumeHtmlCanvas: React.FC<ResumeHtmlCanvasProps> = ({
       // Force cleanup of any remnant styles
       (el as HTMLElement).style.removeProperty('background-color');
       (el as HTMLElement).style.removeProperty('box-shadow');
+      (el as HTMLElement).style.removeProperty('display');
+      (el as HTMLElement).style.removeProperty('position');
     });
 
     // Apply highlights to changed elements
@@ -169,6 +176,8 @@ export const ResumeHtmlCanvas: React.FC<ResumeHtmlCanvasProps> = ({
         // Force cleanup of any remnant styles
         (el as HTMLElement).style.removeProperty('background-color');
         (el as HTMLElement).style.removeProperty('box-shadow');
+        (el as HTMLElement).style.removeProperty('display');
+        (el as HTMLElement).style.removeProperty('position');
       });
     }, 2500);
 
@@ -180,6 +189,8 @@ export const ResumeHtmlCanvas: React.FC<ResumeHtmlCanvasProps> = ({
         el.classList.remove('content-changed');
         (el as HTMLElement).style.removeProperty('background-color');
         (el as HTMLElement).style.removeProperty('box-shadow');
+        (el as HTMLElement).style.removeProperty('display');
+        (el as HTMLElement).style.removeProperty('position');
       });
     };
   }, [changes, isIframeLoaded]);
