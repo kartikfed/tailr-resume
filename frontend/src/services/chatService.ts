@@ -33,7 +33,7 @@ export async function sendChatMessage(messages: Message[], context?: ChatContext
       analysis: currentContent.analysis || ''
     };
 
-    const response = await apiService.post('/chat', {
+    const response = await apiService.post('/api/spec/chat', {
       conversationId,
       message: lastMessage.content,
       context: {

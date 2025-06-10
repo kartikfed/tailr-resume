@@ -19,6 +19,18 @@ export interface UpdateResumeContentResult {
   newHtml: string;
 }
 
+export interface ToolResponse {
+  success: boolean;
+  newHtml?: string;
+  explanation?: string;
+  changes?: Array<{
+    type: 'update' | 'add' | 'remove' | 'reorder';
+    location: string;
+    content: string;
+    elementSelector?: string;
+  }>;
+}
+
 export interface Tool {
   name: string;
   description: string;

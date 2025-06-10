@@ -131,26 +131,74 @@ Return JSON: {
     };
   }
 
-  // Create a temporary container to parse the new content
-  const tempContainer = document.createElement('div');
-  tempContainer.innerHTML = analysis.newContent;
+  // Generate a unique selector for the target element
+  const generateSelector = (element) => {
+    // Helper function to get a unique identifier for an element
+    const getUniqueIdentifier = (el) => {
+      // If element has an id, use that
+      if (el.id) {
+        return `#${el.id}`;
+      }
+      
+      // If element has a class, use that
+      if (el.className) {
+        const classes = el.className.split(' ').filter(c => c);
+        if (classes.length > 0) {
+          return `.${classes[0]}`;
+        }
+      }
+      
+      // Fallback to tag name
+      return el.tagName.toLowerCase();
+    };
+
+    // Build selector path from element up to body
+    const buildSelectorPath = (el) => {
+      const path = [];
+      let current = el;
+      
+      while (current && current !== document.body) {
+        // Get unique identifier for current element
+        const identifier = getUniqueIdentifier(current);
+        
+        // If it's a list item or similar element, add position information
+        if (current.parentElement) {
+          const siblings = Array.from(current.parentElement.children);
+          const sameTypeSiblings = siblings.filter(s => s.tagName === current.tagName);
+          const sameTypeIndex = sameTypeSiblings.indexOf(current) + 1;
+          
+          // Add position information to make selector more specific
+          if (sameTypeSiblings.length > 1) {
+            path.unshift(`${identifier}:nth-of-type(${sameTypeIndex})`);
+          } else {
+            path.unshift(identifier);
+          }
+        } else {
+          path.unshift(identifier);
+        }
+        
+        current = current.parentElement;
+      }
+      
+      return path.join(' > ');
+    };
+
+    // Generate the full selector path
+    const selector = buildSelectorPath(element);
+    console.log('[ResumeUpdate] Generated selector:', selector);
+    return selector;
+  };
 
   // Replace the element's content with the new content
-  if (targetElement.tagName.toLowerCase() === 'li') {
-    // For list items, just update the text content
-    targetElement.textContent = tempContainer.textContent;
-  } else {
-    // For other elements, replace the content while preserving structure
-    while (targetElement.firstChild) {
-      targetElement.removeChild(targetElement.firstChild);
-    }
-    while (tempContainer.firstChild) {
-      targetElement.appendChild(tempContainer.firstChild);
-    }
-  }
+  const sanitizedContent = sanitizeToPlainText(analysis.newContent);
+  targetElement.textContent = sanitizedContent;
 
   const newHtml = dom.serialize();
   resumeStore[conversationId] = newHtml;
+
+  // Generate selector for the modified element
+  const elementSelector = generateSelector(targetElement);
+  console.log('[ResumeUpdate] Generated selector:', elementSelector);
 
   return {
     success: true,
@@ -159,11 +207,16 @@ Return JSON: {
       {
         type: 'update',
         location: analysis.explanation,
-        content: analysis.newContent
+        content: analysis.newContent,
+        elementSelector
       }
     ],
     newHtml
   };
+}
+
+function sanitizeToPlainText(input) {
+  return input.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
 }
 
 module.exports = {

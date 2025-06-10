@@ -39,6 +39,12 @@ interface ToolResponse {
   success: boolean;
   newHtml?: string;
   explanation?: string;
+  changes?: Array<{
+    type: 'update' | 'add' | 'remove' | 'reorder';
+    location: string;
+    content: string;
+    elementSelector?: string;
+  }>;
 }
 
 /**
@@ -303,7 +309,7 @@ const GlassHeader: React.FC<GlassHeaderProps & { emphasis?: any }> = ({ jobTitle
 
 /**
  * ApplicationDetails page displays a job application and its latest resume version.
- * Shows emphasis areas and resume content in the SpecCanvas or ResumeHtmlCanvas.
+ * Shows emphasis areas and resume content in the ResumeHtmlCanvas.
  */
 const ApplicationDetailsWrapper: React.FC = () => {
   return (
@@ -326,6 +332,12 @@ const ApplicationDetails: React.FC = () => {
   const [unsavedResumeContent, setUnsavedResumeContent] = useState<string | null>(null);
   const [emphasisAreas, setEmphasisAreas] = useState<any[]>([]);
   const [jobDescriptionAnalysis, setJobDescriptionAnalysis] = useState<JobDescriptionAnalysis | null>(null);
+  const [currentChanges, setCurrentChanges] = useState<Array<{
+    type: 'update' | 'add' | 'remove' | 'reorder';
+    location: string;
+    content: string;
+    elementSelector?: string;
+  }>>([]);
   const conversationId = `app-${id}`;
   const { updateContext } = useChat(conversationId);
 
@@ -510,6 +522,15 @@ const ApplicationDetails: React.FC = () => {
           html_content: response.newHtml || null
         };
       });
+
+      // Set changes for highlighting
+      if (response.changes) {
+        setCurrentChanges(response.changes);
+        // Clear changes after animation completes
+        setTimeout(() => {
+          setCurrentChanges([]);
+        }, 2000);
+      }
     } else {
       console.log('⚠️ Skipping resume update:', {
         success: response.success,
@@ -575,6 +596,7 @@ const ApplicationDetails: React.FC = () => {
                 });
               }
             }}
+            changes={currentChanges}
           />
           <FloatingChat 
             conversationId={conversationId}

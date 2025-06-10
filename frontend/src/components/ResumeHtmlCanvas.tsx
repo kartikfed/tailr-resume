@@ -11,6 +11,13 @@ export interface ResumeHtmlCanvasProps {
   conversationId: string;
   /** Callback when the HTML content is updated */
   onUpdate: (newHtml: string) => void;
+  /** Array of changes to highlight */
+  changes?: Array<{
+    type: 'update' | 'add' | 'remove' | 'reorder';
+    location: string;
+    content: string;
+    elementSelector?: string;
+  }>;
 }
 
 /**
@@ -19,19 +26,163 @@ export interface ResumeHtmlCanvasProps {
 export const ResumeHtmlCanvas: React.FC<ResumeHtmlCanvasProps> = ({
   htmlContent,
   conversationId,
-  onUpdate
+  onUpdate,
+  changes = []
 }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isIframeLoaded, setIsIframeLoaded] = useState(false);
 
-  // Add effect to log when htmlContent changes
+  // Handle iframe load event
+  const handleIframeLoad = () => {
+    console.log('📄 Iframe loaded');
+    setIsIframeLoaded(true);
+  };
+
+  // Add effect to handle content updates
   useEffect(() => {
-    console.log('🔄 ResumeHtmlCanvas received new htmlContent:', {
-      hasContent: !!htmlContent,
-      contentLength: htmlContent?.length,
-      preview: htmlContent?.substring(0, 100) + '...'
-    });
+    if (!iframeRef.current || !htmlContent) return;
+
+    const iframe = iframeRef.current;
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!iframeDoc) return;
+
+    console.log('📝 Updating iframe content');
+    
+    // Update the content
+    iframeDoc.open();
+    iframeDoc.write(htmlContent);
+    iframeDoc.close();
+
+    // Reset iframe loaded state
+    setIsIframeLoaded(false);
   }, [htmlContent]);
+
+  // Add effect to handle changes and highlight modified elements
+  useEffect(() => {
+    if (!iframeRef.current || !changes.length || !isIframeLoaded) return;
+
+    const iframe = iframeRef.current;
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!iframeDoc) return;
+
+    console.log('🎨 Applying highlights for changes:', changes);
+
+    // Add highlight animation styles
+    const style = iframeDoc.createElement('style');
+    style.textContent = `
+      .content-changed {
+        position: relative;
+        animation: rippleGlow 2.5s ease-out forwards;
+        isolation: isolate;
+      }
+
+      .content-changed::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg,
+          transparent 0%,
+          rgba(139, 92, 246, 0.1) 25%,
+          rgba(139, 92, 246, 0.3) 50%,
+          rgba(139, 92, 246, 0.1) 75%,
+          transparent 100%
+        );
+        animation: waveMove 1.5s ease-out forwards;
+        border-radius: inherit;
+        z-index: 1;
+        pointer-events: none;
+        will-change: transform, opacity;
+      }
+
+      @keyframes rippleGlow {
+        0% {
+          background-color: rgba(139, 92, 246, 0.08);
+          box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4);
+        }
+        40% {
+          background-color: rgba(139, 92, 246, 0.12);
+          box-shadow: 0 0 12px 3px rgba(139, 92, 246, 0.3);
+        }
+        100% {
+          background-color: transparent;
+          box-shadow: 0 0 0 0 rgba(139, 92, 246, 0);
+        }
+      }
+
+      @keyframes waveMove {
+        0% { 
+          left: -100%; 
+          opacity: 0;
+          transform: translateX(0);
+        }
+        10% { 
+          opacity: 1;
+        }
+        90% { 
+          opacity: 1;
+        }
+        100% { 
+          left: 100%; 
+          opacity: 0;
+          transform: translateX(0);
+        }
+      }
+    `;
+    iframeDoc.head.appendChild(style);
+
+    // Clear previous highlights
+    const previousHighlights = iframeDoc.querySelectorAll('.content-changed');
+    previousHighlights.forEach(el => {
+      el.classList.remove('content-changed');
+      // Force cleanup of any remnant styles
+      (el as HTMLElement).style.removeProperty('background-color');
+      (el as HTMLElement).style.removeProperty('box-shadow');
+    });
+
+    // Apply highlights to changed elements
+    changes.forEach(change => {
+      if (change.elementSelector) {
+        console.log('🔍 Looking for element with selector:', change.elementSelector);
+        const elements = iframeDoc.querySelectorAll(change.elementSelector);
+        console.log('📌 Found elements:', elements.length);
+        
+        elements.forEach(el => {
+          console.log('✨ Highlighting element:', el.outerHTML);
+          // Force reflow to restart animation
+          (el as HTMLElement).offsetHeight;
+          el.classList.add('content-changed');
+        });
+      } else {
+        console.warn('⚠️ No elementSelector provided for change:', change);
+      }
+    });
+
+    // Remove highlights after animation completes
+    const timeout = setTimeout(() => {
+      const highlights = iframeDoc.querySelectorAll('.content-changed');
+      highlights.forEach(el => {
+        el.classList.remove('content-changed');
+        // Force cleanup of any remnant styles
+        (el as HTMLElement).style.removeProperty('background-color');
+        (el as HTMLElement).style.removeProperty('box-shadow');
+      });
+    }, 2500);
+
+    return () => {
+      clearTimeout(timeout);
+      // Cleanup any remaining highlights
+      const remainingHighlights = iframeDoc.querySelectorAll('.content-changed');
+      remainingHighlights.forEach(el => {
+        el.classList.remove('content-changed');
+        (el as HTMLElement).style.removeProperty('background-color');
+        (el as HTMLElement).style.removeProperty('box-shadow');
+      });
+    };
+  }, [changes, isIframeLoaded]);
 
   // Function to verify HTML structure
   const verifyHtmlStructure = (html: string) => {
@@ -58,6 +209,7 @@ export const ResumeHtmlCanvas: React.FC<ResumeHtmlCanvasProps> = ({
       <iframe
         ref={iframeRef}
         srcDoc={htmlContent || ''}
+        onLoad={handleIframeLoad}
         style={{
           width: '100%',
           minHeight: '1100px',

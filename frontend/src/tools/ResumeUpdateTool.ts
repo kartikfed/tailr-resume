@@ -1,12 +1,15 @@
 import { ToolContext, ToolResponse } from './index';
 import { UpdateResumeContentInput, UpdateResumeContentResult } from '../types/tools';
-import { generateChangeId } from '../utils/animationUtils';
 
 interface LLMAnalysis {
   targetElement: string;
   newContent: string;
   explanation: string;
   elementSelector: string;
+}
+
+function sanitizeToPlainText(input: string): string {
+  return input.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
 }
 
 /**
@@ -37,6 +40,8 @@ ${context ? JSON.stringify(context, null, 2) : 'No additional context provided'}
 3. Generate the revised version
 4. Return the exact HTML element to replace and the new content
 
+IMPORTANT: For the elementSelector, you MUST provide a valid CSS selector that uniquely identifies the element to be modified.
+
 Return JSON: {
   "targetElement": "exact HTML of element to replace",
   "newContent": "revised content",
@@ -45,9 +50,15 @@ Return JSON: {
 }`;
 
     // Call LLM API here to get analysis
-    // This is where you'd integrate with your LLM service
     const response = await this.callLLM(analysisPrompt);
-    return JSON.parse(response);
+    const analysis = JSON.parse(response);
+    
+    // Validate the elementSelector
+    if (!analysis.elementSelector || typeof analysis.elementSelector !== 'string') {
+      throw new Error('Invalid elementSelector returned from LLM');
+    }
+
+    return analysis;
   }
 
   /**
@@ -63,21 +74,9 @@ Return JSON: {
       throw new Error('Target element not found in resume');
     }
 
-    // Generate a unique change ID
-    const changeId = generateChangeId();
-    targetElement.setAttribute('data-change-id', changeId);
-
-    // Create temporary container for new content
-    const tempContainer = doc.createElement('div');
-    tempContainer.innerHTML = analysis.newContent;
-
-    // Replace content while preserving structure
-    while (targetElement.firstChild) {
-      targetElement.removeChild(targetElement.firstChild);
-    }
-    while (tempContainer.firstChild) {
-      targetElement.appendChild(tempContainer.firstChild);
-    }
+    // Sanitize new content and update only text
+    const sanitizedContent = sanitizeToPlainText(analysis.newContent);
+    targetElement.textContent = sanitizedContent;
 
     return doc.documentElement.outerHTML;
   }

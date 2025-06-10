@@ -63,7 +63,7 @@ export const convertPdfToHtml = async (file: File): Promise<{ data: { html: stri
     const content = await readFileContent(file, file.name);
     console.log('base64Content', content);
 
-    const response = await fetch(`${API_BASE_URL}/pdf-to-html`, {
+    const response = await fetch(`${API_BASE_URL}/api/spec/pdf-to-html`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -785,6 +785,7 @@ Output:
 Deliver HTML that:
 - Has unique, semantic identifiers
 - Includes rich context for AI targeting
+- Every single element must have a unique CSS selector
 - Preserves original content
 - Groups related information
 - Maintains visual structure

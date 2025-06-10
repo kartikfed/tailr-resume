@@ -25,9 +25,10 @@ export interface ToolResponse {
   newHtml?: string;
   explanation?: string;
   changes?: Array<{
-    type: string;
+    type: 'update' | 'add' | 'remove' | 'reorder';
     location: string;
     content: string;
+    elementSelector?: string;
   }>;
   error?: string;
   matches?: Array<{

@@ -7,6 +7,7 @@ venv
 .env.test
 .env.production
 
+
 # Build outputs
 dist
 build

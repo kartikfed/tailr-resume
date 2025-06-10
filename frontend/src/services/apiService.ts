@@ -71,7 +71,7 @@ export const apiService = {
       const context = await contextService.getContext(conversationId);
       const currentContent = await contextService.getCurrentContent(conversationId);
 
-      const response = await axios.post(`${API_BASE_URL}/chat`, {
+      const response = await axios.post(`${API_BASE_URL}/api/spec/chat`, {
         conversationId,
         message,
         context: {
@@ -123,7 +123,7 @@ export const apiService = {
     files: UploadFilePayload[]
   ): Promise<ApiResponse<UploadResponse>> {
     try {
-      const response = await axios.post(`${API_BASE_URL}/upload`, {
+      const response = await axios.post(`${API_BASE_URL}/api/spec/upload`, {
         conversationId,
         files
       });
@@ -141,7 +141,7 @@ export const apiService = {
 
   async getConversation(conversationId: string): Promise<ApiResponse<Conversation>> {
     try {
-      const response = await axios.get(`${API_BASE_URL}/conversation/${conversationId}`);
+      const response = await axios.get(`${API_BASE_URL}/api/spec/conversation/${conversationId}`);
       return { data: response.data, error: null };
     } catch (error) {
       if (axios.isAxiosError(error)) {
