@@ -9,6 +9,8 @@ import { contextService } from '../services/contextService';
 import { FiSave } from 'react-icons/fi';
 import { ChevronDownIcon, ChevronUpIcon } from '@chakra-ui/icons';
 import { JobApplication, JobAnalysisResponse, ResumeEmphasis } from '../types/jobApplication';
+import { AnalyticsModal } from '../components/Analytics/AnalyticsModal';
+import { apiService } from '../services/apiService';
 
 interface ResumeVersion {
   id: string;
@@ -43,12 +45,14 @@ interface GlassHeaderProps {
   hasUnsavedChanges: boolean;
   onSave: () => void;
   isSaving?: boolean;
+  onRunAnalytics: () => void;
+  isAnalyticsLoading: boolean;
 }
 
 /**
  * GlassHeader renders the floating glassmorphism header for the application details page.
  */
-const GlassHeader: React.FC<GlassHeaderProps & { emphasis?: any }> = ({ jobTitle, companyName, hasUnsavedChanges, onSave, isSaving, emphasis }) => {
+const GlassHeader: React.FC<GlassHeaderProps & { emphasis?: any }> = ({ jobTitle, companyName, hasUnsavedChanges, onSave, isSaving, onRunAnalytics, isAnalyticsLoading, emphasis }) => {
   const [isEmphasisOpen, setIsEmphasisOpen] = useState(false);
   // Flatten all emphasis items into a single list for 'Key Focus Points'
   const allItems: string[] = emphasis
@@ -143,6 +147,21 @@ const GlassHeader: React.FC<GlassHeaderProps & { emphasis?: any }> = ({ jobTitle
               aria-label="Save changes"
             >
               Save Changes
+            </Button>
+            <Button
+              onClick={onRunAnalytics}
+              isLoading={isAnalyticsLoading}
+              bg="rgba(255,255,255,0.12)"
+              border="1px solid rgba(255,255,255,0.2)"
+              borderRadius="12px"
+              color="white"
+              fontSize="13px"
+              fontWeight={600}
+              px={6}
+              py={3}
+              _hover={{ bg: 'rgba(255,255,255,0.2)' }}
+            >
+              Run Analytics
             </Button>
           </Flex>
         </Flex>
@@ -319,6 +338,9 @@ const ApplicationDetails: React.FC = () => {
   const [unsavedResumeContent, setUnsavedResumeContent] = useState<string | null>(null);
   const [emphasisAreas, setEmphasisAreas] = useState<ResumeEmphasis | null>(null);
   const [jobDescriptionAnalysis, setJobDescriptionAnalysis] = useState<JobAnalysisResponse | null>(null);
+  const [isAnalyticsModalOpen, setAnalyticsModalOpen] = useState(false);
+  const [analyticsResult, setAnalyticsResult] = useState<any | null>(null);
+  const [isAnalyticsLoading, setAnalyticsLoading] = useState(false);
   const [currentChanges, setCurrentChanges] = useState<Array<{
     type: 'update' | 'add' | 'remove' | 'reorder';
     location: string;
@@ -481,6 +503,42 @@ const ApplicationDetails: React.FC = () => {
     }
   };
 
+  const handleRunAnalytics = async () => {
+    if (!jobDescriptionAnalysis || !resume?.html_content) {
+      toast({
+        title: 'Missing Data',
+        description: 'Cannot run analysis without a job description and resume.',
+        status: 'warning',
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    setAnalyticsLoading(true);
+    setAnalyticsModalOpen(true);
+
+    const { data, error } = await apiService.analyzeSimilarity(
+      jobDescriptionAnalysis.results,
+      resume.html_content
+    );
+
+    setAnalyticsLoading(false);
+
+    if (error) {
+      toast({
+        title: 'Analysis Failed',
+        description: error.message,
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+      setAnalyticsResult(null);
+    } else {
+      setAnalyticsResult(data.analysis);
+    }
+  };
+
   // Handle tool responses from chat
   const handleToolResponse = (response: ToolResponse) => {
     console.log('🔍 handleToolResponse called with:', response);
@@ -569,6 +627,8 @@ const ApplicationDetails: React.FC = () => {
           hasUnsavedChanges={!!unsavedResumeContent}
           onSave={handleSaveResume}
           emphasis={typeof application.resume_emphasis === 'string' ? JSON.parse(application.resume_emphasis) : application.resume_emphasis}
+          onRunAnalytics={handleRunAnalytics}
+          isAnalyticsLoading={isAnalyticsLoading}
         />
         {/* Main content area */}
         <Box px={4} position="relative">
@@ -595,8 +655,14 @@ const ApplicationDetails: React.FC = () => {
           />
         </Box>
       </VStack>
-    </Container>
-  );
+    <AnalyticsModal
+      isOpen={isAnalyticsModalOpen}
+      onClose={() => setAnalyticsModalOpen(false)}
+      analysis={analyticsResult}
+      isLoading={isAnalyticsLoading}
+    />
+  </Container>
+);
 };
 
 export default ApplicationDetailsWrapper; 

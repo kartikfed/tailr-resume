@@ -10,6 +10,8 @@ const { sendMessageToClaude, sendChatMessage, DEFAULT_SYSTEM_PROMPT } = require(
 const { extractPdfText, extractPdfMarkdown } = require('../../utils/pdfExtract');
 const { extractJobDescription } = require('../../utils/jobScraper');
 const { handleUpdateResumeContent, resumeStore } = require('../../services/toolHandlers');
+const { generateEmbeddings } = require('../../services/embeddingService');
+const { extractTextChunks } = require('../../utils/resumeParser');
 
 // Simple in-memory storage for conversation history and files
 // In production, use a database
@@ -22,6 +24,22 @@ function unescapeMarkdown(text) {
   if (!text) return text;
   // Unescape common Markdown characters: \\* \\# \\_ \\` \\~ \\> \\- \\! \\[ \\] \\( \\) \\{ \\} \\< \\> \\| \\.
   return text.replace(/\\([#*_[\]()`~>\-!{}<>|.])/g, '$1');
+}
+
+/**
+ * Calculates the cosine similarity between two vectors.
+ * @param {number[]} vecA - The first vector.
+ * @param {number[]} vecB - The second vector.
+ * @returns {number} The cosine similarity score.
+ */
+function cosineSimilarity(vecA, vecB) {
+  const dotProduct = vecA.reduce((sum, a, i) => sum + a * vecB[i], 0);
+  const magnitudeA = Math.sqrt(vecA.reduce((sum, a) => sum + a * a, 0));
+  const magnitudeB = Math.sqrt(vecB.reduce((sum, b) => sum + b * b, 0));
+  if (magnitudeA === 0 || magnitudeB === 0) {
+    return 0;
+  }
+  return dotProduct / (magnitudeA * magnitudeB);
 }
 
 /**
@@ -886,3 +904,104 @@ Deliver HTML that:
 });
 
 module.exports = router;
+
+/**
+ * Analyze similarity between job requirements and resume content.
+ */
+router.post('/analyze-similarity', async (req, res) => {
+  try {
+    const { jobRequirements, resumeHtml } = req.body;
+
+    if (!jobRequirements || !resumeHtml) {
+      return res.status(400).json({ error: 'jobRequirements and resumeHtml are required.' });
+    }
+
+    // 1. Extract text from job requirements and resume
+    const requirementTexts = [
+      ...jobRequirements.required_skills,
+      ...jobRequirements.preferred_qualifications,
+      ...jobRequirements.key_responsibilities,
+    ].filter(text => text && text.trim() !== '');
+
+    const resumeTexts = extractTextChunks(resumeHtml);
+
+    // --- DIAGNOSTIC LOGGING ---
+    console.log('--- Resume Analytics Debug ---');
+    console.log('Number of requirements found:', requirementTexts.length);
+    console.log('Number of resume chunks found:', resumeTexts.length);
+    console.log('First 5 resume chunks:', resumeTexts.slice(0, 5));
+    console.log('--------------------------');
+
+    if (requirementTexts.length === 0 || resumeTexts.length === 0) {
+      return res.status(400).json({ error: 'Could not extract text from job requirements or resume.' });
+    }
+
+    // 2. Generate embeddings for both sets of text
+    const [requirementEmbeddings, resumeEmbeddings] = await Promise.all([
+      generateEmbeddings(requirementTexts),
+      generateEmbeddings(resumeTexts),
+    ]);
+
+    // 3. Perform bidirectional analysis
+    const requirementCoverage = [];
+    const unalignedContent = [];
+    const similarityThreshold = 0.5; // Threshold for considering content unaligned
+
+    // Calculate requirement coverage by finding the best resume match for each job requirement
+    requirementTexts.forEach((reqText, reqIndex) => {
+      let bestMatch = { score: -1, resume_chunk: null };
+      resumeTexts.forEach((resumeText, resumeIndex) => {
+        const score = cosineSimilarity(requirementEmbeddings[reqIndex], resumeEmbeddings[resumeIndex]);
+        if (score > bestMatch.score) {
+          bestMatch = { score, resume_chunk: resumeText };
+        }
+      });
+      requirementCoverage.push({
+        requirement: reqText,
+        best_match: bestMatch.resume_chunk,
+        score: bestMatch.score,
+      });
+    });
+
+    // Calculate unaligned resume content by finding resume chunks with low similarity to all requirements
+    resumeTexts.forEach((resumeText, resumeIndex) => {
+      let maxSimilarity = -1;
+      requirementEmbeddings.forEach((reqEmbedding, reqIndex) => {
+        const score = cosineSimilarity(resumeEmbeddings[resumeIndex], reqEmbedding);
+        if (score > maxSimilarity) {
+          maxSimilarity = score;
+        }
+      });
+
+      if (maxSimilarity < similarityThreshold) {
+        unalignedContent.push({
+          resume_chunk: resumeText,
+          score: maxSimilarity,
+        });
+      }
+    });
+
+    // Sort results for better presentation
+    requirementCoverage.sort((a, b) => b.score - a.score);
+    unalignedContent.sort((a, b) => a.score - b.score);
+
+    res.json({
+      message: 'Similarity analysis completed successfully.',
+      analysis: {
+        requirementCoverage,
+        unalignedContent,
+      },
+    });
+
+    // --- FINAL DIAGNOSTIC LOG ---
+    console.log('--- Final Analysis Results ---');
+    console.log('Requirement Coverage Count:', requirementCoverage.length);
+    console.log('Unaligned Content Count:', unalignedContent.length);
+    console.log('--------------------------');
+
+
+  } catch (error) {
+    console.error('Error in similarity analysis endpoint:', error);
+    res.status(500).json({ error: `Failed to analyze similarity: ${error.message}` });
+  }
+});

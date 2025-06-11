@@ -152,5 +152,26 @@ export const apiService = {
       }
       return { data: null, error: error as Error };
     }
-  }
-}; 
+  },
+
+  async analyzeSimilarity(
+    jobRequirements: any,
+    resumeHtml: string
+  ): Promise<ApiResponse<any>> {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/spec/analyze-similarity`, {
+        jobRequirements,
+        resumeHtml,
+      });
+      return { data: response.data, error: null };
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        return {
+          data: null,
+          error: new Error(error.response?.data?.message || error.message || 'Failed to analyze similarity'),
+        };
+      }
+      return { data: null, error: error as Error };
+    }
+  },
+};
