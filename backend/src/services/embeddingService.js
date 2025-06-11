@@ -12,7 +12,7 @@
  */
 class EmbeddingPipeline {
   static task = 'feature-extraction';
-  static model = 'sentence-transformers/all-MiniLM-L6-v2';
+  static model = 'Xenova/all-MiniLM-L6-v2';
   static instance = null;
 
   /**
@@ -23,7 +23,8 @@ class EmbeddingPipeline {
     if (this.instance === null) {
       // Dynamically import the pipeline function from the ES Module.
       const { pipeline } = await import('@xenova/transformers');
-      this.instance = pipeline(this.task, this.model, { quantized: false });
+      // Enable quantization to reduce memory usage. This model is guaranteed to support it.
+      this.instance = pipeline(this.task, this.model, { quantized: true });
     }
     return this.instance;
   }
