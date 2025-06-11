@@ -31,7 +31,11 @@ The user wants to: "${userInstruction}"
 Additional context:
 ${context ? JSON.stringify(context, null, 2) : 'No additional context provided'}
 
-1. Identify what content they're referring to
+1. Identify what content they're referring to by:
+* Looking for semantic matches (e.g., "skills" section)
+* Considering the content type (e.g., lists, paragraphs)
+* Using flexible matching to find similar content
+
 2. Extract the current text of that content
 3. Generate the revised version
 4. Return the exact HTML element to replace and the new content
@@ -68,6 +72,21 @@ Return JSON: {
   const findElementByContent = (doc, content) => {
     console.log('[ResumeUpdate] Looking for element with content:', content);
 
+    // First try to understand what type of content we're looking for
+    const contentType = content.toLowerCase();
+    const isSkills = contentType.includes('skills') || 
+                    contentType.includes('capabilities') || 
+                    contentType.includes('expertise');
+
+    // If we're looking for skills, try to find the skills section first
+    if (isSkills) {
+      const skillsSection = doc.querySelector('.skills');
+      if (skillsSection) {
+        console.log('[ResumeUpdate] Found skills section directly:', skillsSection.outerHTML);
+        return skillsSection;
+      }
+    }
+
     // Try to extract class name from the content string (e.g., class="summary")
     const classMatch = content.match(/class=["']([^"']+)["']/);
     let className = classMatch ? classMatch[1] : null;
@@ -79,18 +98,17 @@ Return JSON: {
       for (let el of elements) {
         const elText = el.textContent.trim();
         console.log(`[ResumeUpdate] Checking .${className}:`, elText);
-        if (elText === textMatch) {
-          console.log('[ResumeUpdate] Found by class and exact textContent:', el.outerHTML);
-          return el;
-        }
-        if (elText.includes(textMatch)) {
-          console.log('[ResumeUpdate] Found by class and partial textContent:', el.outerHTML);
+        // Make the matching more flexible
+        if (elText === textMatch || 
+            elText.includes(textMatch) || 
+            textMatch.includes(elText)) {
+          console.log('[ResumeUpdate] Found by class and flexible textContent match:', el.outerHTML);
           return el;
         }
       }
     }
 
-    // Fallback: original walker logic
+    // Fallback: walker logic with more flexible matching
     const walker = doc.createTreeWalker(
       doc.body,
       dom.window.NodeFilter.SHOW_ELEMENT,
@@ -99,25 +117,27 @@ Return JSON: {
     let node;
     let candidates = [];
     while ((node = walker.nextNode())) {
-      // 1. Exact innerHTML match
-      if (node.innerHTML.trim() === content.trim()) {
-        console.log('[ResumeUpdate] Found by exact innerHTML match:', node.outerHTML);
-        return node;
-      }
-      // 2. Exact textContent match
-      if (node.textContent && node.textContent.trim() === textMatch) {
+      const nodeText = node.textContent?.trim() || '';
+      // Try exact match first
+      if (nodeText === textMatch) {
         console.log('[ResumeUpdate] Found by exact textContent match:', node.outerHTML);
         return node;
       }
-      // 3. Partial textContent match
-      if (node.textContent && node.textContent.includes(textMatch)) {
+      // Then try contains in either direction
+      if (nodeText.includes(textMatch) || textMatch.includes(nodeText)) {
+        candidates.push(node);
+      }
+      // Finally try semantic similarity for skills
+      if (isSkills && nodeText.includes('skill')) {
         candidates.push(node);
       }
     }
+    
     if (candidates.length > 0) {
-      console.log('[ResumeUpdate] Found by partial textContent match:', candidates[0].outerHTML);
+      console.log('[ResumeUpdate] Found by flexible matching:', candidates[0].outerHTML);
       return candidates[0];
     }
+    
     console.warn('[ResumeUpdate] No matching element found for:', content);
     return null;
   };
@@ -189,11 +209,42 @@ Return JSON: {
     return selector;
   };
 
+  // Remove <del>, <s> tags and text-decoration: line-through from the BODY ONLY
+  function removeStrikethroughArtifactsFromBody(dom) {
+    const document = dom.window.document;
+    // Remove <del> and <s> tags but keep their content
+    const removeTags = (tag) => {
+      const elements = Array.from(document.body.getElementsByTagName(tag));
+      elements.forEach(el => {
+        const parent = el.parentNode;
+        while (el.firstChild) {
+          parent.insertBefore(el.firstChild, el);
+        }
+        parent.removeChild(el);
+      });
+    };
+    removeTags('del');
+    removeTags('s');
+    // Remove text-decoration: line-through from inline styles
+    const allEls = document.body.querySelectorAll('[style]');
+    allEls.forEach(el => {
+      if (el.style.textDecoration && el.style.textDecoration.includes('line-through')) {
+        el.style.textDecoration = el.style.textDecoration.replace('line-through', '').replace(';;', ';').trim();
+        // Remove style attribute if empty
+        if (!el.style.textDecoration) {
+          el.style.removeProperty('text-decoration');
+        }
+      }
+    });
+  }
+
   // Replace the element's content with the new content
   const sanitizedContent = sanitizeToPlainText(analysis.newContent);
   targetElement.textContent = sanitizedContent;
 
-  const newHtml = dom.serialize();
+  // Only remove strikethrough artifacts from the body, not the whole HTML
+  removeStrikethroughArtifactsFromBody(dom);
+  let newHtml = dom.serialize();
   resumeStore[conversationId] = newHtml;
 
   // Generate selector for the modified element
@@ -223,3 +274,4 @@ module.exports = {
   resumeStore,
   handleUpdateResumeContent
 };
+

@@ -13,14 +13,7 @@ import {
 } from '@chakra-ui/react';
 import { AddIcon, ArrowUpIcon } from '@chakra-ui/icons';
 import { ResumeManager } from '../components/ResumeManager';
-
-interface JobApplication {
-  id: string;
-  job_title: string;
-  company_name: string;
-  status: string;
-  created_at: string;
-}
+import { JobApplication } from '../types/jobApplication';
 
 /**
  * Dashboard page for managing resumes and job applications

@@ -489,32 +489,38 @@ router.post('/analyze-job-description', async (req, res) => {
     console.log('Writing tone:', writingTone);
     
     // Create system prompt for Claude
-    const systemPrompt = `You are an expert job description analyzer. Your task is to analyze the provided job description and extract key information in a structured format.
-
+    const systemPrompt = `You are an expert job description analyzer with deep knowledge of ATS (Applicant Tracking Systems) and how recruiters search for candidates. Your task is to analyze the provided job description and extract key information optimized for resume matching.
 Analysis Requirements:
-1. Extract required skills and technical requirements
-2. Identify preferred qualifications
-3. Determine experience level (Entry, Mid, Senior, etc.)
-4. List key responsibilities
-5. Extract company information and industry
-6. Identify keywords for ATS optimization
-7. Provide a brief summary of key points to emphasize in the resume
+Core Analysis (keep your existing requirements)
 
-IMPORTANT:
-- Be specific and detailed in your analysis
-- Include both technical and soft skills
-- Extract exact experience requirements
-- List all major responsibilities
-- Include industry-specific keywords
+Extract required skills and technical requirements
+Identify preferred qualifications
+Determine experience level (Entry, Mid, Senior, etc.)
+List key responsibilities
+Extract company information and industry
+Provide resume emphasis guidance
 
-- The resume_emphasis section should:
-  * Provide a concise summary of what to emphasize in the resume
-  * List 3-4 key points that are most important for this role
-  * Focus on the most critical aspects that will make the resume stand out
-  * Be specific to the role and company
+ATS-Specific Enhancements (NEW)
 
-Your response must be in the following JSON format:
-{
+Job Title Extraction: Extract the exact job title as it appears (most critical for ATS matching)
+Keyword Categorization: Categorize keywords by importance and type
+Exact Phrase Identification: Find multi-word phrases that should be matched exactly
+Acronym Detection: Identify acronyms and their full forms
+Experience Quantification: Extract specific experience requirements with numbers
+Skill Variations: Identify common alternative terms for key skills
+
+IMPORTANT Guidelines:
+
+Be specific and detailed in your analysis
+Include both technical and soft skills
+Extract exact experience requirements with numbers
+Prioritize keywords by recruiter search likelihood
+Include industry-specific terminology
+Identify exact phrases that commonly appear in ATS searches
+
+Response Format:
+json{
+  "job_title": "exact job title from posting",
   "required_skills": ["skill1", "skill2", ...],
   "preferred_qualifications": ["qual1", "qual2", ...],
   "experience_level": "level",
@@ -523,16 +529,56 @@ Your response must be in the following JSON format:
     "description": "company description",
     "industry": "industry"
   },
-  "keywords": ["keyword1", "keyword2", ...],
+  "keywords_by_priority": {
+    "critical": [
+      {
+        "term": "keyword",
+        "category": "hard_skill|soft_skill|tool|certification|experience",
+        "variations": ["alt1", "alt2"],
+        "context": "where this appears in job description"
+      }
+    ],
+    "important": [...],
+    "nice_to_have": [...]
+  },
+  "exact_phrases": [
+    "multi-word phrases that should match exactly",
+    "full-stack development",
+    "project management"
+  ],
+  "acronym_pairs": [
+    {"short": "AWS", "long": "Amazon Web Services"},
+    {"short": "API", "long": "Application Programming Interface"}
+  ],
+  "experience_requirements": [
+    {
+      "skill": "Python",
+      "years": "3+",
+      "requirement_type": "required|preferred"
+    }
+  ],
+  "section_keywords": {
+    "summary_emphasis": ["top 3-5 keywords for resume summary"],
+    "skills_section": ["keywords that should appear in skills section"],
+    "experience_bullets": ["keywords to weave into experience descriptions"]
+  },
   "resume_emphasis": {
     "summary": "A brief, 2-3 sentence overview of what to emphasize in the resume",
     "key_points": [
       "First key point to emphasize",
-      "Second key point to emphasize",
+      "Second key point to emphasize", 
       "Third key point to emphasize"
     ]
   }
-}`;
+}
+Key Focus Areas:
+Prioritize by recruiter search patterns:
+
+Job title (most critical - 10.6x interview likelihood)
+Skills mentioned multiple times or in requirements section
+Exact multi-word phrases that shouldn't be paraphrased
+Both acronym and full forms of technical terms`;
+
 
     const messages = [
       { role: 'user', content: `Please analyze this job description${selectedText ? ' and selected text' : ''}:\n\nJob Description:\n${content}${selectedText ? `\n\nSelected Text to Tailor Prompts For:\n${selectedText}` : ''}` }

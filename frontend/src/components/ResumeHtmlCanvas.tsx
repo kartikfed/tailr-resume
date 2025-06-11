@@ -68,22 +68,37 @@ export const ResumeHtmlCanvas: React.FC<ResumeHtmlCanvasProps> = ({
 
     console.log('🎨 Applying highlights for changes:', changes);
 
+    // Helper to append style with retry if head is not available
+    function appendStyleWithRetry(doc: Document, style: HTMLStyleElement, retries = 5, delay = 50) {
+      if (doc.head) {
+        doc.head.appendChild(style);
+      } else if (retries > 0) {
+        setTimeout(() => appendStyleWithRetry(doc, style, retries - 1, delay), delay);
+      } else {
+        console.warn('⚠️ iframeDoc.head is still null after retries, cannot append highlight style.');
+      }
+    }
+
     // Add highlight animation styles
     const style = iframeDoc.createElement('style');
     style.textContent = `
       .content-changed {
         position: relative;
-        display: inline;
+        display: inline-block;
         animation: rippleGlow 2.5s ease-out forwards;
         isolation: isolate;
         white-space: normal;
         word-wrap: break-word;
+        text-decoration: none !important;
+        border: none !important;
+        border-bottom: none !important;
+        border-top: none !important;
       }
 
       .content-changed::before {
         content: '';
         position: absolute;
-        inset: 0; /* Shorthand for top/right/bottom/left: 0 */
+        inset: 0;
         background: linear-gradient(90deg,
           transparent 0%,
           rgba(139, 92, 246, 0.1) 25%,
@@ -91,7 +106,7 @@ export const ResumeHtmlCanvas: React.FC<ResumeHtmlCanvasProps> = ({
           rgba(139, 92, 246, 0.1) 75%,
           transparent 100%
         );
-        animation: waveMove 1.5s ease-out forwards;
+        animation: waveMove 2.5s ease-out forwards;
         border-radius: inherit;
         z-index: 1;
         pointer-events: none;
@@ -137,7 +152,7 @@ export const ResumeHtmlCanvas: React.FC<ResumeHtmlCanvasProps> = ({
         }
       }
     `;
-    iframeDoc.head.appendChild(style);
+    appendStyleWithRetry(iframeDoc, style);
 
     // Clear previous highlights
     const previousHighlights = iframeDoc.querySelectorAll('.content-changed');

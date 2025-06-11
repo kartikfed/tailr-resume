@@ -8,20 +8,7 @@ import { useChat } from '../hooks/useChat';
 import { contextService } from '../services/contextService';
 import { FiSave } from 'react-icons/fi';
 import { ChevronDownIcon, ChevronUpIcon } from '@chakra-ui/icons';
-
-interface Application {
-  id: string;
-  job_title: string;
-  company_name: string;
-  job_description: string;
-  resume_emphasis?: string | any[];
-  required_skills?: string[];
-  preferred_qualifications?: string[];
-  experience_level?: string;
-  key_responsibilities?: string[];
-  company_info?: any;
-  keywords?: string[];
-}
+import { JobApplication, JobAnalysisResponse, ResumeEmphasis } from '../types/jobApplication';
 
 interface ResumeVersion {
   id: string;
@@ -325,13 +312,13 @@ const ApplicationDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const toast = useToast();
-  const [application, setApplication] = useState<Application | null>(null);
+  const [application, setApplication] = useState<JobApplication | null>(null);
   const [resume, setResume] = useState<ResumeVersion | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [unsavedResumeContent, setUnsavedResumeContent] = useState<string | null>(null);
-  const [emphasisAreas, setEmphasisAreas] = useState<any[]>([]);
-  const [jobDescriptionAnalysis, setJobDescriptionAnalysis] = useState<JobDescriptionAnalysis | null>(null);
+  const [emphasisAreas, setEmphasisAreas] = useState<ResumeEmphasis | null>(null);
+  const [jobDescriptionAnalysis, setJobDescriptionAnalysis] = useState<JobAnalysisResponse | null>(null);
   const [currentChanges, setCurrentChanges] = useState<Array<{
     type: 'update' | 'add' | 'remove' | 'reorder';
     location: string;
@@ -377,16 +364,13 @@ const ApplicationDetails: React.FC = () => {
         if (appError) throw appError;
         setApplication(app);
 
-        // Parse emphasis areas (assume stored as JSON/text array in job_description_analysis or similar)
-        let emphasis: any[] = [];
+        // Parse emphasis areas
         if (app.resume_emphasis) {
-          emphasis = Array.isArray(app.resume_emphasis)
-            ? app.resume_emphasis
-            : typeof app.resume_emphasis === 'string'
-              ? JSON.parse(app.resume_emphasis)
-              : [];
+          const emphasis = typeof app.resume_emphasis === 'string' 
+            ? JSON.parse(app.resume_emphasis) 
+            : app.resume_emphasis;
+          setEmphasisAreas(emphasis);
         }
-        setEmphasisAreas(emphasis);
 
         // Fetch latest resume version
         await fetchResume(id);
@@ -394,13 +378,18 @@ const ApplicationDetails: React.FC = () => {
         // If we have a job description, analyze it
         setJobDescriptionAnalysis({
           results: {
-            required_skills: app.required_skills,
-            preferred_qualifications: app.preferred_qualifications,
-            experience_level: app.experience_level,
-            key_responsibilities: app.key_responsibilities,
-            company_info: app.company_info,
-            keywords: app.keywords,
-            resume_emphasis: app.resume_emphasis,
+            required_skills: app.required_skills || [],
+            preferred_qualifications: app.preferred_qualifications || [],
+            experience_level: app.experience_level || '',
+            key_responsibilities: app.key_responsibilities || [],
+            company_info: app.company_info || { description: '', industry: '' },
+            keywords: app.keywords || [],
+            resume_emphasis: app.resume_emphasis || { summary: '', key_points: [] },
+            keywords_by_priority: app.keywords_by_priority || { critical: [], important: [], nice_to_have: [] },
+            exact_phrases: app.exact_phrases || [],
+            acronym_pairs: app.acronym_pairs || [],
+            experience_requirements: app.experience_requirements || [],
+            section_keywords: app.section_keywords || { summary_emphasis: [], skills_section: [], experience_bullets: [] }
           }
         });
       } catch (err: any) {
@@ -417,7 +406,6 @@ const ApplicationDetails: React.FC = () => {
       }
     };
     fetchData();
-    // eslint-disable-next-line
   }, [id, toast]);
 
   // Initialize chat context after data is loaded

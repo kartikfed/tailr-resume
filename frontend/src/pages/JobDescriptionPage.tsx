@@ -19,7 +19,7 @@ import { ResumeManager } from '../components/ResumeManager';
 import { apiService } from '../services/apiService';
 import { readFileContent } from '../utils/fileReader';
 import { convertPdfToHtml } from '../services/api';
-
+import { JobAnalysisResponse } from '../types/jobApplication';
 
 interface JobAnalysisResult {
   required_skills?: string[];
@@ -29,10 +29,6 @@ interface JobAnalysisResult {
   company_info?: Record<string, unknown>;
   keywords?: string[];
   resume_emphasis?: string | null;
-}
-
-interface JobAnalysisResponse {
-  results?: JobAnalysisResult;
 }
 
 // Type for uploadFiles payload
@@ -240,7 +236,12 @@ const JobDescriptionPage: React.FC = () => {
                 key_responsibilities: jobAnalysis.results?.key_responsibilities || [],
                 company_info: jobAnalysis.results?.company_info || {},
                 keywords: jobAnalysis.results?.keywords || [],
-                resume_emphasis: jobAnalysis.results?.resume_emphasis || null
+                resume_emphasis: jobAnalysis.results?.resume_emphasis || null,
+                keywords_by_priority: jobAnalysis.results?.keywords_by_priority || { critical: [], important: [], nice_to_have: [] },
+                exact_phrases: jobAnalysis.results?.exact_phrases || [],
+                acronym_pairs: jobAnalysis.results?.acronym_pairs || [],
+                experience_requirements: jobAnalysis.results?.experience_requirements || [],
+                section_keywords: jobAnalysis.results?.section_keywords || { summary_emphasis: [], skills_section: [], experience_bullets: [] }
               }
             ])
             .select()
