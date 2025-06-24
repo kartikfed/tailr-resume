@@ -66,12 +66,6 @@ export const LandingPage: React.FC = () => {
             >
               How it Works
             </a>
-            <a
-              href="#pricing"
-              className="text-gray-600 hover:text-indigo-600 transition-colors duration-200 font-medium"
-            >
-              Pricing
-            </a>
           </nav>
           <div className="flex items-center space-x-4">
             {user ? (
@@ -79,13 +73,10 @@ export const LandingPage: React.FC = () => {
                     Dashboard
                 </Button>
             ) : (
-                <Button onClick={handleSignIn} variant="ghost" className="hover:bg-indigo-50 hover:text-indigo-600 transition-colors duration-200">
+                <Button onClick={handleSignIn} className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200">
                     Sign In
                 </Button>
             )}
-            <Button onClick={handleGetStarted} className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200">
-              Get Started Free
-            </Button>
           </div>
         </div>
       </header>
@@ -278,23 +269,6 @@ export const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Final CTA Section */}
-      <section id="pricing" className="py-20 bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-4xl md:text-5xl font-bold mb-6">Apply with Confidence. Interview with Ease.</h2>
-          <p className="text-xl mb-8 opacity-90 max-w-3xl mx-auto">
-            With Tailr, you're not just applying for a job—you're making a statement.
-          </p>
-          <Button
-            size="lg"
-            onClick={handleGetStarted}
-            className="bg-white/20 hover:bg-white/30 backdrop-blur-sm border-2 border-white/30 text-white text-lg px-8 py-4 shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200"
-          >
-            Start Your Free Trial
-            <ArrowRight className="ml-2 w-5 h-5" />
-          </Button>
-        </div>
-      </section>
 
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-12">
@@ -318,54 +292,9 @@ export const LandingPage: React.FC = () => {
                   </a>
                 </li>
                 <li>
-                  <a href="#pricing" className="hover:text-white transition-colors">
-                    Pricing
+                  <a href="#features" className="hover:text-white transition-colors">
+                    Features
                   </a>
-                </li>
-                <li>
-                  <Link to="#" className="hover:text-white transition-colors">
-                    API
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-semibold mb-4">Company</h3>
-              <ul className="space-y-2 text-gray-400">
-                <li>
-                  <Link to="#" className="hover:text-white transition-colors">
-                    About
-                  </Link>
-                </li>
-                <li>
-                  <Link to="#" className="hover:text-white transition-colors">
-                    Blog
-                  </Link>
-                </li>
-                <li>
-                  <Link to="#" className="hover:text-white transition-colors">
-                    Careers
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-semibold mb-4">Support</h3>
-              <ul className="space-y-2 text-gray-400">
-                <li>
-                  <Link to="#" className="hover:text-white transition-colors">
-                    Help Center
-                  </Link>
-                </li>
-                <li>
-                  <Link to="#" className="hover:text-white transition-colors">
-                    Contact
-                  </Link>
-                </li>
-                <li>
-                  <Link to="#" className="hover:text-white transition-colors">
-                    Privacy
-                  </Link>
                 </li>
               </ul>
             </div>
