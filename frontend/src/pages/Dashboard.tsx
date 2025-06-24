@@ -150,10 +150,10 @@ export const Dashboard: React.FC = () => {
       >
         {/* Header */}
         <Box mb={10}>
-          <Heading as="h1" fontSize="2.5rem" fontWeight={700} color={mainText} mb={2} letterSpacing="-0.03em">
-            Resume Management
+          <Heading as="h1" fontSize="2.5rem" fontWeight={700} color="white" mb={2} letterSpacing="-0.03em">
+            Dashboard
           </Heading>
-          <Text fontSize="lg" color={subtitleText} fontWeight={400}>
+          <Text fontSize="lg" color="white" fontWeight={400} opacity={0.8}>
             Organize your resumes and track application progress with precision
           </Text>
         </Box>
