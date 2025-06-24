@@ -2,7 +2,7 @@
 
 Tailr is an intelligent resume optimization tool that helps job seekers tailor their resumes for specific job applications. Using advanced AI technology, Tailr analyzes job descriptions and provides targeted suggestions to make your resume more impactful and relevant.
 ![image](https://github.com/user-attachments/assets/f47721ea-69b0-428e-adee-c40cdd3d659c)
-![image](https://github.com/user-attachments/assets/b01bcb09-3cfc-44b3-b3a2-17bea6a1c839)
+![image](https://github.com/user-attachments/assets/a309b4a0-5b31-4589-8f15-1aa46ed87225)
 
 
 
