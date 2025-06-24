@@ -12,9 +12,10 @@ const { extractJobDescription } = require('../../utils/jobScraper');
 const { handleUpdateResumeContent, resumeStore } = require('../../services/toolHandlers');
 const { generateEmbeddings } = require('../../services/embeddingService');
 const { extractTextChunks } = require('../../utils/resumeParser');
-
-// Simple in-memory storage for conversation history and files
-// In production, use a database
+const puppeteer = require('puppeteer');
+ 
+ // Simple in-memory storage for conversation history and files
+ // In production, use a database
 const conversations = {};
 const uploadedFiles = {};
 const jobAnalysisResults = {}; // Store job analysis results by conversation ID
@@ -821,17 +822,18 @@ router.post('/pdf-to-html', async (req, res) => {
 
 Core Requirements:
 
-CRITICAL: The html must be visually indistinguishable from the original PDF.
+CRITICAL: The html must be visually indistinguishable from the original PDF. 
 
 1. Editable Elements
 * Every editable element MUST have be generated in a way to make it easy for the AI to make targeted edits
 
 2. Visual Fidelity
-* Match original PDF exactly:
+* Match original PDF EXACTLY:
   - Typography (font sizes, weights, styles)
   - Layout (spacing, alignment, indentation)
   - Colors (text, accents, borders)
   - Visual hierarchy
+  - Non-text elements (lines, separators, etc)
 
 3. Quality Checklist
 Before finalizing, verify:
@@ -900,6 +902,63 @@ Deliver HTML that:
   } catch (error) {
     console.error('Error converting PDF to HTML:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/export-pdf', async (req, res) => {
+  try {
+    const { htmlContent } = req.body;
+
+    if (!htmlContent) {
+      return res.status(400).json({ error: 'htmlContent is required' });
+    }
+
+    console.log('Received HTML for PDF export:', htmlContent);
+
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
+    const page = await browser.newPage();
+
+    await page.setContent(htmlContent, {
+      waitUntil: 'networkidle0',
+    });
+
+    const { width, height } = await page.evaluate(() => {
+      const body = document.body;
+      const html = document.documentElement;
+      const width = Math.max(
+        body.scrollWidth,
+        body.offsetWidth,
+        html.clientWidth,
+        html.scrollWidth,
+        html.offsetWidth
+      );
+      const height = Math.max(
+        body.scrollHeight,
+        body.offsetHeight,
+        html.clientHeight,
+        html.scrollHeight,
+        html.offsetHeight
+      );
+      return { width, height };
+    });
+
+    const pdfBuffer = await page.pdf({
+      width: `${width}px`,
+      height: `${height}px`,
+      printBackground: true,
+    });
+
+    await browser.close();
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=resume.pdf');
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('Error exporting PDF:', error);
+    res.status(500).json({ error: 'Failed to export PDF' });
   }
 });
 

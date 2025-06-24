@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { Box, Container, Heading, Spinner, Text, VStack, useToast, Button, Flex, Tabs, TabList, TabPanels, Tab, TabPanel, Grid, HStack, IconButton } from '@chakra-ui/react';
@@ -47,12 +47,13 @@ interface GlassHeaderProps {
   isSaving?: boolean;
   onRunAnalytics: () => void;
   isAnalyticsLoading: boolean;
+  onExportPdf: () => void;
 }
 
 /**
  * GlassHeader renders the floating glassmorphism header for the application details page.
  */
-const GlassHeader: React.FC<GlassHeaderProps & { emphasis?: any }> = ({ jobTitle, companyName, hasUnsavedChanges, onSave, isSaving, onRunAnalytics, isAnalyticsLoading, emphasis }) => {
+const GlassHeader: React.FC<GlassHeaderProps & { emphasis?: any }> = ({ jobTitle, companyName, hasUnsavedChanges, onSave, isSaving, onRunAnalytics, isAnalyticsLoading, onExportPdf, emphasis }) => {
   const [isEmphasisOpen, setIsEmphasisOpen] = useState(false);
   // Flatten all emphasis items into a single list for 'Key Focus Points'
   const allItems: string[] = emphasis
@@ -162,6 +163,20 @@ const GlassHeader: React.FC<GlassHeaderProps & { emphasis?: any }> = ({ jobTitle
               _hover={{ bg: 'rgba(255,255,255,0.2)' }}
             >
               Run Analytics
+            </Button>
+            <Button
+              onClick={onExportPdf}
+              bg="rgba(255,255,255,0.12)"
+              border="1px solid rgba(255,255,255,0.2)"
+              borderRadius="12px"
+              color="white"
+              fontSize="13px"
+              fontWeight={600}
+              px={6}
+              py={3}
+              _hover={{ bg: 'rgba(255,255,255,0.2)' }}
+            >
+              Export to PDF
             </Button>
           </Flex>
         </Flex>
@@ -336,7 +351,6 @@ const ApplicationDetails: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [unsavedResumeContent, setUnsavedResumeContent] = useState<string | null>(null);
-  const [emphasisAreas, setEmphasisAreas] = useState<ResumeEmphasis | null>(null);
   const [jobDescriptionAnalysis, setJobDescriptionAnalysis] = useState<JobAnalysisResponse | null>(null);
   const [isAnalyticsModalOpen, setAnalyticsModalOpen] = useState(false);
   const [analyticsResult, setAnalyticsResult] = useState<any | null>(null);
@@ -350,8 +364,7 @@ const ApplicationDetails: React.FC = () => {
   const conversationId = `app-${id}`;
   const { updateContext } = useChat(conversationId);
 
-  // Helper to reload resume after upload
-  const fetchResume = async (appId: string) => {
+  const fetchResume = useCallback(async (appId: string) => {
     const { data: resumes, error: resumeError } = await supabase
       .from('resume_versions')
       .select('*')
@@ -360,7 +373,7 @@ const ApplicationDetails: React.FC = () => {
       .limit(1);
     if (resumeError) {
       toast({
-        title: 'Error',
+        title: 'Error fetching resume',
         description: resumeError.message,
         status: 'error',
         duration: 5000,
@@ -369,15 +382,58 @@ const ApplicationDetails: React.FC = () => {
       return;
     }
     setResume(resumes && resumes.length > 0 ? resumes[0] : null);
-  };
+  }, [toast]);
+
+  const handleSaveResume = useCallback(async () => {
+    if (!unsavedResumeContent || !id || !resume) return;
+    try {
+      const { data: versions, error: versionError } = await supabase
+        .from('resume_versions')
+        .select('version_number')
+        .eq('job_application_id', id)
+        .order('version_number', { ascending: false })
+        .limit(1);
+      if (versionError) throw versionError;
+      const nextVersion = versions && versions.length > 0 ? versions[0].version_number + 1 : 1;
+
+      const { error: insertError } = await supabase
+        .from('resume_versions')
+        .insert([
+          {
+            job_application_id: id,
+            content: resume.content || '',
+            html_content: unsavedResumeContent,
+            version_number: nextVersion,
+          },
+        ]);
+      if (insertError) throw insertError;
+
+      toast({
+        title: 'Resume saved',
+        description: 'Your changes have been saved as a new version.',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+      setUnsavedResumeContent(null);
+      await fetchResume(id);
+    } catch (err: any) {
+      toast({
+        title: 'Save failed',
+        description: err.message || 'Failed to save resume',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  }, [id, unsavedResumeContent, resume, toast, fetchResume]);
 
   useEffect(() => {
     if (!id) return;
     const fetchData = async () => {
       setLoading(true);
-      setError('');
+      setError(null);
       try {
-        // Fetch job application
         const { data: app, error: appError } = await supabase
           .from('job_applications')
           .select('*')
@@ -386,18 +442,12 @@ const ApplicationDetails: React.FC = () => {
         if (appError) throw appError;
         setApplication(app);
 
-        // Parse emphasis areas
         if (app.resume_emphasis) {
-          const emphasis = typeof app.resume_emphasis === 'string' 
-            ? JSON.parse(app.resume_emphasis) 
-            : app.resume_emphasis;
-          setEmphasisAreas(emphasis);
+          // No need to parse, it's already an object
         }
 
-        // Fetch latest resume version
         await fetchResume(id);
 
-        // If we have a job description, analyze it
         setJobDescriptionAnalysis({
           results: {
             required_skills: app.required_skills || [],
@@ -428,80 +478,29 @@ const ApplicationDetails: React.FC = () => {
       }
     };
     fetchData();
-  }, [id, toast]);
+  }, [id, toast, fetchResume]);
 
-  // Initialize chat context after data is loaded
   useEffect(() => {
     if (!conversationId || !resume || !application || !jobDescriptionAnalysis) return;
-    
-    // Update resume content
-    contextService.updateContent(conversationId, {
-      type: 'resume',
-      content: resume.html_content || '',
-      version: resume.version_number
-    });
-
-    // Update job description content
-    contextService.updateContent(conversationId, {
-      type: 'jobDescription',
-      content: application.job_description || '',
-      version: 1
-    });
-
-    // Update analysis content
-    contextService.updateContent(conversationId, {
-      type: 'analysis',
-      content: JSON.stringify(jobDescriptionAnalysis) || '',
-      version: 1
-    });
+    contextService.updateContent(conversationId, { type: 'resume', content: resume.html_content || '', version: resume.version_number });
+    contextService.updateContent(conversationId, { type: 'jobDescription', content: application.job_description || '', version: 1 });
+    contextService.updateContent(conversationId, { type: 'analysis', content: JSON.stringify(jobDescriptionAnalysis) || '', version: 1 });
   }, [conversationId, resume, application, jobDescriptionAnalysis]);
 
-  // Save button handler: persist to DB
-  const handleSaveResume = async () => {
-    if (!unsavedResumeContent || !id) return;
-    try {
-      // Get the current max version number for this application
-      const { data: versions, error: versionError } = await supabase
-        .from('resume_versions')
-        .select('version_number')
-        .eq('job_application_id', id)
-        .order('version_number', { ascending: false })
-        .limit(1);
-      if (versionError) throw versionError;
-      const nextVersion = versions && versions.length > 0 ? versions[0].version_number + 1 : 1;
-
-      // Insert new resume version with both HTML and Markdown content
-      const { error: insertError } = await supabase
-        .from('resume_versions')
-        .insert([
-          {
-            job_application_id: id,
-            content: resume?.content || '',  // Keep the original Markdown content
-            html_content: unsavedResumeContent,  // Save the HTML content
-            version_number: nextVersion,
-          },
-        ]);
-      if (insertError) throw insertError;
-      toast({
-        title: 'Resume saved',
-        description: 'Your changes have been saved as a new version.',
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-      });
-      setUnsavedResumeContent(null);
-      // Reload resume from DB to ensure state is in sync
-      await fetchResume(id);
-    } catch (err: any) {
-      toast({
-        title: 'Save failed',
-        description: err.message || 'Failed to save resume',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
-    }
-  };
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+        event.preventDefault();
+        if (unsavedResumeContent) {
+          handleSaveResume();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [unsavedResumeContent, handleSaveResume]);
 
   const handleRunAnalytics = async () => {
     if (!jobDescriptionAnalysis || !resume?.html_content) {
@@ -514,17 +513,10 @@ const ApplicationDetails: React.FC = () => {
       });
       return;
     }
-
     setAnalyticsLoading(true);
     setAnalyticsModalOpen(true);
-
-    const { data, error } = await apiService.analyzeSimilarity(
-      jobDescriptionAnalysis.results,
-      resume.html_content
-    );
-
+    const { data, error } = await apiService.analyzeSimilarity(jobDescriptionAnalysis.results, resume.html_content);
     setAnalyticsLoading(false);
-
     if (error) {
       toast({
         title: 'Analysis Failed',
@@ -539,130 +531,104 @@ const ApplicationDetails: React.FC = () => {
     }
   };
 
-  // Handle tool responses from chat
-  const handleToolResponse = (response: ToolResponse) => {
-    console.log('🔍 handleToolResponse called with:', response);
-    console.log('📥 Tool response received in ApplicationDetails:', {
-      success: response.success,
-      newHtmlLength: response.newHtml?.length,
-      explanation: response.explanation,
-      resume: resume,  // Log the entire resume object
-      resumeExists: !!resume,
-      currentHtmlContent: resume?.html_content?.substring(0, 100) + '...',
-      newHtmlPreview: response.newHtml?.substring(0, 100) + '...'
-    });
-
-    if (response.success && response.newHtml && resume) {
-      console.log('🔄 Updating resume state with new HTML');
-      // Update the HTML content
-      setUnsavedResumeContent(response.newHtml);
-      setResume(prevResume => {
-        if (!prevResume) return null;
-        console.log('📝 Previous resume state:', {
-          hasHtmlContent: !!prevResume.html_content,
-          htmlContentLength: prevResume.html_content?.length,
-          newHtmlLength: response.newHtml?.length
-        });
-        return {
-          ...prevResume,
-          html_content: response.newHtml || null
-        };
+  const handleExportPdf = async () => {
+    if (!resume?.html_content) {
+      toast({
+        title: 'No Content',
+        description: 'There is no resume content to export.',
+        status: 'warning',
+        duration: 5000,
+        isClosable: true,
       });
+      return;
+    }
 
-      // Set changes for highlighting
-      if (response.changes) {
-        setCurrentChanges(response.changes);
-        // Clear changes after animation completes
-        setTimeout(() => {
-          setCurrentChanges([]);
-        }, 2000);
+    try {
+      const { data, error } = await apiService.exportPdf(resume.html_content);
+      if (error) {
+        throw error;
       }
-    } else {
-      console.log('⚠️ Skipping resume update:', {
-        success: response.success,
-        hasNewHtml: !!response.newHtml,
-        hasResume: !!resume,
-        newHtmlPreview: response.newHtml?.substring(0, 100) + '...'
+      if (data) {
+        const url = window.URL.createObjectURL(new Blob([data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', 'resume.pdf');
+        document.body.appendChild(link);
+        link.click();
+        link.parentNode?.removeChild(link);
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Export Failed',
+        description: err.message || 'Failed to export PDF',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
       });
     }
   };
 
+  const handleToolResponse = (response: ToolResponse) => {
+    if (response.success && response.newHtml && resume) {
+      setUnsavedResumeContent(response.newHtml);
+      setResume(prev => prev ? { ...prev, html_content: response.newHtml || null } : null);
+      if (response.changes) {
+        setCurrentChanges(response.changes);
+        setTimeout(() => setCurrentChanges([]), 2000);
+      }
+    }
+  };
+
   if (loading) {
-    return (
-      <Box minH="100vh" display="flex" alignItems="center" justifyContent="center">
-        <Spinner size="xl" color="purple.400" />
-      </Box>
-    );
+    return <Box minH="100vh" display="flex" alignItems="center" justifyContent="center"><Spinner size="xl" color="purple.400" /></Box>;
   }
   if (error) {
-    return (
-      <Container maxW="container.md" py={16}>
-        <VStack spacing={6}>
-          <Heading size="lg">Error</Heading>
-          <Text color="red.400">{error}</Text>
-          <Button onClick={() => navigate(-1)} colorScheme="purple">Back</Button>
-        </VStack>
-      </Container>
-    );
+    return <Container maxW="container.md" py={16}><VStack spacing={6}><Heading size="lg">Error</Heading><Text color="red.400">{error}</Text><Button onClick={() => navigate(-1)} colorScheme="purple">Back</Button></VStack></Container>;
   }
   if (!application) {
-    return (
-      <Container maxW="container.md" py={16}>
-        <VStack spacing={6}>
-          <Heading size="lg">Not Found</Heading>
-          <Text color="gray.400">Job application not found.</Text>
-          <Button onClick={() => navigate(-1)} colorScheme="purple">Back</Button>
-        </VStack>
-      </Container>
-    );
+    return <Container maxW="container.md" py={16}><VStack spacing={6}><Heading size="lg">Not Found</Heading><Text>Job application not found.</Text><Button onClick={() => navigate(-1)} colorScheme="purple">Back</Button></VStack></Container>;
   }
 
   return (
     <Container maxW="container.xl" p={0} position="relative">
       <VStack spacing={8} align="stretch">
-        {/* Floating Glass Header with EmphasisAreas inside */}
         <GlassHeader
           jobTitle={application.job_title || 'Untitled Position'}
           companyName={application.company_name || ''}
           hasUnsavedChanges={!!unsavedResumeContent}
           onSave={handleSaveResume}
-          emphasis={typeof application.resume_emphasis === 'string' ? JSON.parse(application.resume_emphasis) : application.resume_emphasis}
+          emphasis={application.resume_emphasis}
           onRunAnalytics={handleRunAnalytics}
           isAnalyticsLoading={isAnalyticsLoading}
+          onExportPdf={handleExportPdf}
         />
-        {/* Main content area */}
         <Box px={4} position="relative">
-          <ResumeHtmlCanvas 
-            htmlContent={resume?.html_content || null} 
+          <ResumeHtmlCanvas
+            htmlContent={resume?.html_content || null}
             conversationId={conversationId}
             onUpdate={(newHtml) => {
               setUnsavedResumeContent(newHtml);
               if (resume) {
-                setResume({
-                  ...resume,
-                  html_content: newHtml
-                });
+                setResume({ ...resume, html_content: newHtml });
               }
             }}
             changes={currentChanges}
           />
-          <FloatingChat 
+          <FloatingChat
             conversationId={conversationId}
-            onUpdateMessages={(messages) => {
-              console.log('Messages updated:', messages);
-            }}
+            onUpdateMessages={() => {}}
             onToolResponse={handleToolResponse}
           />
         </Box>
       </VStack>
-    <AnalyticsModal
-      isOpen={isAnalyticsModalOpen}
-      onClose={() => setAnalyticsModalOpen(false)}
-      analysis={analyticsResult}
-      isLoading={isAnalyticsLoading}
-    />
-  </Container>
-);
+      <AnalyticsModal
+        isOpen={isAnalyticsModalOpen}
+        onClose={() => setAnalyticsModalOpen(false)}
+        analysis={analyticsResult}
+        isLoading={isAnalyticsLoading}
+      />
+    </Container>
+  );
 };
 
 export default ApplicationDetailsWrapper; 

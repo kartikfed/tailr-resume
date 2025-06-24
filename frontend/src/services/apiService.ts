@@ -174,4 +174,23 @@ export const apiService = {
       return { data: null, error: error as Error };
     }
   },
+
+  async exportPdf(htmlContent: string): Promise<ApiResponse<Blob>> {
+    try {
+      const response = await axios.post(
+        `${API_BASE_URL}/api/spec/export-pdf`,
+        { htmlContent },
+        { responseType: 'blob' }
+      );
+      return { data: response.data, error: null };
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        return {
+          data: null,
+          error: new Error(error.response?.data?.message || error.message || 'Failed to export PDF'),
+        };
+      }
+      return { data: null, error: error as Error };
+    }
+  },
 };

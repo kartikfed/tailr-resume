@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Box } from '@chakra-ui/react';
+import { debounce } from 'lodash';
 
 /**
  * Props for ResumeHtmlCanvas
@@ -57,6 +58,43 @@ export const ResumeHtmlCanvas: React.FC<ResumeHtmlCanvasProps> = ({
     // Reset iframe loaded state
     setIsIframeLoaded(false);
   }, [htmlContent]);
+
+  // Add effect to make content editable and observe changes
+  useEffect(() => {
+    if (!iframeRef.current || !isIframeLoaded) return;
+
+    const iframe = iframeRef.current;
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!iframeDoc || !iframeDoc.body) return;
+
+    // Make the content editable by default
+    iframeDoc.body.contentEditable = 'true';
+    iframeDoc.body.style.outline = 'none'; // No focus outline
+
+    const debouncedOnUpdate = debounce((newHtml: string) => {
+      onUpdate(newHtml);
+    }, 500);
+
+    const observer = new MutationObserver(() => {
+      if (iframeDoc.body) {
+        debouncedOnUpdate(iframeDoc.documentElement.outerHTML);
+      }
+    });
+
+    observer.observe(iframeDoc.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+
+    return () => {
+      observer.disconnect();
+      debouncedOnUpdate.cancel();
+      if (iframeDoc.body) {
+        iframeDoc.body.contentEditable = 'false';
+      }
+    };
+  }, [isIframeLoaded, onUpdate]);
 
   // Add effect to handle changes and highlight modified elements
   useEffect(() => {
