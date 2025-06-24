@@ -20,6 +20,8 @@ import { apiService } from '../services/apiService';
 import { readFileContent } from '../utils/fileReader';
 import { convertPdfToHtml } from '../services/api';
 import { JobAnalysisResponse } from '../types/jobApplication';
+import LoadingIndicator from '../components/LoadingIndicator/LoadingIndicator';
+import { generateLoadingMessage } from '../utils/loadingMessageGenerator';
 
 interface JobAnalysisResult {
   required_skills?: string[];
@@ -52,6 +54,7 @@ const JobDescriptionPage: React.FC = () => {
   const [isSavingJobDescription, setIsSavingJobDescription] = useState<boolean>(false);
   const [jobUrl, setJobUrl] = useState<string>('');
   const [isScraping, setIsScraping] = useState<boolean>(false);
+  const [loadingMessage, setLoadingMessage] = useState<string>('');
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -82,6 +85,17 @@ const JobDescriptionPage: React.FC = () => {
     };
     fetchMostRecentResume();
   }, [toast]);
+
+  useEffect(() => {
+    if (isSavingJobDescription) {
+      const interval = setInterval(async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        const userName = user?.user_metadata?.full_name || 'agent';
+        setLoadingMessage(generateLoadingMessage({ jobTitle, companyName, userName }));
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [isSavingJobDescription, jobTitle, companyName]);
 
   /**
    * Handles saving the job description and creating a new job application
@@ -115,6 +129,8 @@ const JobDescriptionPage: React.FC = () => {
 
         // Get the current user
         const { data: { user }, error: userError } = await supabase.auth.getUser();
+        const userName = user?.user_metadata?.full_name || 'agent';
+        setLoadingMessage(generateLoadingMessage({ jobTitle, companyName, userName }));
         if (userError || !user) {
           throw userError || new Error('No user found');
         }
@@ -158,62 +174,62 @@ const JobDescriptionPage: React.FC = () => {
           throw new Error('Resume file content is empty');
         }
 
-        // Convert PDF to HTML if it's a PDF file
-        let htmlContent: string | null = null;
-        if (resumeFile.file_type === 'application/pdf' || resumeFile.file_name.endsWith('.pdf')) {
-          try {
-            const { data: htmlData, error: htmlError } = await convertPdfToHtml(file);
-            if (htmlError) {
-              console.warn('Failed to convert PDF to HTML:', htmlError);
-            } else if (htmlData?.html) {
-              htmlContent = htmlData.html;
-              console.log('Successfully converted PDF to HTML');
+        const [htmlResult, jobAnalysisResult] = await Promise.all([
+          (async () => {
+            if (resumeFile.file_type === 'application/pdf' || resumeFile.file_name.endsWith('.pdf')) {
+              try {
+                const { data: htmlData, error: htmlError } = await convertPdfToHtml(file);
+                if (htmlError) {
+                  console.warn('Failed to convert PDF to HTML:', htmlError);
+                  return null;
+                }
+                return htmlData?.html || null;
+              } catch (e) {
+                console.warn('Error converting PDF to HTML:', e);
+                return null;
+              }
             }
-          } catch (e) {
-            console.warn('Error converting PDF to HTML:', e);
-          }
-        }
+            return null;
+          })(),
+          (async () => {
+            try {
+              const jobAnalysisResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/spec/analyze-job-description`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content: jobDescription, analysisType: 'full_analysis' }),
+              });
+              if (!jobAnalysisResponse.ok) {
+                throw new Error('Failed to analyze job description');
+              }
+              return await jobAnalysisResponse.json();
+            } catch (e) {
+              throw new Error('Job description analysis failed');
+            }
+          })(),
+        ]);
 
-        // Process resume through /upload endpoint
-        let uploadResponse: any;
-        try {
-          const conversationId = `resume-${selectedResumeId}`;
-          const uploadPayload: UploadFilePayload = {
-            name: resumeFile.file_name,
-            type: resumeFile.file_type,
-            size: resumeFile.file_size,
-            content: fileContent,
-            isPdf: resumeFile.file_type === 'application/pdf' || resumeFile.file_name.endsWith('.pdf'),
-            useClaude: true,
-          };
-          uploadResponse = await apiService.uploadFiles(conversationId, [uploadPayload]);
-        } catch (e) {
-          throw new Error('Resume processing failed');
-        }
-        const processedContent: string = uploadResponse?.data?.files?.[0]?.content || '';
+        const htmlContent = htmlResult;
+        const jobAnalysis = jobAnalysisResult;
+
+        // // Process resume through /upload endpoint
+        // let uploadResponse: any;
+        // try {
+        //   const conversationId = `resume-${selectedResumeId}`;
+        //   const uploadPayload: UploadFilePayload = {
+        //     name: resumeFile.file_name,
+        //     type: resumeFile.file_type,
+        //     size: resumeFile.file_size,
+        //     content: fileContent,
+        //     isPdf: resumeFile.file_type === 'application/pdf' || resumeFile.file_name.endsWith('.pdf'),
+        //     useClaude: true,
+        //   };
+        //   uploadResponse = await apiService.uploadFiles(conversationId, [uploadPayload]);
+        // } catch (e) {
+        //   throw new Error('Resume processing failed');
+        // }
+        const processedContent: string = fileContent;
         if (!processedContent) {
           throw new Error('Processed resume content is empty');
-        }
-
-        // Process job description through /analyze-job-description endpoint
-        let jobAnalysis: JobAnalysisResponse;
-        try {
-          const jobAnalysisResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/spec/analyze-job-description`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              content: jobDescription,
-              analysisType: 'full_analysis'
-            }),
-          });
-          if (!jobAnalysisResponse.ok) {
-            throw new Error('Failed to analyze job description');
-          }
-          jobAnalysis = await jobAnalysisResponse.json();
-        } catch (e) {
-          throw new Error('Job description analysis failed');
         }
 
         // Save to job_applications table
@@ -344,6 +360,23 @@ const JobDescriptionPage: React.FC = () => {
   };
 
   return (
+    <>
+      {isSavingJobDescription && (
+        <Box
+          position="fixed"
+          top="0"
+          left="0"
+          width="100vw"
+          height="100vh"
+          bg="rgba(0, 0, 0, 0.7)"
+          zIndex="9999"
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+        >
+          <LoadingIndicator loadingMessage={loadingMessage} />
+        </Box>
+      )}
     <Box minH="100vh" bg="linear-gradient(135deg, #667eea 0%, #764ba2 100%)" py={{ base: 6, md: 10 }} px={{ base: 2, md: 0 }}>
       <Container maxW="720px" px={0}>
         {/* Header */}
@@ -551,6 +584,7 @@ const JobDescriptionPage: React.FC = () => {
         </Box>
       </Container>
     </Box>
+    </>
   );
 };
 

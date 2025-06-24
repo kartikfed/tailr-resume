@@ -7,6 +7,7 @@ import {
   ModalFooter,
   Button,
   VStack,
+  HStack,
   Text,
   Spinner,
   Heading,
@@ -25,14 +26,15 @@ interface RequirementCoverage {
   score: number;
 }
 
-interface UnalignedContent {
+interface ResumeCoverageItem {
   resume_chunk: string;
+  best_match: string | null;
   score: number;
 }
 
 interface BidirectionalAnalysis {
   requirementCoverage: RequirementCoverage[];
-  unalignedContent: UnalignedContent[];
+  resumeCoverage: ResumeCoverageItem[];
 }
 
 interface AnalyticsModalProps {
@@ -85,7 +87,7 @@ export const AnalyticsModal: React.FC<AnalyticsModalProps> = ({
             <Tabs isFitted variant="enclosed-colored" colorScheme="purple">
               <TabList mb="1em">
                 <Tab>Requirement Coverage</Tab>
-                <Tab>Unaligned Content</Tab>
+                <Tab>Resume Coverage</Tab>
               </TabList>
               <TabPanels>
                 <TabPanel>
@@ -104,18 +106,18 @@ export const AnalyticsModal: React.FC<AnalyticsModalProps> = ({
                 </TabPanel>
                 <TabPanel>
                   <VStack spacing={4} align="stretch">
-                    {(analysis.unalignedContent || []).length > 0 ? (
-                      (analysis.unalignedContent || []).map((item, index) => (
-                        <Box key={index} p={4} borderWidth="1px" borderRadius="lg" borderColor="yellow.300" bg="yellow.50">
-                          <Heading size="sm" mb={2} color="gray.700">Potentially Unaligned Content:</Heading>
-                          <Text mb={3} color="gray.800">"{item.resume_chunk}"</Text>
-                          <Text color="gray.600" fontSize="sm">
-                            This content has a low similarity score ({formatScore(item.score)}) to the key job requirements. Consider revising or removing it to better tailor your resume.
-                          </Text>
+                    {(analysis.resumeCoverage || []).length > 0 ? (
+                      (analysis.resumeCoverage || []).map((item, index) => (
+                        <Box key={index} p={4} borderWidth="1px" borderRadius="lg" borderColor="gray.200">
+                          <Text mb={3} color="gray.800" fontWeight="semibold">"{item.resume_chunk}"</Text>
+                          <Divider my={3} />
+                          <Text color="gray.600" fontSize="sm">Best Job Match:</Text>
+                          <Text mb={2} color="gray.800" fontStyle="italic">"{item.best_match || 'No strong match found'}"</Text>
+                          <Text color="gray.600">Similarity: {formatScore(item.score)}</Text>
                         </Box>
                       ))
                     ) : (
-                      <Text color="gray.600" textAlign="center" py={10}>No significant unaligned content found. Great job!</Text>
+                      <Text color="gray.600" textAlign="center" py={10}>Could not extract key content from resume.</Text>
                     )}
                   </VStack>
                 </TabPanel>

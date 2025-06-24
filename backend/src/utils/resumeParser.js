@@ -75,5 +75,59 @@ const extractTextChunks = (html) => {
 
   return Array.from(textChunks);
 };
+/**
+ * Extracts key resume content like bullet points and summary sentences from HTML.
+ * This function is designed to be more selective than extractTextChunks.
+ *
+ * @param {string} html - The HTML content of the resume.
+ * @returns {string[]} An array of unique, meaningful text chunks.
+ */
+const extractKeyResumeContent = (html) => {
+  if (typeof html !== 'string' || html.trim() === '') {
+    return [];
+  }
 
-module.exports = { extractTextChunks };
+  const $ = cheerio.load(html);
+  const keyChunks = new Set();
+  const tokenizer = new Tokenizer('Resume');
+
+  // Remove non-content tags
+  $('style, script, h1, h2, h3, h4, h5, h6').remove();
+
+  // 1. Extract bullet points from <li> tags
+  $('li').each((i, element) => {
+    const text = $(element).text().trim();
+    if (text) {
+      keyChunks.add(text);
+    }
+  });
+
+  // 2. Extract summary sentences from <p> tags with filtering
+  $('p').each((i, element) => {
+    const text = $(element).text().trim();
+
+    // Filtering logic
+    const isLikelyNoise =
+      isDateRange(text) ||
+      /(?:[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/.test(text) || // Email
+      /(?:\(\d{3}\)|\d{3})[-.\s]?\d{3}[-.\s]?\d{4}/.test(text) || // Phone
+      text.length < 15 ||
+      text.length > 300 ||
+      text.toUpperCase() === text; // ALL CAPS
+
+    if (text && !isLikelyNoise) {
+        tokenizer.setEntry(text);
+        const sentences = tokenizer.getSentences();
+        sentences.forEach(sentence => {
+          const trimmedSentence = sentence.trim();
+          if (trimmedSentence) {
+            keyChunks.add(trimmedSentence);
+          }
+        });
+    }
+  });
+
+  return Array.from(keyChunks);
+};
+
+module.exports = { extractTextChunks, extractKeyResumeContent };

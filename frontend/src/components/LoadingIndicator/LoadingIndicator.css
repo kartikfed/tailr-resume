@@ -1,0 +1,384 @@
+body {
+    margin: 0;
+    padding: 50px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: 'Arial', sans-serif;
+}
+
+.progress-container {
+    text-align: center;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 40px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.runner-container {
+    height: 140px;
+    position: relative;
+    margin: 0 auto 20px;
+    overflow: hidden;
+}
+
+.businessman {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    animation: bounce 0.6s ease-in-out infinite alternate, runAcross 5s linear infinite;
+}
+
+/* Head */
+.head {
+    width: 28px;
+    height: 32px;
+    background: #FFE7BA;
+    border-radius: 50%;
+    position: relative;
+    margin: 0 auto 3px;
+    border: 1px solid #E6D1A3;
+}
+
+/* Hair - Using SVG for proper styling */
+.hair {
+    position: absolute;
+    top: -16px;
+    left: 0px;
+    width: 60px;
+    height: 60px;
+}
+
+.hair svg {
+    width: 100%;
+    height: 100%;
+}
+
+/* Body - Suit jacket with tapered waist */
+.body {
+    width: 34px;
+    height: 40px;
+    background: #1a1a1a;
+    margin: 0 auto;
+    position: relative;
+    border-radius: 6px 6px 0 0;
+    box-shadow: inset 2px 0 0 rgba(255,255,255,0.15);
+    clip-path: polygon(15% 0%, 85% 0%, 95% 30%, 80% 100%, 20% 100%, 5% 30%);
+    z-index: 1;
+}
+
+/* Clean shoulder definition */
+.shoulder-line {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 12px;
+    background: #1a1a1a;
+    border-radius: 6px 6px 0 0;
+}
+
+/* Shirt */
+.shirt {
+    position: absolute;
+    top: 3px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 10px;
+    height: 22px;
+    background: #f8f8f8;
+    border-radius: 2px;
+    box-shadow: inset 1px 0 0 rgba(0,0,0,0.1);
+    clip-path: polygon(20% 0%, 80% 0%, 90% 60%, 70% 100%, 30% 100%, 10% 60%);
+}
+
+/* Bow tie for Bond look */
+.bow-tie {
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 8px;
+    height: 4px;
+    background: #2a2a2a;
+    border-radius: 2px;
+    z-index: 4;
+}
+
+.bow-tie::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 2px;
+    height: 3px;
+    background: #404040;
+    border-radius: 1px;
+}
+
+.bow-tie::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 2px;
+    transform: translateY(-50%);
+    width: 2px;
+    height: 2px;
+    background: #2a2a2a;
+    border-radius: 50%;
+    box-shadow: 4px 0 0 #2a2a2a;
+}
+
+/* Suit lapels */
+.lapel {
+    position: absolute;
+    top: 0;
+    width: 8px;
+    height: 15px;
+    background: #0d0d0d;
+    transform-origin: top;
+}
+
+.lapel.left {
+    left: 2px;
+    transform: skew(-15deg);
+    border-radius: 0 0 0 4px;
+}
+
+.lapel.right {
+    right: 2px;
+    transform: skew(15deg);
+    border-radius: 0 0 4px 0;
+}
+
+/* Arms */
+.arms {
+    position: absolute;
+    top: 5px;
+    width: 100%;
+    z-index: 10;
+}
+
+.arm {
+    position: absolute;
+    width: 4px;
+    height: 18px;
+    background: #1a1a1a;
+    border-radius: 2px;
+    transform-origin: top center;
+    z-index: 10;
+}
+
+.arm.left {
+    left: -3px;
+    animation: armSwing 0.6s ease-in-out infinite;
+}
+
+.arm.right {
+    right: -3px;
+    animation: armSwing 0.6s ease-in-out infinite reverse;
+}
+
+/* Hands */
+.hand {
+    position: absolute;
+    bottom: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 5px;
+    height: 5px;
+    background: #FFE7BA;
+    border-radius: 50%;
+    border: 1px solid #E6D1A3;
+}
+
+/* Legs */
+.legs {
+    position: relative;
+    top: -3px;
+}
+
+.leg {
+    position: absolute;
+    width: 6px;
+    height: 28px;
+    background: #1a1a1a;
+    border-radius: 0 0 3px 3px;
+    left: 50%;
+    transform-origin: top center;
+}
+
+.leg.left {
+    margin-left: -8px;
+    animation: legWalkLeft 1.2s ease-in-out infinite;
+}
+
+.leg.right {
+    margin-left: 2px;
+    animation: legWalkRight 1.2s ease-in-out infinite;
+}
+
+/* Shoes */
+.shoe {
+    position: absolute;
+    bottom: -5px;
+    left: -2px;
+    width: 10px;
+    height: 5px;
+    background: #000;
+    border-radius: 3px;
+    box-shadow: 0 2px 0 rgba(0,0,0,0.3);
+}
+
+.progress-text {
+    color: white;
+    font-size: 18px;
+    font-weight: 600;
+    margin-top: 10px;
+    opacity: 0.9;
+}
+
+.loading-dots {
+    display: inline-block;
+    animation: dots 1.5s infinite;
+}
+
+/* Animations */
+@keyframes legWalkLeft {
+    0% { 
+        transform: rotate(-15deg);
+    }
+    50% { 
+        transform: rotate(25deg);
+    }
+    100% { 
+        transform: rotate(-15deg);
+    }
+}
+
+@keyframes legWalkRight {
+    0% { 
+        transform: rotate(25deg);
+    }
+    50% { 
+        transform: rotate(-15deg);
+    }
+    100% { 
+        transform: rotate(25deg);
+    }
+}
+
+@keyframes bounce {
+    0% { transform: translate(-50%, -50%) translateY(0px); }
+    25% { transform: translate(-50%, -50%) translateY(-6px); }
+    50% { transform: translate(-50%, -50%) translateY(-2px); }
+    75% { transform: translate(-50%, -50%) translateY(-8px); }
+    100% { transform: translate(-50%, -50%) translateY(0px); }
+}
+
+@keyframes armSwing {
+    0%, 100% { transform: rotate(-30deg); }
+    50% { transform: rotate(30deg); }
+}
+
+@keyframes legRun {
+    0%, 100% { 
+        transform: rotate(-15deg) translateY(0px);
+    }
+    50% { 
+        transform: rotate(15deg) translateY(-2px);
+    }
+}
+
+@keyframes dots {
+    0%, 20% { opacity: 0; }
+    50% { opacity: 1; }
+    80%, 100% { opacity: 0; }
+}
+
+/* Floating particles for extra flair */
+.particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.6);
+    border-radius: 50%;
+    animation: float 3s ease-in-out infinite;
+}
+
+.particle:nth-child(1) {
+    top: 20%;
+    left: 10%;
+    animation-delay: 0s;
+}
+
+.particle:nth-child(2) {
+    top: 60%;
+    left: 90%;
+    animation-delay: 1s;
+}
+
+.particle:nth-child(3) {
+    top: 80%;
+    left: 20%;
+    animation-delay: 2s;
+}
+
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0px) rotate(0deg);
+        opacity: 1;
+    }
+    50% {
+        transform: translateY(-20px) rotate(180deg);
+        opacity: 0.5;
+    }
+}
+
+/* Speed lines for motion effect */
+.speed-lines {
+    position: absolute;
+    top: 50%;
+    left: 10%;
+    transform: translateY(-50%);
+    opacity: 0.3;
+}
+
+.speed-line {
+    width: 20px;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.5);
+    margin: 4px 0;
+    border-radius: 1px;
+    animation: speedLine 0.6s ease-in-out infinite;
+}
+
+.speed-line:nth-child(2) {
+    animation-delay: 0.2s;
+    width: 15px;
+}
+
+.speed-line:nth-child(3) {
+    animation-delay: 0.4s;
+    width: 10px;
+}
+
+@keyframes speedLine {
+    0% { opacity: 0; transform: translateX(0px); }
+    50% { opacity: 1; transform: translateX(-10px); }
+    100% { opacity: 0; transform: translateX(-20px); }
+}
+
+@keyframes runAcross {
+    0% {
+        left: 0%;
+    }
+    100% {
+        left: 100%;
+    }
+}

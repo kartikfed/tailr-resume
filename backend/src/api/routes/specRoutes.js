@@ -11,7 +11,7 @@ const { extractPdfText, extractPdfMarkdown } = require('../../utils/pdfExtract')
 const { extractJobDescription } = require('../../utils/jobScraper');
 const { handleUpdateResumeContent, resumeStore } = require('../../services/toolHandlers');
 const { generateEmbeddings } = require('../../services/embeddingService');
-const { extractTextChunks } = require('../../utils/resumeParser');
+const { extractTextChunks, extractKeyResumeContent } = require('../../utils/resumeParser');
 const puppeteer = require('puppeteer');
  
  // Simple in-memory storage for conversation history and files
@@ -537,6 +537,8 @@ Prioritize keywords by recruiter search likelihood
 Include industry-specific terminology
 Identify exact phrases that commonly appear in ATS searches
 
+
+
 Response Format:
 json{
   "job_title": "exact job title from posting",
@@ -590,6 +592,9 @@ json{
     ]
   }
 }
+
+For the required_skills, preferred_qualifications, key_responsibilities, and exact_phrases fields, ensure that items are ordered by importance to the job, with the most important one being first.
+
 Key Focus Areas:
 Prioritize by recruiter search patterns:
 
@@ -975,42 +980,34 @@ router.post('/analyze-similarity', async (req, res) => {
       return res.status(400).json({ error: 'jobRequirements and resumeHtml are required.' });
     }
 
-    // 1. Extract text from job requirements and resume
+    // 1. Extract text from job requirements and resume for both analyses
     const requirementTexts = [
       ...jobRequirements.required_skills,
       ...jobRequirements.preferred_qualifications,
       ...jobRequirements.key_responsibilities,
+      ...(jobRequirements.exact_phrases || []),
     ].filter(text => text && text.trim() !== '');
 
-    const resumeTexts = extractTextChunks(resumeHtml);
+    const allResumeTexts = extractTextChunks(resumeHtml);
+    const keyResumeTexts = extractKeyResumeContent(resumeHtml);
 
-    // --- DIAGNOSTIC LOGGING ---
-    console.log('--- Resume Analytics Debug ---');
-    console.log('Number of requirements found:', requirementTexts.length);
-    console.log('Number of resume chunks found:', resumeTexts.length);
-    console.log('First 5 resume chunks:', resumeTexts.slice(0, 5));
-    console.log('--------------------------');
-
-    if (requirementTexts.length === 0 || resumeTexts.length === 0) {
-      return res.status(400).json({ error: 'Could not extract text from job requirements or resume.' });
+    if (requirementTexts.length === 0) {
+      return res.status(400).json({ error: 'Could not extract text from job requirements.' });
     }
 
-    // 2. Generate embeddings for both sets of text
-    const [requirementEmbeddings, resumeEmbeddings] = await Promise.all([
+    // 2. Generate embeddings for all text sets
+    const [requirementEmbeddings, allResumeEmbeddings, keyResumeEmbeddings] = await Promise.all([
       generateEmbeddings(requirementTexts),
-      generateEmbeddings(resumeTexts),
+      generateEmbeddings(allResumeTexts),
+      generateEmbeddings(keyResumeTexts),
     ]);
 
-    // 3. Perform bidirectional analysis
+    // 3. Perform Requirement Coverage analysis (existing logic)
     const requirementCoverage = [];
-    const unalignedContent = [];
-    const similarityThreshold = 0.5; // Threshold for considering content unaligned
-
-    // Calculate requirement coverage by finding the best resume match for each job requirement
     requirementTexts.forEach((reqText, reqIndex) => {
       let bestMatch = { score: -1, resume_chunk: null };
-      resumeTexts.forEach((resumeText, resumeIndex) => {
-        const score = cosineSimilarity(requirementEmbeddings[reqIndex], resumeEmbeddings[resumeIndex]);
+      allResumeTexts.forEach((resumeText, resumeIndex) => {
+        const score = cosineSimilarity(requirementEmbeddings[reqIndex], allResumeEmbeddings[resumeIndex]);
         if (score > bestMatch.score) {
           bestMatch = { score, resume_chunk: resumeText };
         }
@@ -1022,42 +1019,34 @@ router.post('/analyze-similarity', async (req, res) => {
       });
     });
 
-    // Calculate unaligned resume content by finding resume chunks with low similarity to all requirements
-    resumeTexts.forEach((resumeText, resumeIndex) => {
-      let maxSimilarity = -1;
-      requirementEmbeddings.forEach((reqEmbedding, reqIndex) => {
-        const score = cosineSimilarity(resumeEmbeddings[resumeIndex], reqEmbedding);
-        if (score > maxSimilarity) {
-          maxSimilarity = score;
+    // 4. Perform Resume Coverage analysis (new logic)
+    const resumeCoverage = [];
+    keyResumeTexts.forEach((resumeText, resumeIndex) => {
+      let bestMatchForChunk = { score: -1, requirement: null };
+      requirementTexts.forEach((reqText, reqIndex) => {
+        const score = cosineSimilarity(keyResumeEmbeddings[resumeIndex], requirementEmbeddings[reqIndex]);
+        if (score > bestMatchForChunk.score) {
+          bestMatchForChunk = { score, requirement: reqText };
         }
       });
-
-      if (maxSimilarity < similarityThreshold) {
-        unalignedContent.push({
-          resume_chunk: resumeText,
-          score: maxSimilarity,
-        });
-      }
+      resumeCoverage.push({
+        resume_chunk: resumeText,
+        best_match: bestMatchForChunk.requirement,
+        score: bestMatchForChunk.score,
+      });
     });
 
-    // Sort results for better presentation
+    // 5. Sort results
     requirementCoverage.sort((a, b) => b.score - a.score);
-    unalignedContent.sort((a, b) => a.score - b.score);
+    resumeCoverage.sort((a, b) => b.score - a.score);
 
     res.json({
       message: 'Similarity analysis completed successfully.',
       analysis: {
         requirementCoverage,
-        unalignedContent,
+        resumeCoverage, // Changed from unalignedContent
       },
     });
-
-    // --- FINAL DIAGNOSTIC LOG ---
-    console.log('--- Final Analysis Results ---');
-    console.log('Requirement Coverage Count:', requirementCoverage.length);
-    console.log('Unaligned Content Count:', unalignedContent.length);
-    console.log('--------------------------');
-
 
   } catch (error) {
     console.error('Error in similarity analysis endpoint:', error);
