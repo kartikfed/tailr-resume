@@ -14,6 +14,7 @@ import {
 } from '@chakra-ui/react';
 import { FiHome, FiUser } from 'react-icons/fi';
 import { supabase } from '../../services/supabase';
+import { useAuth } from '../../contexts/AuthContext';
 import { ProfileEditModal } from '../Profile';
 
 interface SidebarProps {
@@ -82,17 +83,18 @@ export const Sidebar: FC<SidebarProps> = ({ className }) => {
   /**
    * Handles user logout
    */
+  const { signOut } = useAuth();
+
   const handleLogout = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      await signOut();
       toast({
         title: 'Logged out successfully',
         status: 'success',
         duration: 3000,
         isClosable: true,
       });
-      navigate('/login');
+      navigate('/');
     } catch (error: any) {
       toast({
         title: 'Error logging out',

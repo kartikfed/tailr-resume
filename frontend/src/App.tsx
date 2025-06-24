@@ -12,6 +12,7 @@ import { EmailAuth } from './pages/EmailAuth';
 import { Register } from './pages/Register';
 import { Dashboard } from './pages/Dashboard';
 import { Sidebar } from './components/Sidebar';
+import { LandingPage } from './pages/LandingPage';
 
 import { theme } from './theme';
 import ApplicationDetails from './pages/ApplicationDetails';
@@ -25,7 +26,7 @@ interface PrivateRouteProps {
 
 const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
   const { user } = useAuth();
-  return user ? <>{children}</> : <Navigate to="/login" />;
+  return user ? <>{children}</> : <Navigate to="/" />;
 };
 
 const App: React.FC = () => {
@@ -38,12 +39,13 @@ const App: React.FC = () => {
           <Box minH="100vh" minW="100vw" w="100vw" h="100vh" position="fixed" top={0} left={0} zIndex={-1} bg="linear-gradient(135deg, #667eea 0%, #764ba2 100%)" />
           <Box minH="100vh" minW="100vw" w="100vw" h="100vh" position="relative">
             <Routes>
+              <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/auth/email" element={<EmailAuth />} />
               <Route path="/register" element={<Register />} />
               <Route
-                path="/"
+                path="/dashboard"
                 element={
                   <PrivateRoute>
                     <>
