@@ -968,7 +968,7 @@ router.post('/export-pdf', async (req, res) => {
     };
 
     if (process.env.NODE_ENV === 'production') {
-      puppeteerOptions.executablePath = '/usr/bin/chromium-browser';
+      puppeteerOptions.executablePath = '/usr/bin/chromium';
     }
 
     const browser = await puppeteer.launch(puppeteerOptions);

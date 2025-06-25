@@ -3,7 +3,7 @@ services:
     name: ai-spec-assistant-backend
     env: node
     nodeVersion: 18.17.0
-    buildCommand: apt-get update && apt-get install -y chromium-browser && cd backend && npm install && npm run build
+    buildCommand: apt-get update && apt-get install -y chromium --no-install-recommends && cd backend && npm install && npm run build
     startCommand: cd backend && npm start
     envVars:
       - key: NODE_ENV
