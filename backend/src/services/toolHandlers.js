@@ -40,6 +40,12 @@ ${context ? JSON.stringify(context, null, 2) : 'No additional context provided'}
 3. Generate the revised version
 4. Return the exact HTML element to replace and the new content
 
+IMPORTANT: For the elementSelector, you MUST provide a valid CSS selector that uniquely identifies the element to be modified.
+
+IMPORTANT: No hallucinations are allowed. The revision must NOT introduce new content that is not present in the original content.
+
+IMPORTANT: The revision must be identical or as similar as possible in length to the original content.
+
 Return JSON: {
   "targetElement": "exact HTML of element to replace",
   "newContent": "revised content",

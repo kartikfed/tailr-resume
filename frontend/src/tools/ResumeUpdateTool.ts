@@ -35,7 +35,12 @@ The user wants to: "${userInstruction}"
 Additional context:
 ${context ? JSON.stringify(context, null, 2) : 'No additional context provided'}
 
-1. Identify what content they're referring to
+1. Identify what content they're referring to by:
+* Looking for semantic matches (e.g., "skills" section)
+* Considering the content type (e.g., lists, paragraphs)
+* Using flexible matching to find similar content
+
+
 2. Extract the current text of that content
 3. Generate the revised version. 
 4. Return the exact HTML element to replace and the new content

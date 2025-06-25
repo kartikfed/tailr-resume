@@ -125,7 +125,7 @@ export const Sidebar: FC<SidebarProps> = ({ className }) => {
       borderRadius="0 16px 16px 0"
     >
       {/* Logo Section */}
-      <Box px={6} pt={8} pb={6} borderBottomWidth="0.5px" borderBottomColor="rgba(0,0,0,0.06)">
+      <Box px={6} pt={8} pb={6} borderBottomWidth="0.5px" borderBottomColor="rgba(0,0,0,0.06)" onClick={() => handleNavigation('/')} cursor="pointer">
         <Flex align="center" gap={3}>
           <Box
             w="32px"
@@ -169,7 +169,7 @@ export const Sidebar: FC<SidebarProps> = ({ className }) => {
           _hover={{ bg: 'rgba(0,0,0,0.03)', color: '#1a1a1a' }}
           _active={{ bg: activeBg }}
           aria-label="Dashboard"
-          onClick={() => handleNavigation('/')}
+          onClick={() => handleNavigation('/dashboard')}
           position="relative"
           boxShadow="none"
         >
