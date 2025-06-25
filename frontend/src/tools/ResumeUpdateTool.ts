@@ -51,6 +51,8 @@ IMPORTANT: No hallucinations are allowed. The revision must NOT introduce new co
 
 IMPORTANT: The revision must be identical or as similar as possible in length to the original content.
 
+IMPORTANT: Avoid generic language. The revisions should sound authentic, personalized, and should humanize the candidate.
+
 Return JSON: {
   "targetElement": "exact HTML of element to replace",
   "newContent": "revised content",

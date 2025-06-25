@@ -35,6 +35,7 @@ interface ResumeCoverageItem {
 interface BidirectionalAnalysis {
   requirementCoverage: RequirementCoverage[];
   resumeCoverage: ResumeCoverageItem[];
+  overallFitScore?: number;
 }
 
 interface AnalyticsModalProps {
@@ -77,52 +78,62 @@ export const AnalyticsModal: React.FC<AnalyticsModalProps> = ({
           </Text>
         </Box>
 
-        <ModalBody px={0} py={6} bg="white">
+        <ModalBody px={6} py={6} bg="white">
           {isLoading ? (
             <VStack spacing={4} justify="center" h="300px">
               <Spinner size="xl" color={sectionTitleColor} />
               <Text color="gray.600">Analyzing...</Text>
             </VStack>
           ) : analysis ? (
-            <Tabs isFitted variant="enclosed-colored" colorScheme="purple">
-              <TabList mb="1em">
-                <Tab>Requirement Coverage</Tab>
-                <Tab>Resume Coverage</Tab>
-              </TabList>
-              <TabPanels>
-                <TabPanel>
-                  <VStack spacing={4} align="stretch">
-                    {(analysis.requirementCoverage || []).map((item, index) => (
-                      <Box key={index} p={4} borderWidth="1px" borderRadius="lg" borderColor="gray.200">
-                        <Heading size="sm" mb={2} color="gray.700">Job Requirement:</Heading>
-                        <Text mb={3} color="gray.800" fontWeight="semibold">"{item.requirement}"</Text>
-                        <Divider my={3} />
-                        <Text color="gray.600" fontSize="sm">Best Resume Match:</Text>
-                        <Text mb={2} color="gray.800" fontStyle="italic">"{item.best_match || 'No strong match found'}"</Text>
-                        <Text color="gray.600">Similarity: {formatScore(item.score)}</Text>
-                      </Box>
-                    ))}
-                  </VStack>
-                </TabPanel>
-                <TabPanel>
-                  <VStack spacing={4} align="stretch">
-                    {(analysis.resumeCoverage || []).length > 0 ? (
-                      (analysis.resumeCoverage || []).map((item, index) => (
+            <VStack spacing={6} align="stretch">
+              {typeof analysis.overallFitScore === 'number' && (
+                <Box textAlign="center" p={4} bg="gray.50" borderRadius="lg">
+                  <Heading size="md" color="gray.700" mb={2}>Overall Fit Score</Heading>
+                  <Text fontSize="4xl" fontWeight="bold" color={sectionTitleColor}>
+                    {(analysis.overallFitScore * 100).toFixed(1)}%
+                  </Text>
+                </Box>
+              )}
+              <Tabs isFitted variant="enclosed-colored" colorScheme="purple">
+                <TabList mb="1em">
+                  <Tab>Requirement Coverage</Tab>
+                  <Tab>Resume Coverage</Tab>
+                </TabList>
+                <TabPanels>
+                  <TabPanel>
+                    <VStack spacing={4} align="stretch">
+                      {(analysis.requirementCoverage || []).map((item, index) => (
                         <Box key={index} p={4} borderWidth="1px" borderRadius="lg" borderColor="gray.200">
-                          <Text mb={3} color="gray.800" fontWeight="semibold">"{item.resume_chunk}"</Text>
+                          <Heading size="sm" mb={2} color="gray.700">Job Requirement:</Heading>
+                          <Text mb={3} color="gray.800" fontWeight="semibold">"{item.requirement}"</Text>
                           <Divider my={3} />
-                          <Text color="gray.600" fontSize="sm">Best Job Match:</Text>
+                          <Text color="gray.600" fontSize="sm">Best Resume Match:</Text>
                           <Text mb={2} color="gray.800" fontStyle="italic">"{item.best_match || 'No strong match found'}"</Text>
                           <Text color="gray.600">Similarity: {formatScore(item.score)}</Text>
                         </Box>
-                      ))
-                    ) : (
-                      <Text color="gray.600" textAlign="center" py={10}>Could not extract key content from resume.</Text>
-                    )}
-                  </VStack>
-                </TabPanel>
-              </TabPanels>
-            </Tabs>
+                      ))}
+                    </VStack>
+                  </TabPanel>
+                  <TabPanel>
+                    <VStack spacing={4} align="stretch">
+                      {(analysis.resumeCoverage || []).length > 0 ? (
+                        (analysis.resumeCoverage || []).map((item, index) => (
+                          <Box key={index} p={4} borderWidth="1px" borderRadius="lg" borderColor="gray.200">
+                            <Text mb={3} color="gray.800" fontWeight="semibold">"{item.resume_chunk}"</Text>
+                            <Divider my={3} />
+                            <Text color="gray.600" fontSize="sm">Best Job Match:</Text>
+                            <Text mb={2} color="gray.800" fontStyle="italic">"{item.best_match || 'No strong match found'}"</Text>
+                            <Text color="gray.600">Similarity: {formatScore(item.score)}</Text>
+                          </Box>
+                        ))
+                      ) : (
+                        <Text color="gray.600" textAlign="center" py={10}>Could not extract key content from resume.</Text>
+                      )}
+                    </VStack>
+                  </TabPanel>
+                </TabPanels>
+              </Tabs>
+            </VStack>
           ) : (
             <Text color="gray.600" textAlign="center" py={10}>No analysis results to display.</Text>
           )}

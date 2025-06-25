@@ -11,6 +11,7 @@ const { extractPdfText, extractPdfMarkdown } = require('../../utils/pdfExtract')
 const { extractJobDescription } = require('../../utils/jobScraper');
 const { handleUpdateResumeContent, resumeStore } = require('../../services/toolHandlers');
 const { generateEmbeddings } = require('../../services/embeddingService');
+const { calculateOverallFitScore } = require('../../services/scoringService');
 const { extractTextChunks, extractKeyResumeContent } = require('../../utils/resumeParser');
 const puppeteer = require('puppeteer');
 const { JSDOM } = require('jsdom');
@@ -956,10 +957,21 @@ router.post('/export-pdf', async (req, res) => {
 
     const modifiedHtml = dom.serialize();
 
-    const browser = await puppeteer.launch({
+    const puppeteerOptions = {
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    });
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--single-process'
+      ],
+    };
+
+    if (process.env.NODE_ENV === 'production') {
+      puppeteerOptions.executablePath = '/usr/bin/chromium-browser';
+    }
+
+    const browser = await puppeteer.launch(puppeteerOptions);
     const page = await browser.newPage();
 
     await page.setContent(modifiedHtml, {
@@ -1084,7 +1096,25 @@ router.post('/analyze-similarity', async (req, res) => {
       });
     });
 
-    // 5. Sort results
+    // 5. Convert coverage arrays to objects for scoring
+    const requirementCoverageMap = requirementCoverage.reduce((acc, item) => {
+      acc[item.requirement] = item.score;
+      return acc;
+    }, {});
+
+    const resumeCoverageMap = resumeCoverage.reduce((acc, item) => {
+      acc[item.resume_chunk] = item.score;
+      return acc;
+    }, {});
+
+    // 6. Calculate the overall fit score
+    const overallFitScore = calculateOverallFitScore(
+      jobRequirements,
+      requirementCoverageMap,
+      resumeCoverageMap
+    );
+
+    // 7. Sort results for display
     requirementCoverage.sort((a, b) => b.score - a.score);
     resumeCoverage.sort((a, b) => b.score - a.score);
 
@@ -1092,7 +1122,8 @@ router.post('/analyze-similarity', async (req, res) => {
       message: 'Similarity analysis completed successfully.',
       analysis: {
         requirementCoverage,
-        resumeCoverage, // Changed from unalignedContent
+        resumeCoverage,
+        overallFitScore,
       },
     });
 

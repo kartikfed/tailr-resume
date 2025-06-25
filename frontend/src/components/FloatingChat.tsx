@@ -181,34 +181,30 @@ const FloatingChat: React.FC<ChatProps> = (props) => {
         />
 
         {/* Chat Interface with custom animation */}
-        <AnimatePresence mode="wait" onExitComplete={handleAnimationComplete}>
-          {isOpen && (
-            <motion.div
-              ref={chatPaneRef}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
-              variants={chatPaneVariants}
-              onAnimationComplete={handleAnimationComplete}
-              style={{
-                position: 'fixed',
-                right: 16,
-                bottom: 80,
-                width: 'min(700px, 100vw - 2rem)',
-                height: 'min(800px, 100vh - 6rem)',
-                zIndex: 999,
-                borderRadius: 20,
-                overflow: 'hidden',
-                boxShadow: '0 8px 32px 0 rgba(80, 80, 255, 0.18), 0 2px 8px 0 rgba(80, 80, 255, 0.10)',
-                background: bgColor,
-                display: 'flex',
-                flexDirection: 'column',
-              }}
-            >
-              <ChatInterface {...props} onUpdateMessages={onUpdateMessages} onCollapse={handleCollapse} />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <motion.div
+          ref={chatPaneRef}
+          initial="hidden"
+          animate={isOpen ? 'visible' : 'hidden'}
+          variants={chatPaneVariants}
+          onAnimationComplete={handleAnimationComplete}
+          style={{
+            position: 'fixed',
+            right: 16,
+            bottom: 80,
+            width: 'min(700px, 100vw - 2rem)',
+            height: 'min(800px, 100vh - 6rem)',
+            zIndex: 999,
+            borderRadius: 20,
+            overflow: 'hidden',
+            boxShadow: '0 8px 32px 0 rgba(80, 80, 255, 0.18), 0 2px 8px 0 rgba(80, 80, 255, 0.10)',
+            background: bgColor,
+            display: 'flex',
+            flexDirection: 'column',
+            pointerEvents: isOpen ? 'auto' : 'none',
+          }}
+        >
+          <ChatInterface {...props} onUpdateMessages={onUpdateMessages} onCollapse={handleCollapse} />
+        </motion.div>
       </Box>
     </Portal>
   );
