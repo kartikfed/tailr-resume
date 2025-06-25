@@ -13,6 +13,7 @@ const { handleUpdateResumeContent, resumeStore } = require('../../services/toolH
 const { generateEmbeddings } = require('../../services/embeddingService');
 const { extractTextChunks, extractKeyResumeContent } = require('../../utils/resumeParser');
 const puppeteer = require('puppeteer');
+const { JSDOM } = require('jsdom');
  
  // Simple in-memory storage for conversation history and files
  // In production, use a database
@@ -823,44 +824,51 @@ router.post('/pdf-to-html', async (req, res) => {
     }
 
     // Create system prompt for Claude
-    const systemPrompt = `You are a document conversion specialist that transforms resume PDFs into semantic, AI-friendly HTML with perfect visual fidelity and structured data attributes.
+    const systemPrompt = `You are a document conversion specialist that transforms resume PDFs into semantic, AI-friendly HTML with perfect visual fidelity and structured data attributes, specifically optimized for printing.
 
 Core Requirements:
 
-CRITICAL: The html must be visually indistinguishable from the original PDF. 
+CRITICAL: The HTML must be visually indistinguishable from the original PDF AND print correctly on a standard Letter-sized page (8.5" x 11").
 
-1. Editable Elements
-* Every editable element MUST have be generated in a way to make it easy for the AI to make targeted edits
+1.  **Print-First Structure:**
+    *   The entire resume content MUST be wrapped in a single container div with a class like resume-container.
+    *   This container should be styled to match standard paper dimensions (e.g., width: 8.5in; height: 11in; padding: 0.5in; box-sizing: border-box;).
+    *   Use consistent margin and padding for spacing. AVOID using empty <div>or <br> tags to create space. Use margin-bottom on elements like <p>, <h1>, etc.
 
-2. Visual Fidelity
-* Match original PDF EXACTLY:
-  - Typography (font sizes, weights, styles)
-  - Layout (spacing, alignment, indentation)
-  - Colors (text, accents, borders)
-  - Visual hierarchy
-  - Non-text elements (lines, separators, etc)
+2.  **Editable Elements:**
+    *   Every editable element MUST be generated in a way that makes it easy for the AI to make targeted edits. Use semantic class names (e.g., class="job-title", class="company-name").
 
-3. Quality Checklist
-Before finalizing, verify:
-* Every editable element is generated in a way to make it easy for the AI to make targeted edits
-* All content is properly grouped
-* No duplicate IDs exist
-* All required attributes are present
+3.  **Visual Fidelity:**
+    *   Match the original PDF EXACTLY in typography, layout, colors, and hierarchy.
+    *   All styles MUST be contained within a single <style> tag in the <head> of the document.
+
+4.  **Print-Specific CSS:**
+    *   Include a '@media print' block in your CSS.
+    *   Inside the '@media print' block, ensure the following:
+        *   body, html { margin: 0; padding: 0; }
+        *   .resume-container { box-shadow: none; margin: 0; }
+        *   Ensure no extra margins or padding are added that would cause the content to overflow a single page.
+
+5.  **Quality Checklist:**
+    *   Before finalizing, verify:
+        *   The HTML fits on a single 8.5" x 11" page without overflow.
+        *   All content is properly grouped and editable.
+        *   No duplicate IDs exist.
+        *   All required attributes are present.
 
 Process:
-1. Analyze content structure
-2. Generate html that is easy for the AI to make targeted edits
-3. Validate all requirements
+1.  Analyze the content structure of the PDF.
+2.  Generate HTML with a single main container and semantic class names.
+3.  Create embedded CSS, including a @media print block, to ensure visual and print fidelity.
+4.  Validate all requirements.
 
 Output:
-Deliver HTML that:
-- Has unique, semantic identifiers
-- Includes rich context for AI targeting
-- Every single element must have a unique CSS selector
-- Preserves original content
-- Groups related information
-- Maintains visual structure
-- Has embedded CSS that is visually indistinguishable from the original PDF;`
+Deliver a single HTML file that:
+- Has a main container div styled for a standard Letter page.
+- Has unique, semantic identifiers for all elements.
+- Includes rich context for AI targeting.
+- Preserves original content and visual structure.
+- Has a single embedded <style> block with print-friendly CSS.`
 
     // Send to Claude with properly formatted message content
     const messages = [
@@ -918,7 +926,35 @@ router.post('/export-pdf', async (req, res) => {
       return res.status(400).json({ error: 'htmlContent is required' });
     }
 
-    console.log('Received HTML for PDF export:', htmlContent);
+    // Parse the HTML content
+    const dom = new JSDOM(htmlContent);
+    const { document } = dom.window;
+
+    // Find and modify the existing style tag
+    const existingStyle = document.querySelector('style');
+    if (existingStyle) {
+      let css = existingStyle.innerHTML;
+      // Remove problematic styles
+      css = css.replace(/max-width:\s*800px;/g, 'width: 8.1in;');
+      css = css.replace(/padding:\s*20px;/g, 'padding: 0.2in;');
+
+      // Add rules to reduce vertical spacing
+      css += `
+        p, li {
+          line-height: 1.2 !important;
+          margin-bottom: 4px !important;
+        }
+        ul {
+          margin-top: 4px !important;
+        }
+        .job {
+            margin-bottom: 10px !important;
+        }
+      `;
+      existingStyle.innerHTML = css;
+    }
+
+    const modifiedHtml = dom.serialize();
 
     const browser = await puppeteer.launch({
       headless: true,
@@ -926,34 +962,14 @@ router.post('/export-pdf', async (req, res) => {
     });
     const page = await browser.newPage();
 
-    await page.setContent(htmlContent, {
+    await page.setContent(modifiedHtml, {
       waitUntil: 'networkidle0',
     });
 
-    const { width, height } = await page.evaluate(() => {
-      const body = document.body;
-      const html = document.documentElement;
-      const width = Math.max(
-        body.scrollWidth,
-        body.offsetWidth,
-        html.clientWidth,
-        html.scrollWidth,
-        html.offsetWidth
-      );
-      const height = Math.max(
-        body.scrollHeight,
-        body.offsetHeight,
-        html.clientHeight,
-        html.scrollHeight,
-        html.offsetHeight
-      );
-      return { width, height };
-    });
-
     const pdfBuffer = await page.pdf({
-      width: `${width}px`,
-      height: `${height}px`,
+      format: 'Letter',
       printBackground: true,
+      scale: 0.72,
     });
 
     await browser.close();
@@ -964,6 +980,38 @@ router.post('/export-pdf', async (req, res) => {
   } catch (error) {
     console.error('Error exporting PDF:', error);
     res.status(500).json({ error: 'Failed to export PDF' });
+  }
+});
+
+router.delete('/spec/applications/:id', async (req, res) => {
+  const { id } = req.params;
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return res.status(401).json({ error: 'User not authenticated' });
+  }
+
+  try {
+    // First, delete all resume_versions associated with the job application
+    const { error: versionsError } = await supabase
+      .from('resume_versions')
+      .delete()
+      .eq('job_application_id', id);
+
+    if (versionsError) throw versionsError;
+
+    // Then, delete the job application itself
+    const { error: appError } = await supabase
+      .from('job_applications')
+      .delete()
+      .eq('id', id);
+
+    if (appError) throw appError;
+
+    res.status(200).json({ message: 'Job application deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting job application:', error);
+    res.status(500).json({ error: 'Failed to delete job application' });
   }
 });
 

@@ -568,6 +568,7 @@ const ApplicationDetails: React.FC = () => {
     }
   };
 
+
   const handleToolResponse = (response: ToolResponse) => {
     if (response.success && response.newHtml && resume) {
       setUnsavedResumeContent(response.newHtml);

@@ -43,6 +43,12 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(morgan('dev'));
 
+// Add a request logger to see the incoming URLs
+app.use((req, res, next) => {
+  console.log(`[Request Logger] Received request for: ${req.originalUrl}`);
+  next();
+});
+
 // Routes
 app.use('/api/spec', specRoutes);
 

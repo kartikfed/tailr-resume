@@ -37,14 +37,14 @@ const ResumeViewer: React.FC<ResumeViewerProps> = ({ html, className = '' }) => 
   return (
     <div className={`resume-viewer-container ${className}`}>
       <div className="resume-controls">
-        <button 
+        <button
           onClick={handlePrint}
           className="print-button"
         >
           Print Resume
         </button>
       </div>
-      <div 
+      <div
         ref={containerRef}
         className="resume-content"
         dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
@@ -116,4 +116,4 @@ const ResumeViewer: React.FC<ResumeViewerProps> = ({ html, className = '' }) => 
   );
 };
 
-export default ResumeViewer; 
+export default ResumeViewer;

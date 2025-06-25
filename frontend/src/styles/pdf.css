@@ -103,8 +103,15 @@
 
 /* Print styles */
 @media print {
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
   .pdf-html-content {
     font-size: 12pt;
+    margin: 0;
+    padding: 0;
   }
 
   .pdf-html-content h1 {
@@ -133,3 +140,6 @@
     page-break-inside: avoid;
   }
 } 
+@page {
+  margin: 0.5in !important;
+}

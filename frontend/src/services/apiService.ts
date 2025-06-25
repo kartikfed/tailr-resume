@@ -61,6 +61,22 @@ export const apiService = {
     }
   },
 
+  async delete(endpoint: string): Promise<ApiResponse<any>> {
+    try {
+      const response = await axios.delete(`${API_BASE_URL}${endpoint}`);
+      return { data: response.data, error: null };
+    } catch (error) {
+      console.error('API request failed:', error);
+      if (axios.isAxiosError(error)) {
+        return {
+          data: null,
+          error: new Error(error.response?.data?.message || error.message || 'API request failed')
+        };
+      }
+      return { data: null, error: error as Error };
+    }
+  },
+
   async sendMessage(
     conversationId: string,
     message: string,

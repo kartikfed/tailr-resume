@@ -10,10 +10,19 @@ import {
   useToast,
   Spinner,
   Flex,
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogContent,
+  AlertDialogOverlay,
+  useDisclosure,
+  HStack,
 } from '@chakra-ui/react';
-import { AddIcon, ArrowUpIcon } from '@chakra-ui/icons';
+import { AddIcon, ArrowUpIcon, DeleteIcon } from '@chakra-ui/icons';
 import { ResumeManager } from '../components/ResumeManager';
 import { JobApplication } from '../types/jobApplication';
+import { apiService } from '../services/apiService';
 
 /**
  * Dashboard page for managing resumes and job applications
@@ -24,6 +33,9 @@ export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const toast = useToast();
   const resumeManagerRef = useRef<any>(null);
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [selectedApplication, setSelectedApplication] = useState<JobApplication | null>(null);
+  const cancelRef = useRef<any>();
 
   // Design colors
   const gradientBg = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
@@ -62,6 +74,42 @@ export const Dashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedApplication) return;
+
+    try {
+      const { error } = await apiService.delete(`/api/spec/applications/${selectedApplication.id}`);
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: 'Success',
+        description: 'Job application deleted successfully.',
+        status: 'success',
+        duration: 5000,
+        isClosable: true,
+      });
+
+      setJobApplications(jobApplications.filter((app) => app.id !== selectedApplication.id));
+      onClose();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: `Failed to delete job application: ${error.message}`,
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const onOpenDelete = (application: JobApplication) => {
+    setSelectedApplication(application);
+    onOpen();
   };
 
   const handleCreateNew = () => {
@@ -289,29 +337,39 @@ export const Dashboard: React.FC = () => {
                         ? `Submitted ${new Date(application.created_at).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}`
                         : `Started ${new Date(application.created_at).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}`}
                     </Text>
-                    <Button
-                      className="continue-button"
-                      w="100%"
-                      bg="rgba(139,92,246,0.06)"
-                      border="0.5px solid rgba(139,92,246,0.15)"
-                      color={purple}
-                      py={3}
-                      borderRadius="8px"
-                      fontWeight={600}
-                      fontSize="14px"
-                      letterSpacing="-0.01em"
-                      _hover={{
-                        bgGradient: purpleGradient,
-                        color: 'white',
-                        borderColor: 'transparent',
-                        transform: 'translateY(-1px)',
-                        boxShadow: '0 4px 16px rgba(139,92,246,0.25)',
-                      }}
-                      _active={{ transform: 'translateY(0)' }}
-                      onClick={() => navigate(`/applications/${application.id}`)}
-                    >
-                      {badge.label === 'SUBMITTED' ? 'View Application' : 'Continue Application'}
-                    </Button>
+                    <HStack spacing={2}>
+                      <Button
+                        className="continue-button"
+                        w="100%"
+                        bg="rgba(139,92,246,0.06)"
+                        border="0.5px solid rgba(139,92,246,0.15)"
+                        color={purple}
+                        py={3}
+                        borderRadius="8px"
+                        fontWeight={600}
+                        fontSize="14px"
+                        letterSpacing="-0.01em"
+                        _hover={{
+                          bgGradient: purpleGradient,
+                          color: 'white',
+                          borderColor: 'transparent',
+                          transform: 'translateY(-1px)',
+                          boxShadow: '0 4px 16px rgba(139,92,246,0.25)',
+                        }}
+                        _active={{ transform: 'translateY(0)' }}
+                        onClick={() => navigate(`/applications/${application.id}`)}
+                      >
+                        {badge.label === 'SUBMITTED' ? 'View Application' : 'Continue Application'}
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => onOpenDelete(application)}
+                        variant="ghost"
+                        colorScheme="red"
+                      >
+                        <DeleteIcon />
+                      </Button>
+                    </HStack>
                   </Box>
                 );
               })}
@@ -319,6 +377,32 @@ export const Dashboard: React.FC = () => {
           </Box>
         </Box>
       </Box>
+      <AlertDialog
+        isOpen={isOpen}
+        leastDestructiveRef={cancelRef}
+        onClose={onClose}
+      >
+        <AlertDialogOverlay>
+          <AlertDialogContent>
+            <AlertDialogHeader fontSize="lg" fontWeight="bold">
+              Delete Job Application
+            </AlertDialogHeader>
+
+            <AlertDialogBody>
+              Are you sure you want to delete this job application? This action cannot be undone.
+            </AlertDialogBody>
+
+            <AlertDialogFooter>
+              <Button ref={cancelRef} onClick={onClose}>
+                Cancel
+              </Button>
+              <Button colorScheme="red" onClick={handleDelete} ml={3}>
+                Delete
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
     </Box>
   );
-}; 
+};
